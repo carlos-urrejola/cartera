@@ -192,6 +192,18 @@ input[type=checkbox]{width:auto!important;flex:none}
 details.card summary{cursor:pointer;font-weight:600}
 .sw-ok{background:var(--ok)} .sw-warn{background:var(--warn)} .sw-bad{background:var(--bad)}
 .hb-row.link{cursor:pointer}
+.lnk{cursor:pointer;background:none}
+.lnkh{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.lnkh:hover{text-decoration-color:currentColor}
+.kpi-btn{text-align:left;cursor:pointer;font:inherit;color:inherit;width:100%}
+.kpi-btn:hover{border-color:var(--muted)}
+.kpi-btn .val::after{content:" ›";color:var(--muted);font-size:14px}
+.drow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line);background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.drow:last-child{border-bottom:0}
+.drow:hover{background:var(--surface-2)}
+.drow .sub{font-size:12px;color:var(--muted)}
+.dsum{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:14px}
+.dsum .tot{font-weight:700;border-top:1px solid var(--line);padding-top:4px}
 /* mapa de calor: un solo tono, de la superficie (poco) al azul (mucho); 2px de separación entre celdas */
 table.hm{border-collapse:separate;border-spacing:0}
 table.hm th.c,table.hm td.c{text-align:center;min-width:64px}
@@ -392,7 +404,7 @@ function liquido(litros,cobradoK){
   const grat=c.grat?Math.min(.25*(base+com),(4.75*c.imm/12)*(c.horas/42)):0;
   const liqB=(base+com+grat)*(1-c.desc/100);
   const comK=cobradoK*c.pctK/100, liqK=comK*(1-c.ret/100);
-  return{com,comK,liqB,liqK,total:liqB+liqK};
+  return{base,com,grat,comK,liqB,liqK,total:liqB+liqK};
 }
 function resumenMes(mes,scope=S.scope){
   const inMes=f=>f&&f.slice(0,7)===mes;
@@ -485,19 +497,20 @@ function vResumen(){
       <div class="meter" role="img" aria-label="El Growler ${money(r.liqB)}, kombucha ${money(r.liqK)}, meta ${money(c.meta)}"><span class="b" style="width:${r.liqB/scale*100}%"></span><span class="k" style="width:${r.liqK/scale*100}%"></span></div>
       <div class="legend"><span><i class="sw beer"></i>El Growler <b class="num">${money(r.liqB)}</b></span><span><i class="sw kom"></i>Kombucha <b class="num">${money(r.liqK)}</b></span></div>
       <div class="muted small">Growler: base ${c.horas} h + ${money(c.comL)}/L${c.grat?" + gratificación":""}. Kombucha: ${c.pctK}% sobre lo cobrado en el mes.</div>
+      <div><button class="btn sm" data-act="drill" data-k="liquido">Ver desglose ›</button></div>
     </div>
   </section>`:""}
   <section class="kpis">
-    <div class="kpi"><span class="lab"><i class="sw beer"></i>Litros cerveza</span><span class="val">${n1(r.litros)} L</span><span class="muted small">${r.nC} ventas · ${money(r.netoC)} neto</span></div>
-    <div class="kpi"><span class="lab"><i class="sw kom"></i>Cajas kombucha</span><span class="val">${n1(r.cajasK)}</span><span class="muted small">${r.nK} ventas · ${money(r.netoK)} neto</span></div>
-    ${can("ver_cobranza")?`<div class="kpi"><span class="lab">Por cobrar (con IVA)</span><span class="val">${money(porCobrar)}</span><span class="muted small">Vencido: ${money(vencido)}</span></div>`:""}
-    <div class="kpi"><span class="lab">Clientes</span><span class="val">${activos} activos</span><span class="muted small">${prosp} prospectos</span></div>
+    <button class="kpi kpi-btn" data-act="drill" data-k="cerveza"><span class="lab"><i class="sw beer"></i>Litros cerveza</span><span class="val">${n1(r.litros)} L</span><span class="muted small">${r.nC} ventas · ${money(r.netoC)} neto</span></button>
+    <button class="kpi kpi-btn" data-act="drill" data-k="kombucha"><span class="lab"><i class="sw kom"></i>Cajas kombucha</span><span class="val">${n1(r.cajasK)}</span><span class="muted small">${r.nK} ventas · ${money(r.netoK)} neto</span></button>
+    ${can("ver_cobranza")?`<button class="kpi kpi-btn" data-act="drill" data-k="cobrar"><span class="lab">Por cobrar (con IVA)</span><span class="val">${money(porCobrar)}</span><span class="muted small">Vencido: ${money(vencido)}</span></button>`:""}
+    <button class="kpi kpi-btn" data-act="drill" data-k="clientes"><span class="lab">Clientes</span><span class="val">${activos} activos</span><span class="muted small">${prosp} prospectos</span></button>
   </section>
   <section class="kpis">
-    <div class="kpi"><span class="lab">Ruta de hoy</span><span class="val">${pend} por visitar</span><span class="muted small"><button class="btn link small" style="font-size:13px" data-tab="ruta">Ver ruta de ${DIAS_L[wday(today())]} ›</button></span></div>
-    <div class="kpi"><span class="lab">Visitas del mes</span><span class="val">${r.visitas}</span><span class="muted small">${r.activ} activaciones</span></div>
-    <div class="kpi"><span class="lab">Muestras del mes</span><span class="val">${n1(r.muC+r.muK)}</span><span class="muted small"><i class="sw beer"></i> ${n1(r.muC)} cerveza · <i class="sw kom"></i> ${n1(r.muK)} kombucha</span></div>
-    <div class="kpi"><span class="lab">Conversión 60 días</span><span class="val">${cv.total?Math.round(cv.conv/cv.total*100)+"%":"—"}</span><span class="muted small">${cv.conv} de ${cv.total} activados compraron</span></div>
+    <button class="kpi kpi-btn" data-act="drill" data-k="ruta"><span class="lab">Ruta de hoy</span><span class="val">${pend} por visitar</span><span class="muted small">Ver ruta de ${DIAS_L[wday(today())]} ›</span></button>
+    <button class="kpi kpi-btn" data-act="drill" data-k="visitas"><span class="lab">Visitas del mes</span><span class="val">${r.visitas}</span><span class="muted small">${r.activ} activaciones</span></button>
+    <button class="kpi kpi-btn" data-act="drill" data-k="muestras"><span class="lab">Muestras del mes</span><span class="val">${n1(r.muC+r.muK)}</span><span class="muted small"><i class="sw beer"></i> ${n1(r.muC)} cerveza · <i class="sw kom"></i> ${n1(r.muK)} kombucha</span></button>
+    <button class="kpi kpi-btn" data-act="drill" data-k="conversion"><span class="lab">Conversión 60 días</span><span class="val">${cv.total?Math.round(cv.conv/cv.total*100)+"%":"—"}</span><span class="muted small">${cv.conv} de ${cv.total} activados compraron</span></button>
   </section>
   ${muRows.length?`<section class="card"><h3 style="margin-bottom:6px">Muestras entregadas en ${mesLabel(S.mes)}</h3><div class="tbox"><table><thead><tr><th>Variedad</th><th class="r">Cantidad</th></tr></thead><tbody>${muRows.map(([k,n])=>{const[m,nom,u]=k.split("|");return `<tr><td><span class="row" style="gap:6px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>${esc(nom)}</span></td><td class="r num">${n1(n)} ${esc(u)}${n===1?"":"s"}</td></tr>`}).join("")}</tbody></table></div></section>`:""}
   <section class="card"><div class="row spread" style="margin-bottom:6px"><h2>Qué atender</h2><span class="muted small">${al.length} alertas</span></div>
@@ -601,13 +614,14 @@ function ixLineas(){
       out.push({marca:v.marca,...i,clienteId:v.clienteId,zona:cl?.zona||"Sin zona",unidades:it.cant||0,litros:(it.cant||0)*(it.litrosU||0),neto:(it.cant||0)*(it.netoU||0)})}));
   return out;
 }
-const ixFmt=(n,m)=>m==="neto"?money(n):m==="unidades"?n1(n)+" u.":n1(n)+" L";
+const ixFmt=(n,m)=>m==="neto"?money(n):m==="unidades"?n1(n)+" u.":m==="cuenta"?n1(n):n1(n)+" L";
 /* barras horizontales apiladas: filas [{lab,segs:[{k,sw,v,nombre}]}] */
 function hbars(filas,medida){
   const max=Math.max(...filas.map(f=>f.segs.reduce((s,x)=>s+x.v,0)),0)||1;
   return `<div class="hb">${filas.map(f=>{const tot=f.segs.reduce((s,x)=>s+x.v,0);const segs=f.segs.filter(x=>x.v>0);
     const tip=`${f.lab}: ${ixFmt(tot,medida)}${segs.length>1?" · "+segs.map(x=>`${x.nombre}: ${ixFmt(x.v,medida)}`).join(" · "):""}`;
-    return `<div class="hb-row${f.id?" link":""}" tabindex="0" data-tip="${esc(tip)}"${f.id?` data-act="openClient" data-id="${f.id}"`:""}><span class="hb-lab" title="${esc(f.lab)}">${esc(f.lab)}</span><span class="hb-track"><span class="hb-bar" style="width:${tot/max*82}%">${segs.map(x=>`<i class="sw-${x.sw}" style="flex:${x.v}"></i>`).join("")}</span><span class="hb-val">${ixFmt(tot,medida)}</span></span></div>`}).join("")}</div>`;
+    const link=f.act?` data-act="${f.act}" data-k="${esc(f.arg)}"`:f.id?` data-act="openClient" data-id="${f.id}"`:"";
+    return `<div class="hb-row${link?" link":""}" tabindex="0" data-tip="${esc(tip)}"${link}><span class="hb-lab" title="${esc(f.lab)}">${esc(f.lab)}</span><span class="hb-track"><span class="hb-bar" style="width:${tot/max*82}%">${segs.map(x=>`<i class="sw-${x.sw}" style="flex:${x.v}"></i>`).join("")}</span><span class="hb-val">${ixFmt(tot,medida)}</span></span></div>`}).join("")}</div>`;
 }
 const leyenda=items=>items.length>1?`<div class="legend">${items.map(([sw,t])=>`<span><i class="sw sw-${sw}"></i>${esc(t)}</span>`).join("")}</div>`:"";
 function vIndices(){
@@ -642,7 +656,7 @@ function ixProductos(){
   const fmtFilas=Object.keys(FORMATOS).filter(k=>porF(k).length).map(k=>({lab:FORMATOS[k],segs:["cerveza","kombucha"].map(mk=>({k:mk,sw:MARCA_SW[mk],nombre:mk==="cerveza"?"Cerveza":"Kombucha",v:sum(porF(k).filter(r=>r.marca===mk),m)}))}));
   const estilos=[...new Set(L.map(r=>r.marca+"|"+r.estilo))];
   const estFilas=estilos.map(ke=>{const[mk,e]=ke.split("|"),rs=L.filter(r=>r.marca===mk&&r.estilo===e);
-    return{lab:e,segs:x.modo==="juntos"?[{k:mk,sw:MARCA_SW[mk],nombre:mk==="cerveza"?"Cerveza":"Kombucha",v:sum(rs,m)}]:Object.keys(FORMATOS).map(k=>({k,sw:FMT_SW[k],nombre:FORMATOS[k],v:sum(rs.filter(r=>r.formato===k),m)}))}})
+    return{lab:e,act:"drill",arg:"estilo:"+ke,segs:x.modo==="juntos"?[{k:mk,sw:MARCA_SW[mk],nombre:mk==="cerveza"?"Cerveza":"Kombucha",v:sum(rs,m)}]:Object.keys(FORMATOS).map(k=>({k,sw:FMT_SW[k],nombre:FORMATOS[k],v:sum(rs.filter(r=>r.formato===k),m)}))}})
     .sort((a,b)=>b.segs.reduce((s,y)=>s+y.v,0)-a.segs.reduce((s,y)=>s+y.v,0));
   const fmts=Object.keys(FORMATOS).filter(k=>porF(k).length);
   const tabla=[...new Set(L.map(r=>r.marca+"|"+r.estilo+"|"+r.formato))].map(k=>{const[mk,e,f]=k.split("|"),rs=L.filter(r=>r.marca===mk&&r.estilo===e&&r.formato===f);return{mk,e,f,u:sum(rs,"unidades"),l:sum(rs,"litros"),n:sum(rs,"neto")}}).sort((a,b)=>b.l-a.l);
@@ -671,9 +685,9 @@ function heatmap(marca,L,m,modo){
   const esc2=(z,e)=>{const v=val(z,e);return{v,sh:totZ[z]?v/totZ[z]:0}};
   let max=0;zonas.forEach(z=>estilos.forEach(e=>{const c=esc2(z,e);max=Math.max(max,modo==="mezcla"?c.sh:c.v)}));max=max||1;
   const corto=v=>m==="neto"?moneyK(v):n1(v);
-  const tabla=`<div class="tbox"><table class="hm"><thead><tr><th>Zona</th>${estilos.map(e=>`<th class="c">${esc(e)}</th>`).join("")}<th class="r">Total</th></tr></thead><tbody>
-    ${zonas.map(z=>`<tr><td>${esc(z)}</td>${estilos.map(e=>{const c=esc2(z,e),p=(modo==="mezcla"?c.sh:c.v)/max;
-      return `<td class="c${p>=.78?" hi":""}" style="--p:${p.toFixed(3)}" tabindex="0" data-tip="${esc(`${z} · ${e}: ${pctTxt(c.sh)} · ${ixFmt(c.v,m)}`)}"><span>${c.v?(modo==="mezcla"?pctTxt(c.sh):corto(c.v)):"–"}</span></td>`}).join("")}<td class="r num">${ixFmt(totZ[z],m)}</td></tr>`).join("")}
+  const tabla=`<div class="tbox"><table class="hm"><thead><tr><th>Zona</th>${estilos.map(e=>`<th class="c"><button class="lnkh" data-act="drill" data-k="${esc("estilo:"+marca+"|"+e)}">${esc(e)}</button></th>`).join("")}<th class="r">Total</th></tr></thead><tbody>
+    ${zonas.map(z=>`<tr><td>${z==="Sin zona"?esc(z):`<button class="lnkh" data-act="drill" data-k="${esc("zona:"+z)}">${esc(z)}</button>`}</td>${estilos.map(e=>{const c=esc2(z,e),p=(modo==="mezcla"?c.sh:c.v)/max;
+      return `<td class="c${p>=.78?" hi":""}" style="--p:${p.toFixed(3)};cursor:pointer" tabindex="0" data-act="drill" data-k="${esc("estilo:"+marca+"|"+e)}" data-tip="${esc(`${z} · ${e}: ${pctTxt(c.sh)} · ${ixFmt(c.v,m)}`)}"><span>${c.v?(modo==="mezcla"?pctTxt(c.sh):corto(c.v)):"–"}</span></td>`}).join("")}<td class="r num">${ixFmt(totZ[z],m)}</td></tr>`).join("")}
   </tbody></table></div>`;
   // lectura: lo que más sale en cada zona y qué estilos conviene ofrecer
   const tops=Object.fromEntries(zonas.map(z=>[z,estilos.map(e=>[e,esc2(z,e).sh]).sort((a,b)=>b[1]-a[1]).filter(x=>x[1]>0)]));
@@ -683,7 +697,7 @@ function heatmap(marca,L,m,modo){
   const sinVentas=S.cfg.zonas.filter(z=>!zonas.includes(z));
   const lectura=`<div class="stack" style="gap:8px">
     ${zonas.length>1&&fav?`<div class="small"><b>${esc(fav)}</b> es lo más vendido en ${nFav} de ${zonas.length} zonas.</div>`:""}
-    <div class="zgridcards">${zonas.map(z=>{const o=ofrecer(z);return `<div class="zcard"><b>${esc(z)}</b>
+    <div class="zgridcards">${zonas.map(z=>{const o=ofrecer(z);return `<div class="zcard">${z==="Sin zona"?`<b>${esc(z)}</b>`:`<button class="lnkh" style="font-weight:700;text-align:left" data-act="drill" data-k="${esc("zona:"+z)}">${esc(z)} ›</button>`}
       <div class="small">Lo que más sale: ${tops[z].slice(0,2).map(([e,s])=>`${esc(e)} (${pctTxt(s)})`).join(", ")}</div>
       ${o.length?`<div class="small">Para ofrecer: <b>${o.map(esc).join(", ")}</b></div>`:""}</div>`}).join("")}</div>
     ${sinVentas.length?`<div class="small muted">Zonas sin ventas en este período: ${sinVentas.map(esc).join(", ")}. Buena oportunidad para llevar ${estilos.slice(0,2).map(esc).join(" y ")}.</div>`:""}
@@ -801,6 +815,165 @@ function ixSueldo(){
   </tbody></table></div></details>`;
 }
 
+/* ---------- detalle al tocar un cuadro del Resumen ---------- */
+S.drillSub="activo";
+const dMine=x=>S.scope!=="mias"||x.creado_por===ME.user?.id;
+const dMes=f=>f&&f.slice(0,7)===S.mes;
+const btnVolver=()=>S.pila?.length?`<button class="btn sm" data-act="volver">‹ Volver</button>`:"";
+const dHdr=(t,sub)=>`<div class="row spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="row" style="flex-wrap:nowrap;align-items:flex-start">${btnVolver()}<div><h2>${t}</h2>${sub?`<div class="muted small">${sub}</div>`:""}</div></div><button class="btn sm" data-act="close">Cerrar</button></div>`;
+/* navegación conectada: cada ficha (cliente, zona, estilo o cuadro) recuerda de dónde vino */
+S.pila=[];
+function navPush(){
+  if(!$("#modal").innerHTML){S.pila=[];return}
+  if($("#modal .drill"))S.pila.push({t:"drill",k:S.drillK});
+  else if(S.openDetail)S.pila.push({t:"cli",id:S.openDetail});
+}
+function navVolver(){const p=S.pila.pop();if(!p)return closeSheet();p.t==="drill"?drillSheet(p.k):clientDetail(p.id)}
+const lnkZona=z=>z&&z!=="Sin zona"?`<button class="chip strong lnk" data-act="drill" data-k="${esc("zona:"+z)}">${esc(z)} ›</button>`:"";
+const hace6m=()=>shiftMes(today().slice(0,7),-5)+"-01";
+function lineasDesde(desde,filtro=()=>true){
+  return S.ventas.filter(v=>(v.fecha||"")>=desde&&filtro(v)).flatMap(v=>(v.items||[]).map(it=>{const cl=S.clientes.find(c=>c.id===v.clienteId);
+    return{marca:v.marca,...infoItem(it),clienteId:v.clienteId,zona:cl?.zona||"Sin zona",mes:(v.fecha||"").slice(0,7),unidades:it.cant||0,litros:(it.cant||0)*(it.litrosU||0),neto:(it.cant||0)*(it.netoU||0)}}));
+}
+function dZona(z){
+  const cs=S.clientes.filter(c=>(c.zona||"Sin zona")===z).sort((a,b)=>impOf(a).localeCompare(impOf(b))||a.nombre.localeCompare(b.nombre));
+  const L=lineasDesde(hace6m(),v=>cs.some(c=>c.id===v.clienteId));
+  const est=[...new Set(L.map(r=>r.marca+"|"+r.estilo))].map(k=>{const[mk,e]=k.split("|");return{lab:e,act:"drill",arg:"estilo:"+k,segs:[{k:mk,sw:MARCA_SW[mk],nombre:mk,v:sumM(L.filter(r=>r.marca===mk&&r.estilo===e),"litros")}]}}).sort((a,b)=>b.segs[0].v-a.segs[0].v);
+  const deuda=S.ventas.filter(v=>!v.pagado&&cs.some(c=>c.id===v.clienteId)).reduce((s,v)=>s+(v.neto||0)*1.19,0);
+  const dias=Object.entries(S.cfg.zonasDia).filter(([,zs])=>zs.includes(z)).map(([d])=>DIAS_L[d]);
+  return dHdr("Zona "+z,`${cs.length} clientes${dias.length?" · se visita el "+dias.join(", "):""}`)+
+   `<section class="kpis"><div class="kpi"><span class="lab">Litros 6 meses</span><span class="val">${n1(sumM(L,"litros"))} L</span></div>
+    ${can("ver_cobranza")?`<div class="kpi"><span class="lab">Por cobrar (con IVA)</span><span class="val">${money(deuda)}</span></div>`:""}
+    <div class="kpi"><span class="lab">Activos</span><span class="val">${cs.filter(c=>c.estado==="activo").length}</span><span class="muted small">${cs.filter(c=>c.estado==="prospecto").length} prospectos</span></div></section>
+   ${est.length?`<section class="card stack"><div><h3>Lo que se vende aquí</h3><div class="muted small">Litros de los últimos 6 meses · toca un estilo para ver quién lo compra</div></div>${hbars(est,"litros")}</section>`:""}
+   <section class="card"><h3 style="margin-bottom:4px">Clientes de la zona</h3>${cs.length?cs.map(c=>dFila(c.id,[c.tipo,ESTADOS[c.estado],ultimaCompra(c.id)].filter(Boolean).map(esc).join(" · "),pill(worst([semPago(c),semRecompra(c),semSeg(c),semVisita(c)])))).join(""):`<div class="muted small">Sin clientes.</div>`}</section>`;
+}
+function dEstilo(mk,e){
+  const L=lineasDesde(hace6m(),v=>v.marca===mk).filter(r=>r.estilo===e);
+  const ids=[...new Set(L.map(r=>r.clienteId))];
+  const porCli=ids.map(id=>({lab:cliNom(id),id:S.clientes.some(c=>c.id===id)?id:null,segs:[{k:mk,sw:MARCA_SW[mk],nombre:mk,v:sumM(L.filter(r=>r.clienteId===id),"litros")}]})).sort((a,b)=>b.segs[0].v-a.segs[0].v);
+  const porZona=[...new Set(L.map(r=>r.zona))].map(z=>({lab:z,act:z!=="Sin zona"?"drill":null,arg:"zona:"+z,segs:[{k:mk,sw:MARCA_SW[mk],nombre:mk,v:sumM(L.filter(r=>r.zona===z),"litros")}]})).sort((a,b)=>b.segs[0].v-a.segs[0].v);
+  const meses=[];for(let i=5;i>=0;i--)meses.push(shiftMes(today().slice(0,7),-i));
+  const porMes=meses.map(m=>({lab:mesLabel(m),segs:[{k:mk,sw:MARCA_SW[mk],nombre:mk,v:sumM(L.filter(r=>r.mes===m),"litros")}]}));
+  const candidatos=S.clientes.filter(c=>c.estado!=="pausado"&&(c.marcas||[]).includes(mk)&&!ventasDe(c.id).some(v=>(v.items||[]).some(it=>infoItem(it).estilo===e)));
+  return dHdr(e,`${mk==="cerveza"?"Cerveza":"Kombucha"} · últimos 6 meses`)+
+   `<section class="kpis"><div class="kpi"><span class="lab">Litros</span><span class="val">${n1(sumM(L,"litros"))} L</span></div><div class="kpi"><span class="lab">Clientes que lo compran</span><span class="val">${ids.length}</span></div></section>
+   ${porCli.length?`<section class="card stack"><h3>Quién lo compra</h3>${hbars(porCli,"litros")}</section><section class="card stack"><h3>En qué zonas</h3>${hbars(porZona,"litros")}</section><section class="card stack"><h3>Mes a mes</h3>${hbars(porMes,"litros")}</section>`:`<div class="empty">Nadie lo ha comprado en los últimos 6 meses.</div>`}
+   ${candidatos.length?`<section class="card"><div style="margin-bottom:4px"><h3>Para ofrecérselo</h3><div class="muted small">Clientes de ${mk} que nunca lo han comprado</div></div>${candidatos.map(c=>dFila(c.id,[c.zona,c.tipo,ultimaCompra(c.id)].filter(Boolean).map(esc).join(" · "))).join("")}</section>`:""}`;
+}
+const cliNom=id=>S.clientes.find(c=>c.id===id)?.nombre||"(cliente borrado)";
+function dFila(id,sub,der=""){
+  const c=S.clientes.find(x=>x.id===id);
+  return `<button class="drow"${c?` data-act="openClient" data-id="${id}"`:""}>${c?impBadge(c):"<span></span>"}<span><b style="font-weight:600">${esc(c?c.nombre:"(cliente borrado)")}</b>${sub?`<div class="sub">${sub}</div>`:""}</span><span>${der}</span></button>`;
+}
+function ultimaCompra(id){const f=ventasDe(id).map(v=>v.fecha).filter(Boolean).sort().pop();return f?`Última compra hace ${days(f,today())} días`:"Sin compras"}
+function dVentasMarca(marca){
+  const vs=S.ventas.filter(v=>v.marca===marca&&dMes(v.fecha)&&dMine(v)).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  const m=marca==="cerveza"?"litros":"unidades",sw=MARCA_SW[marca],plata=can("ver_cobranza");
+  if(!vs.length)return `<div class="empty">No hay ventas de ${marca} en ${mesLabel(S.mes)}.</div>`;
+  const L=vs.flatMap(v=>(v.items||[]).map(it=>({...infoItem(it),clienteId:v.clienteId,unidades:it.cant||0,litros:(it.cant||0)*(it.litrosU||0)})));
+  const agrupa=(key,lab,id)=>[...new Set(L.map(key))].map(k=>({lab:lab(k),id:id?id(k):null,segs:[{k:marca,sw,nombre:marca,v:sumM(L.filter(r=>key(r)===k),m)}]})).sort((a,b)=>b.segs[0].v-a.segs[0].v);
+  const est=agrupa(r=>r.estilo+"|"+r.formato,k=>{const[e,f]=k.split("|");return `${e} · ${FORMATOS[f]||f}`}).map(x=>({...x,act:"drill",arg:"estilo:"+marca+"|"+x.lab.split(" · ")[0]}));
+  const cli=agrupa(r=>r.clienteId,k=>cliNom(k),k=>S.clientes.some(c=>c.id===k)?k:null);
+  return `<section class="card stack"><h3>Por producto</h3>${hbars(est,m)}</section>
+    <section class="card stack"><div><h3>Por cliente</h3><div class="muted small">Toca uno para ver su ficha</div></div>${hbars(cli,m)}</section>
+    <section class="card"><h3 style="margin-bottom:4px">Ventas (${vs.length})</h3>${vs.map(v=>dFila(v.clienteId,`${fdate(v.fecha)} · ${(v.items||[]).map(it=>`${n1(it.cant)} × ${esc(infoItem(it).estilo)}`).join(", ")}`,`<span class="num small">${marca==="cerveza"?n1(v.litros)+" L":n1(v.cajas)+" cajas"}${plata?`<br>${money(v.neto)}`:""}</span>`)).join("")}</section>`;
+}
+function drillSheet(k){
+  S.drillK=k;const c=S.cfg,mes=mesLabel(S.mes);let h="";
+  if(k.startsWith("zona:"))h=dZona(k.slice(5));
+  else if(k.startsWith("estilo:")){const[mk,e]=k.slice(7).split("|");h=dEstilo(mk,e)}
+  else if(k==="liquido"){
+    const r=resumenMes(S.mes),L=liquido(r.litros,r.cobradoK),bruto=L.base+L.com+L.grat;
+    const fila=(t,v,cls="")=>`<span class="${cls}">${t}</span><span class="num ${cls}" style="text-align:right">${v}</span>`;
+    const topC=[...new Set(S.ventas.filter(v=>v.marca==="cerveza"&&dMes(v.fecha)&&dMine(v)).map(v=>v.clienteId))].map(id=>({lab:cliNom(id),id:S.clientes.some(x=>x.id===id)?id:null,segs:[{k:"c",sw:"beer",nombre:"Cerveza",v:S.ventas.filter(v=>v.clienteId===id&&v.marca==="cerveza"&&dMes(v.fecha)&&dMine(v)).reduce((s,v)=>s+(v.litros||0),0)*c.comL}]})).sort((a,b)=>b.segs[0].v-a.segs[0].v).slice(0,8);
+    h=dHdr("Desglose del sueldo",mes)+`<section class="card"><div class="dsum">
+      ${fila(`Sueldo base (${c.horas} de 42 h)`,money(L.base))}${fila(`Comisión cerveza (${n1(r.litros)} L × ${money(c.comL)})`,money(L.com))}
+      ${c.grat?fila("Gratificación legal",money(L.grat)):""}${fila(`Descuentos legales (${c.desc}%)`,"−"+money(bruto*c.desc/100))}
+      ${fila("Líquido El Growler",money(L.liqB),"tot")}
+      ${fila("Kombucha cobrada en el mes (neto)",money(r.cobradoK))}${fila(`Comisión kombucha (${c.pctK}%)`,money(L.comK))}${fila(`Retención boleta (${c.ret}%)`,"−"+money(L.comK*c.ret/100))}
+      ${fila("Líquido kombucha",money(L.liqK),"tot")}
+      ${fila("Total estimado",money(L.total),"tot")}${fila("Meta",money(c.meta))}${fila(L.total>=c.meta?"Sobre la meta":"Falta para la meta",money(Math.abs(c.meta-L.total)))}
+    </div></section>
+    ${topC.length?`<section class="card stack"><div><h3>Quién aporta tu comisión de cerveza</h3><div class="muted small">Comisión bruta por cliente este mes</div></div>${hbars(topC,"neto")}</section>`:""}
+    <button class="btn" data-act="goIx" data-v="sueldo">Ver Índices › Sueldo y meta</button>`;
+  }
+  else if(k==="cerveza")h=dHdr("Cerveza vendida",mes)+dVentasMarca("cerveza");
+  else if(k==="kombucha")h=dHdr("Kombucha vendida",mes)+dVentasMarca("kombucha");
+  else if(k==="cobrar"){
+    const t=today(),pend=S.ventas.filter(v=>!v.pagado);
+    const ids=[...new Set(pend.map(v=>v.clienteId))].map(id=>{const ps=pend.filter(v=>v.clienteId===id);return{id,monto:ps.reduce((s,v)=>s+(v.neto||0)*1.19,0),n:ps.length,max:Math.max(...ps.map(v=>days(v.vence||v.fecha,t)))}}).sort((a,b)=>b.max-a.max||b.monto-a.monto);
+    const tot=ids.reduce((s,x)=>s+x.monto,0);
+    h=dHdr("Por cobrar",`${money(tot)} con IVA · ${pend.length} facturas`)+(ids.length?`<section class="card">${ids.map(x=>{const s=x.max>c.tolPago?{level:"bad",short:`Vencida ${x.max} d`}:x.max>=0?{level:"warn",short:x.max===0?"Vence hoy":`Vencida ${x.max} d`}:{level:"ok",short:"En plazo"};
+      return dFila(x.id,`${x.n} ${x.n===1?"factura":"facturas"}`,`<span class="num small">${money(x.monto)}</span><br>${pill(s)}`)}).join("")}</section>
+      <button class="btn" data-act="goIx" data-v="cobranza">Ver Índices › Cobranza</button>`:`<div class="empty">No hay facturas por cobrar.</div>`);
+  }
+  else if(k==="clientes"){
+    const st=S.drillSub,cs=S.clientes.filter(x=>x.estado===st).sort((a,b)=>impOf(a).localeCompare(impOf(b))||a.nombre.localeCompare(b.nombre));
+    const n=e=>S.clientes.filter(x=>x.estado===e).length;
+    h=dHdr("Clientes")+`<div class="seg" role="group" aria-label="Estado">${Object.entries(ESTADOS).map(([e,l])=>`<button data-act="drillSub" data-v="${e}" aria-pressed="${st===e}">${l} (${n(e)})</button>`).join("")}</div>
+      ${cs.length?`<section class="card">${cs.map(x=>dFila(x.id,[x.zona,x.tipo,ultimaCompra(x.id)].filter(Boolean).map(esc).join(" · "),pill(worst([semPago(x),semRecompra(x),semSeg(x),semVisita(x)])))).join("")}</section>`:`<div class="empty">No hay clientes en este estado.</div>`}`;
+  }
+  else if(k==="ruta"){
+    const p=planDia(today()),pend=p.items.filter(i=>!i.done);
+    h=dHdr(`Ruta de hoy`,`${DIAS_L[wday(today())]} · ${pend.length} por visitar de ${p.items.length}`)+(pend.length?`<section class="card">${pend.map(it=>dFila(it.c.id,[it.zona,...it.why.map(w=>w.t)].map(esc).join(" · "),pill(semVisita(it.c)))).join("")}</section>`:`<div class="empty">Nada pendiente para hoy.</div>`)+`<button class="btn primary" data-tab="ruta">Ir a la ruta</button>`;
+  }
+  else if(k==="visitas"){
+    const as=S.acts.filter(a=>dMes(a.fecha)&&dMine(a)).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+    const tipos=[...new Set(as.map(a=>a.tipo))].map(t=>({lab:t,segs:[{k:t,sw:"f1",nombre:t,v:as.filter(a=>a.tipo===t).length}]})).sort((a,b)=>b.segs[0].v-a.segs[0].v);
+    h=dHdr("Visitas y registros",mes)+(as.length?`<section class="card stack"><h3>Por tipo</h3>${hbars(tipos,"cuenta")}</section>
+      <section class="card"><h3 style="margin-bottom:4px">Registros (${as.length})</h3>${as.map(a=>dFila(a.clienteId,`${fdate(a.fecha)} · ${esc(a.tipo)}${(a.muestras||[]).length?" · con muestras":""}`,a.resultado?`<span class="chip">${esc(a.resultado)}</span>`:"")).join("")}</section>`:`<div class="empty">Sin visitas registradas en ${mes}.</div>`);
+  }
+  else if(k==="muestras"){
+    const as=S.acts.filter(a=>dMes(a.fecha)&&dMine(a)&&(a.muestras||[]).length).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+    const mu=as.flatMap(a=>a.muestras.map(m=>({...m,clienteId:a.clienteId,fecha:a.fecha})));
+    const vari=[...new Set(mu.map(m=>m.marca+"|"+m.nombre))].map(key=>{const[mk,nom]=key.split("|");return{lab:nom,segs:[{k:mk,sw:MARCA_SW[mk],nombre:mk,v:mu.filter(m=>m.marca===mk&&m.nombre===nom).reduce((s,m)=>s+m.cant,0)}]}}).sort((a,b)=>b.segs[0].v-a.segs[0].v);
+    h=dHdr("Muestras entregadas",mes)+(as.length?`<section class="card stack"><h3>Por variedad</h3>${hbars(vari,"cuenta")}</section>
+      <section class="card"><h3 style="margin-bottom:4px">A quién (${as.length})</h3>${as.map(a=>dFila(a.clienteId,`${fdate(a.fecha)} · ${a.muestras.map(m=>`${n1(m.cant)} ${esc(m.nombre)}`).join(", ")}`,a.resultado?`<span class="chip">${esc(a.resultado)}</span>`:"")).join("")}</section>`:`<div class="empty">No entregaste muestras en ${mes}.</div>`);
+  }
+  else if(k==="conversion"){
+    const desde=addDays(today(),-60),act=S.acts.filter(a=>a.fecha>=desde&&(a.tipo==="Activación / degustación"||(a.muestras||[]).length));
+    const ids=[...new Set(act.map(a=>a.clienteId))].map(id=>{const first=act.filter(a=>a.clienteId===id).map(a=>a.fecha).sort()[0];const compra=ventasDe(id).filter(v=>v.fecha>=first).map(v=>v.fecha).sort()[0];return{id,first,compra}}).sort((a,b)=>(!!a.compra)-(!!b.compra)||a.first.localeCompare(b.first));
+    const conv=ids.filter(x=>x.compra).length;
+    h=dHdr("Conversión 60 días",`${conv} de ${ids.length} clientes activados compraron`)+(ids.length?`<section class="card">${ids.map(x=>dFila(x.id,`Activado el ${fdate(x.first)}${x.compra?` · compró el ${fdate(x.compra)} (${days(x.first,x.compra)} días después)`:` · hace ${days(x.first,today())} días`}`,pill(x.compra?{level:"ok",short:"Compró"}:{level:"warn",short:"Aún no"}))).join("")}</section>
+      <div class="muted small">Primero aparecen los que aún no compran: son los que conviene visitar.</div>`:`<div class="empty">No hubo activaciones ni muestras en los últimos 60 días.</div>`);
+  }
+  openSheet(`<div class="drill stack">${h}</div>`);
+}
+
+/* análisis de compras en la ficha del cliente */
+function analisisCliente(cl){
+  const vs=ventasDe(cl.id).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")),plata=can("ver_cobranza");
+  const catalogo=[...new Set(S.cfg.productos.filter(p=>(cl.marcas||[]).includes(p.marca)).map(p=>p.estilo).filter(Boolean))];
+  if(!vs.length)return `<div class="card stack" style="gap:6px"><h3>Compras</h3><div class="muted small">Aún no compra.${catalogo.length?` Para partir, ofrécele: ${catalogo.slice(0,4).map(esc).join(", ")}.`:""}</div></div>`;
+  const L=vs.flatMap(v=>(v.items||[]).map(it=>({marca:v.marca,...infoItem(it),cant:it.cant||0,litros:(it.cant||0)*(it.litrosU||0),neto:(it.cant||0)*(it.netoU||0),venta:v.id})));
+  const litros=sumM(L,"litros"),neto=sumM(L,"neto");
+  const fechas=[...new Set(vs.map(v=>v.fecha).filter(Boolean))].sort();
+  const cada=fechas.length>1?days(fechas[0],fechas.at(-1))/(fechas.length-1):null,hace=days(fechas.at(-1),today());
+  const prods=[...new Set(L.map(r=>r.marca+"|"+r.estilo+"|"+r.formato))].map(k=>{const[mk,e,f]=k.split("|"),rs=L.filter(r=>r.marca===mk&&r.estilo===e&&r.formato===f);
+    return{mk,lab:`${e} · ${FORMATOS[f]||f}`,estilo:e,litros:sumM(rs,"litros"),cant:sumM(rs,"cant"),veces:new Set(rs.map(r=>r.venta)).size}}).sort((a,b)=>b.litros-a.litros);
+  const comprados=new Set(prods.map(p=>p.estilo)),nunca=catalogo.filter(e=>!comprados.has(e));
+  const meses=[];for(let i=5;i>=0;i--)meses.push(shiftMes(today().slice(0,7),-i));
+  const porMes=meses.map(m=>({lab:mesLabel(m),segs:["cerveza","kombucha"].map(mk=>({k:mk,sw:MARCA_SW[mk],nombre:mk==="cerveza"?"Cerveza":"Kombucha",v:sumM(L.filter(r=>r.marca===mk&&vs.find(v=>v.id===r.venta)?.fecha?.slice(0,7)===m),"litros")}))}));
+  const pag=vs.filter(v=>v.pagado&&v.fechaPago),diasPago=pag.length?pag.reduce((s,v)=>s+Math.max(0,days(v.fecha,v.fechaPago)),0)/pag.length:null;
+  const menos=prods.length>1?prods.at(-1):null;
+  return `<div class="card stack"><h3>Compras</h3>
+    <div class="kpis">
+      <div class="kpi"><span class="lab">Compras</span><span class="val">${vs.length}</span><span class="muted small">${n1(litros)} L en total</span></div>
+      <div class="kpi"><span class="lab">Frecuencia</span><span class="val">${cada===null?"—":"cada "+Math.round(cada)+" d"}</span><span class="muted small">Última hace ${hace} días</span></div>
+      ${plata?`<div class="kpi"><span class="lab">Ticket promedio</span><span class="val">${money(neto/vs.length)}</span><span class="muted small">${money(neto)} neto en total</span></div>`:""}
+      ${diasPago!==null?`<div class="kpi"><span class="lab">Paga en</span><span class="val">${n1(diasPago)} días</span><span class="muted small">promedio</span></div>`:""}
+    </div>
+    <div class="stack" style="gap:4px">
+      <div class="small"><b>Lo que más compra:</b> ${esc(prods[0].lab)} (${n1(prods[0].litros)} L en ${prods[0].veces} ${prods[0].veces===1?"compra":"compras"})</div>
+      ${menos?`<div class="small"><b>Lo que menos compra:</b> ${esc(menos.lab)} (${n1(menos.litros)} L)</div>`:""}
+      ${nunca.length?`<div class="small"><b>Nunca ha comprado:</b> ${nunca.slice(0,5).map(esc).join(", ")} · para ofrecerle</div>`:""}
+    </div>
+    <div><div class="muted small" style="margin-bottom:4px">Productos (litros)</div>${hbars(prods.map(p=>({lab:p.lab,act:"drill",arg:"estilo:"+p.mk+"|"+p.estilo,segs:[{k:p.mk,sw:MARCA_SW[p.mk],nombre:p.mk,v:p.litros}]})),"litros")}</div>
+    <div><div class="muted small" style="margin-bottom:4px">Últimos 6 meses (litros)</div>${hbars(porMes,"litros")}</div>
+  </div>`;
+}
+
 function vAjustes(){
   const c=S.cfg;
   const f=(id,label,val,step="1",hint="")=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" type="number" step="${step}" value="${val}">${hint?`<span class="muted small">${hint}</span>`:""}</div>`;
@@ -846,7 +1019,7 @@ function vAjustes(){
 
 /* ---------- sheets ---------- */
 function openSheet(html,detailId=null){S.openDetail=detailId;$("#modal").innerHTML=`<div class="overlay" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;const f=$("#modal input,#modal select");if(f&&window.innerWidth>700&&!detailId)f.focus();if(SB)mostrarFotos($("#modal"))}
-function closeSheet(){S.openDetail=null;$("#modal").innerHTML=""}
+function closeSheet(){S.openDetail=null;S.pila=[];$("#modal").innerHTML="";tipHide?.()}
 
 function actLine(a){
   const mu=(a.muestras||[]).map(m=>`${n1(m.cant)} ${esc(m.nombre)}`).join(", ");
@@ -861,8 +1034,8 @@ function clientDetail(id){
   const wa=tel?`https://wa.me/${tel.length===9?"56"+tel:tel}`:"";
   const deuda=deudaDe(id).reduce((s,d)=>s+d.v.neto*1.19,0);
   const muTot={};as.forEach(a=>(a.muestras||[]).forEach(m=>{muTot[m.nombre]=(muTot[m.nombre]||0)+m.cant}));
-  openSheet(`<div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${impBadge(cl)}<h2>${esc(cl.nombre)}</h2></span><button class="btn sm" data-act="close">Cerrar</button></div>
-  <div class="chips"><span class="chip">${esc(ESTADOS[cl.estado]||"")}</span><span class="chip">${esc(IMPORT[impOf(cl)])}</span>${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${cl.zona?`<span class="chip">${esc(cl.zona)}</span>`:""}${can("ver_todos_clientes")&&ownerOf(cl)&&S.equipo.length>1?`<span class="chip">A cargo: ${esc(nombreDe(ownerOf(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.horario?`<span class="chip">🕑 ${esc(cl.horario)}</span>`:""}</div>
+  openSheet(`<div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${btnVolver()}${impBadge(cl)}<h2>${esc(cl.nombre)}</h2></span><button class="btn sm" data-act="close">Cerrar</button></div>
+  <div class="chips"><span class="chip">${esc(ESTADOS[cl.estado]||"")}</span><span class="chip">${esc(IMPORT[impOf(cl)])}</span>${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${lnkZona(cl.zona)}${cl.demo?`<span class="chip">Ejemplo</span>`:""}${can("ver_todos_clientes")&&ownerOf(cl)&&S.equipo.length>1?`<span class="chip">A cargo: ${esc(nombreDe(ownerOf(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.horario?`<span class="chip">🕑 ${esc(cl.horario)}</span>`:""}</div>
   <div class="stack" style="gap:6px">
    <div class="row spread"><span>Visita</span>${pill(semVisita(cl))}</div>
    ${(cl.marcas||[]).map(m=>`<div class="row spread"><span class="row" style="gap:6px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>Recompra ${m}</span>${pill(semCompra(cl,m))}</div>`).join("")}
@@ -880,6 +1053,7 @@ function clientDetail(id){
    ${cl.notas?`<div><span class="muted small">Notas</span><div style="white-space:pre-wrap">${esc(cl.notas)}</div></div>`:""}
    <div class="row" style="gap:24px">${can("ver_cobranza")?`<div><span class="muted small">Por cobrar (con IVA)</span><div class="num">${money(deuda)}</div></div>`:""}<div><span class="muted small">Muestras entregadas</span><div class="small">${Object.keys(muTot).length?Object.entries(muTot).map(([k,v])=>n1(v)+" "+esc(k)).join(", "):"—"}</div></div></div>
   </div>
+  ${analisisCliente(cl)}
   <h3>Visitas y activaciones (${as.length})</h3>
   <div class="stack" style="gap:10px">${as.length?as.slice(0,20).map(actLine).join(""):`<div class="muted small">Sin visitas registradas.</div>`}</div>
   <h3>Ventas (${vs.length})</h3>
@@ -1285,7 +1459,11 @@ document.addEventListener("click",async e=>{
     case"ixz":S.ix.zmodo=t.dataset.v;render();break;
     case"newClient":clientForm();break;
     case"editClient":clientForm(id);break;
-    case"openClient":clientDetail(id);break;
+    case"openClient":navPush();clientDetail(id);break;
+    case"drill":navPush();drillSheet(t.dataset.k);break;
+    case"drillSub":S.drillSub=t.dataset.v;drillSheet("clientes");break;
+    case"volver":navVolver();break;
+    case"goIx":closeSheet();S.tab="indices";S.ix.vista=t.dataset.v;render();window.scrollTo(0,0);break;
     case"newSale":saleForm(id);break;
     case"editSale":saleForm(null,id);break;
     case"newAct":actForm(id);break;
@@ -1637,6 +1815,21 @@ const EN={
   "Este teléfono no permite obtener la ubicación":"This phone can't get the location","Falta dar permiso de ubicación al navegador":"The browser needs location permission",
   "No se pudo obtener la ubicación. Intenta de nuevo":"Could not get the location. Try again","Falta activar las fotos en Supabase (pide el SQL de fotos)":"Photos aren't enabled in Supabase yet (ask for the photos SQL)",
   "No se pudo subir la foto":"Could not upload the photo","Cómo llegar":"Directions","📍 GPS":"📍 GPS","Horario de recepción":"Receiving hours","Facturación":"Billing","Ejemplo":"Sample",
+  "Ver desglose ›":"See breakdown ›","‹ Volver":"‹ Back","Desglose del sueldo":"Pay breakdown","Gratificación legal":"Legal bonus",
+  "Líquido El Growler":"El Growler net pay","Kombucha cobrada en el mes (neto)":"Kombucha collected this month (net)","Líquido kombucha":"Kombucha net pay",
+  "Total estimado":"Estimated total","Sobre la meta":"Above the goal","Falta para la meta":"Short of the goal","Quién aporta tu comisión de cerveza":"Who drives your beer commission",
+  "Comisión bruta por cliente este mes":"Gross commission per customer this month","Ver Índices › Sueldo y meta":"See Insights › Pay and goal","Ver Índices › Cobranza":"See Insights › Collections",
+  "Cerveza vendida":"Beer sold","Kombucha vendida":"Kombucha sold","Por producto":"By product","Por cliente":"By customer","Toca uno para ver su ficha":"Tap one to see their profile",
+  "Por cobrar":"To collect","factura":"invoice","facturas":"invoices","Activo":"Active","Prospecto":"Prospect","Pausado":"Paused","No hay clientes en este estado.":"No customers in this status.",
+  "Sin compras":"No purchases","Nada pendiente para hoy.":"Nothing pending today.","Ir a la ruta":"Go to route","Visitas y registros":"Visits and logs","Por tipo":"By type",
+  "con muestras":"with samples","Muestras entregadas":"Samples given","Por variedad":"By variety","Conversión 60 días":"60-day conversion","Compró":"Bought","Aún no":"Not yet",
+  "Primero aparecen los que aún no compran: son los que conviene visitar.":"Those who haven't bought yet come first: they're the ones worth visiting.",
+  "No hubo activaciones ni muestras en los últimos 60 días.":"There were no activations or samples in the last 60 days.",
+  "Compras":"Purchases","Frecuencia":"Frequency","Ticket promedio":"Average ticket","Paga en":"Pays in","promedio":"average","Lo que más compra:":"Buys the most:",
+  "Lo que menos compra:":"Buys the least:","Nunca ha comprado:":"Has never bought:","para ofrecerle":"to offer them","Productos (litros)":"Products (liters)","Últimos 6 meses (litros)":"Last 6 months (liters)",
+  "Litros 6 meses":"Liters, 6 months","Activos":"Active","Lo que se vende aquí":"What sells here","Litros de los últimos 6 meses · toca un estilo para ver quién lo compra":"Liters in the last 6 months · tap a style to see who buys it",
+  "Clientes de la zona":"Customers in this zone","Sin clientes.":"No customers.","Litros":"Liters","Clientes que lo compran":"Customers who buy it","Quién lo compra":"Who buys it",
+  "En qué zonas":"Which zones","Mes a mes":"Month by month","Nadie lo ha comprado en los últimos 6 meses.":"Nobody has bought it in the last 6 months.","Para ofrecérselo":"Offer it to",
   "Datos de ejemplo":"Sample data","Cargar 10 clientes de ejemplo":"Load 10 sample customers","Toca otra vez para cargar":"Tap again to load","Cargando…":"Loading…",
   "Toca otra vez para borrar":"Tap again to delete","Borrando…":"Deleting…","Datos de ejemplo borrados":"Sample data deleted",
   "Carga 10 clientes ficticios con 6 meses de ventas, visitas y deudas, para probar los Índices. Quedan marcados como \"Ejemplo\" y los puedes borrar todos juntos.":"Loads 10 fictional customers with 6 months of sales, visits and debts to try out Insights. They're marked \"Sample\" and you can delete them all at once."
@@ -1681,6 +1874,19 @@ const EN_RX=[
   [/^% de lo vendido en cada zona$/,()=>"% of what was sold in each zone"],[/^Cantidad vendida$/,()=>"Quantity sold"],
   [/^Los (\d+) que más compraron$/,m=>`The ${m[1]} that bought the most`],[/^toca uno para ver su ficha$/,()=>"tap one to see their profile"],
   [/^(\d+) facturas$/,m=>`${m[1]} invoices`],[/^(\S+) de lo por cobrar$/,m=>`${m[1]} of what's owed`],
+  [/^Sueldo base \((\S+) de 42 h\)$/,m=>`Base pay (${m[1]} of 42 h)`],[/^Comisión cerveza \((\S+) L × (\S+)\)$/,m=>`Beer commission (${m[1]} L × ${m[2]})`],
+  [/^Descuentos legales \((\S+)%\)$/,m=>`Legal deductions (${m[1]}%)`],[/^Comisión kombucha \((\S+)%\)$/,m=>`Kombucha commission (${m[1]}%)`],[/^Retención boleta \((\S+)%\)$/,m=>`Invoice withholding (${m[1]}%)`],
+  [/^No hay ventas de (cerveza|kombucha) en (.+)\.$/,m=>`No ${m[1]==="cerveza"?"beer":"kombucha"} sales in ${m[2]}.`],[/^Ventas \((\d+)\)$/,m=>`Sales (${m[1]})`],
+  [/^(\S+) × (.+)$/,m=>`${m[1]} × ${m[2]}`],[/^(\S+) con IVA$/,m=>`${m[1]} incl. VAT`],[/^Prospecto \((\d+)\)$/,m=>`Prospect (${m[1]})`],[/^Activo \((\d+)\)$/,m=>`Active (${m[1]})`],[/^Pausado \((\d+)\)$/,m=>`Paused (${m[1]})`],
+  [/^Última compra hace (\d+) días$/,m=>`Last purchase ${m[1]} days ago`],[/^Última hace (\d+) días$/,m=>`Last one ${m[1]} days ago`],[/^(\d+) por visitar de (\d+)$/,m=>`${m[1]} to visit of ${m[2]}`],
+  [/^Registros \((\d+)\)$/,m=>`Logs (${m[1]})`],[/^Sin visitas registradas en (.+)\.$/,m=>`No visits logged in ${m[1]}.`],[/^A quién \((\d+)\)$/,m=>`To whom (${m[1]})`],
+  [/^No entregaste muestras en (.+)\.$/,m=>`You gave no samples in ${m[1]}.`],[/^(\d+) de (\d+) clientes activados compraron$/,m=>`${m[1]} of ${m[2]} activated customers bought`],
+  [/^Activado el (\S+)$/,m=>`Activated on ${m[1]}`],[/^compró el (\S+) \((\d+) días después\)$/,m=>`bought on ${m[1]} (${m[2]} days later)`],[/^hace (\d+) días$/,m=>`${m[1]} days ago`],
+  [/^cada (\d+) d$/,m=>`every ${m[1]} d`],[/^(\S+) L en total$/,m=>`${m[1]} L in total`],[/^(\S+) neto en total$/,m=>`${m[1]} net in total`],[/^(\S+) días$/,m=>`${m[1]} days`],
+  [/^(.+) \((\S+) L en (\d+) compras?\)$/,m=>`${m[1]} (${m[2]} L in ${m[3]} purchase${m[3]==="1"?"":"s"})`],
+  [/^Aún no compra\.(?: Para partir, ofrécele: (.+)\.)?$/,m=>`No purchases yet.${m[1]?` To start, offer them: ${m[1]}.`:""}`],
+  [/^Zona (.+)$/,m=>`Zone ${m[1]}`],[/^(\d+) clientes(?: · se visita el (.+))?$/,m=>`${m[1]} customers${m[2]?` · visited on ${m[2]}`:""}`],[/^(\d+) prospectos$/,m=>`${m[1]} prospects`],
+  [/^(Cerveza|Kombucha) · últimos 6 meses$/,m=>`${m[1]==="Cerveza"?"Beer":"Kombucha"} · last 6 months`],[/^Clientes de (cerveza|kombucha) que nunca lo han comprado$/,m=>`${m[1]==="cerveza"?"Beer":"Kombucha"} customers who have never bought it`],
   [/^Ejemplo cargado: (\d+) clientes, (\d+) ventas y (\d+) visitas$/,m=>`Sample loaded: ${m[1]} customers, ${m[2]} sales and ${m[3]} visits`],
   [/^Borrar datos de ejemplo \((\d+) clientes\)$/,m=>`Delete sample data (${m[1]} customers)`],[/^Ubicación lista \(±(\d+) m\)$/,m=>`Location ready (±${m[1]} m)`],
   [/^! Vence hoy o hasta (\d+) días de atraso$/,m=>`! Due today or up to ${m[1]} days late`],[/^✕ (\d+) a 30 días de atraso$/,m=>`✕ ${m[1]} to 30 days late`]
