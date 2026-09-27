@@ -288,7 +288,7 @@ const DEFAULT_CFG = {
   frec:{cerveza:14, kombucha:14},
   plazo:{cerveza:7, kombucha:0},
   tolPago:7,
-  barrilDias:30, barrilFresco:60,
+  barrilDias:30, barrilFresco:60, destinosInternos:["Restaurante","Eventos"],
   frecVisita:{A:7,B:14,C:30},
   zonas:["Centro","Isla Teja","Barrios Bajos","Las Ánimas","Collico","Regional","Niebla / Costa"],
   zonasDia:{"1":["Centro"],"2":["Isla Teja","Barrios Bajos"],"3":["Las Ánimas","Collico"],"4":["Centro","Regional"],"5":["Isla Teja","Niebla / Costa"],"6":[],"0":[]},
@@ -1298,6 +1298,7 @@ function vAjustes(){
     ${f("tolPago","Días de atraso para pasar a rojo",c.tolPago)}
     ${f("barrilDias","Barriles: días máximo en el cliente",c.barrilDias,"1","Verde hasta este plazo, amarillo hasta 1,5 veces, luego rojo")}
     ${f("barrilFresco","Barriles llenos: revisar frescura después de (días)",c.barrilFresco)}
+    <div class="field full"><label for="destInt">Barriles: destinos de uso interno (separados por coma)</label><input id="destInt" value="${esc((c.destinosInternos||[]).join(", "))}" placeholder="Restaurante, Eventos"></div>
   </div></section>
   <section class="card stack"><h3>Ingresos</h3><div class="form">
     ${f("comL","Comisión El Growler por litro",c.comL,"10")}${f("horas","Horas semanales",c.horas)}
@@ -1329,9 +1330,12 @@ function vAjustes(){
    embarrilado, cliente, factura y días viven en la base de datos (tabla barriles) y se
    actualizan en cada movimiento: por eso el mismo QR sirve para siempre.
    Ciclo: por lavar → limpio → lleno → en cliente → vuelve por lavar. */
-const B_EST={vacio:"Vacío · por lavar",limpio:"Limpio · listo para llenar",lleno:"Lleno en bodega",en_cliente:"En cliente",baja:"Fuera de servicio"};
-const B_ACC={alta:"Alta",lavado:"Lavado",llenado:"Embarrilado",entrega:"Entregado",retiro:"Retirado vacío",edicion:"Editado",baja:"Fuera de servicio",reactivado:"Vuelve a usarse"};
-S.barriles=[];S.bFiltro="en_cliente";S.bq="";S.barrilAbierto=null;S.barrilErr=null;
+const B_EST={vacio:"Vacío · por lavar",limpio:"Limpio · listo para llenar",lleno:"Lleno en bodega",en_cliente:"En cliente",interno:"En uso interno",baja:"Fuera de servicio"};
+const B_CAP=[30,50,20];
+const litB=b=>Number(b.litros)||30;
+const enUso=b=>b.estado==="en_cliente"||b.estado==="interno";
+const B_ACC={alta:"Alta",lavado:"Lavado",llenado:"Embarrilado",entrega:"Entregado",interno:"A uso interno",retiro:"Retirado vacío",edicion:"Editado",baja:"Fuera de servicio",reactivado:"Vuelve a usarse"};
+S.barriles=[];S.bFiltro="en_cliente";S.bq="";S.bLit="todos";S.barrilAbierto=null;S.barrilErr=null;
 const verBarriles=()=>can("ver_barriles")||can("gestionar_barriles");
 const moverBarriles=()=>can("gestionar_barriles")&&!S.offline&&!S.barrilErr;
 const codigoLimpio=t=>String(t||"").trim().toUpperCase().replace(/\s+/g,"");
@@ -1346,6 +1350,8 @@ function semBarril(b){
     return{level:d<=f?"ok":d<=f*1.5?"warn":"bad",short:`${d} d en cliente`,text:`Entregado el ${fdate(b.fechaEntrega)} · máximo ${f} días en el local`,dias:d}}
   if(b.estado==="lleno"){const d=b.fechaEmbarrilado?days(b.fechaEmbarrilado,t):0,f=S.cfg.barrilFresco||60;
     return{level:d<=f?"ok":d<=f*1.5?"warn":"bad",short:`Lleno hace ${d} d`,text:`Embarrilado el ${fdate(b.fechaEmbarrilado)} · revisar frescura después de ${f} días`,dias:d}}
+  if(b.estado==="interno"&&b.fechaEntrega){const d=days(b.fechaEntrega,t),f=S.cfg.barrilDias||30;
+    return{level:d<=f?"ok":d<=f*1.5?"warn":"bad",short:`${d} d en uso interno`,text:`En ${b.destino||"uso interno"} desde el ${fdate(b.fechaEntrega)}`,dias:d}}
   if(b.estado==="limpio")return{level:"ok",short:"Listo para llenar"};
   if(b.estado==="baja")return{level:"none",short:"Fuera de servicio"};
   return{level:"none",short:"Por lavar"};
@@ -1353,17 +1359,20 @@ function semBarril(b){
 function bResumen(b){
   if(b.estado==="lleno")return[b.estilo,b.lote&&"lote "+b.lote,b.fechaEmbarrilado&&fdate(b.fechaEmbarrilado)].filter(Boolean).join(" · ");
   if(b.estado==="en_cliente")return[b.clienteNombre,semBarril(b).short].filter(Boolean).join(" · ");
+  if(b.estado==="interno")return[b.destino,semBarril(b).short].filter(Boolean).join(" · ");
   return B_EST[b.estado]||"";
 }
-function bMov(b,accion,extra={}){return{fecha:today(),ts:new Date().toISOString(),accion,por:ME.perfil?.nombre||"",estilo:b.estilo||"",lote:b.lote||"",clienteNombre:b.clienteNombre||"",factura:b.factura||"",ventaId:b.ventaId||"",...extra}}
+function bMov(b,accion,extra={}){return{fecha:today(),ts:new Date().toISOString(),accion,por:ME.perfil?.nombre||"",estilo:b.estilo||"",lote:b.lote||"",clienteNombre:b.clienteNombre||"",factura:b.factura||"",ventaId:b.ventaId||"",destino:b.destino||"",...extra}}
 function bGuardar(b,cambios,accion,extra){const nuevo={...b,...cambios};nuevo.historial=[bMov(nuevo,accion,extra),...(b.historial||[])].slice(0,80);return DB.set("barriles",b.id,nuevo)}
-const SIN_CLIENTE={clienteId:null,clienteNombre:"",factura:"",ventaId:"",fechaEntrega:""};
+const SIN_CLIENTE={clienteId:null,clienteNombre:"",factura:"",ventaId:"",fechaEntrega:"",destino:""};
 function bRetiro(b,fecha=today()){
-  return bGuardar(b,{estado:"vacio",...SIN_CLIENTE,ultimoCliente:b.clienteNombre||""},"retiro",{fecha,clienteNombre:b.clienteNombre||"",factura:b.factura||"",dias:b.fechaEntrega?days(b.fechaEntrega,fecha):null});
+  const donde=b.clienteNombre||(b.destino?"uso interno: "+b.destino:"");
+  return bGuardar(b,{estado:"vacio",...SIN_CLIENTE,ultimoCliente:donde},"retiro",{fecha,clienteNombre:donde,factura:b.factura||"",dias:b.fechaEntrega?days(b.fechaEntrega,fecha):null});
 }
 function bMovTexto(h){
   if(h.accion==="llenado")return[h.estilo,h.lote&&"lote "+h.lote].filter(Boolean).join(" · ");
   if(h.accion==="entrega")return[h.clienteNombre,h.factura&&"factura "+h.factura,h.estilo].filter(Boolean).join(" · ");
+  if(h.accion==="interno")return[h.destino,h.estilo].filter(Boolean).join(" · ");
   if(h.accion==="retiro")return[h.clienteNombre&&"desde "+h.clienteNombre,h.dias!=null&&h.dias+" días en el local"].filter(Boolean).join(" · ");
   return h.nota||"";
 }
@@ -1376,13 +1385,14 @@ function qrSvg(texto){
   for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c+m} ${r+m}h1v1h-1z`;
   return `<svg viewBox="0 0 ${W} ${W}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" role="img" aria-label="Código QR"><rect width="${W}" height="${W}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
 }
-const etiquetaHtml=b=>`${qrSvg(urlBarril(b.codigo))}<div class="lcod">${esc(b.codigo)}</div><div class="lsub">Barril El Growler · escanéame</div>`;
+const etiquetaHtml=b=>`${qrSvg(urlBarril(b.codigo))}<div class="lcod">${esc(b.codigo)}</div><div class="lsub">Barril ${n1(litB(b))} L El Growler · escanéame</div>`;
+function bDestinos(){return[...new Set([...(S.cfg.destinosInternos||[]),...S.barriles.flatMap(b=>[b.destino,...(b.historial||[]).map(h=>h.destino)]).filter(Boolean)])]}
 
 function barrilRow(b){
-  const s=semBarril(b),cont=b.estado==="lleno"||b.estado==="en_cliente";
+  const s=semBarril(b),cont=b.estado==="lleno"||enUso(b);
   return `<button class="item" data-act="openBarril" data-id="${b.id}">
     <div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap"><span class="name num">🛢️ ${esc(b.codigo)}</span><span class="chip">${esc(B_EST[b.estado]||b.estado)}</span></span>${pill(s)}</div>
-    <div class="chips">${cont&&b.estilo?`<span class="chip strong"><i class="sw beer"></i>${esc(b.estilo)}</span>`:""}${cont&&b.lote?`<span class="chip">Lote ${esc(b.lote)}</span>`:""}${cont&&b.fechaEmbarrilado?`<span class="chip">Embarrilado ${fdate(b.fechaEmbarrilado)}</span>`:""}${b.estado==="en_cliente"?`<span class="chip strong">📍 ${esc(b.clienteNombre||"—")}</span>${b.factura?`<span class="chip">Factura ${esc(b.factura)}</span>`:""}`:""}${!cont&&b.ultimoCliente?`<span class="chip">Último: ${esc(b.ultimoCliente)}</span>`:""}${b.notas?`<span class="chip">📝 ${esc(b.notas.slice(0,40))}</span>`:""}</div>
+    <div class="chips"><span class="chip strong num">${n1(litB(b))} L</span>${cont&&b.estilo?`<span class="chip strong"><i class="sw beer"></i>${esc(b.estilo)}</span>`:""}${cont&&b.lote?`<span class="chip">Lote ${esc(b.lote)}</span>`:""}${cont&&b.fechaEmbarrilado?`<span class="chip">Embarrilado ${fdate(b.fechaEmbarrilado)}</span>`:""}${b.estado==="en_cliente"?`<span class="chip strong">📍 ${esc(b.clienteNombre||"—")}</span>${b.factura?`<span class="chip">Factura ${esc(b.factura)}</span>`:""}`:""}${b.estado==="interno"?`<span class="chip strong">🏠 ${esc(b.destino||"Uso interno")}</span>`:""}${!cont&&b.ultimoCliente?`<span class="chip">Último: ${esc(b.ultimoCliente)}</span>`:""}${b.notas?`<span class="chip">📝 ${esc(b.notas.slice(0,40))}</span>`:""}</div>
   </button>`;
 }
 function vBarriles(){
@@ -1390,28 +1400,33 @@ function vBarriles(){
   const B=S.barriles,gest=moverBarriles(),n=e=>B.filter(b=>b.estado===e).length;
   const enCli=B.filter(b=>b.estado==="en_cliente"),atr=enCli.filter(b=>semBarril(b).level==="bad").length;
   const q=S.bq.trim().toLowerCase();
-  let L=q?B.filter(b=>[b.codigo,b.estilo,b.lote,b.clienteNombre,b.factura,b.notas].join(" ").toLowerCase().includes(q)):S.bFiltro==="todos"?[...B]:B.filter(b=>b.estado===S.bFiltro);
-  L.sort(S.bFiltro==="en_cliente"&&!q?(a,b)=>(semBarril(b).dias||0)-(semBarril(a).dias||0):S.bFiltro==="lleno"&&!q?(a,b)=>(a.fechaEmbarrilado||"").localeCompare(b.fechaEmbarrilado||""):bOrden);
-  const llenos=B.filter(b=>b.estado==="lleno"),porEst={};llenos.forEach(b=>porEst[b.estilo||"Sin estilo"]=(porEst[b.estilo||"Sin estilo"]||0)+1);
+  let L=q?B.filter(b=>[b.codigo,b.estilo,b.lote,b.clienteNombre,b.destino,b.factura,b.notas].join(" ").toLowerCase().includes(q)):S.bFiltro==="todos"?[...B]:B.filter(b=>b.estado===S.bFiltro);
+  const caps=[...new Set(B.map(litB))].sort((a,b)=>a-b);if(S.bLit!=="todos"&&!caps.includes(Number(S.bLit)))S.bLit="todos";
+  if(S.bLit!=="todos")L=L.filter(b=>litB(b)===Number(S.bLit));
+  L.sort((S.bFiltro==="en_cliente"||S.bFiltro==="interno")&&!q?(a,b)=>(semBarril(b).dias||0)-(semBarril(a).dias||0):S.bFiltro==="lleno"&&!q?(a,b)=>(a.fechaEmbarrilado||"").localeCompare(b.fechaEmbarrilado||""):bOrden);
+  const llenos=B.filter(b=>b.estado==="lleno"),porEst={};llenos.forEach(b=>{const k=(b.estilo||"Sin estilo")+(caps.length>1?" "+n1(litB(b))+" L":"");porEst[k]=(porEst[k]||0)+1});
+  const internos=B.filter(b=>b.estado==="interno");
   const tile=(k,lab,val,sub)=>`<button class="kpi kpi-btn" data-act="bFiltro" data-v="${k}"${S.bFiltro===k&&!q?' style="border-color:var(--ink)"':""}><span class="lab">${lab}</span><span class="val">${val}</span><span class="muted small">${sub}</span></button>`;
-  const filtros=[["en_cliente","En clientes"],["lleno","Llenos"],["limpio","Limpios"],["vacio","Por lavar"],["baja","Fuera de servicio"],["todos","Todos"]];
+  const filtros=[["en_cliente","En clientes"],["interno","Uso interno"],["lleno","Llenos"],["limpio","Limpios"],["vacio","Por lavar"],["baja","Fuera de servicio"],["todos","Todos"]];
   return `<div class="stack">
     <div class="row spread"><h2>Barriles</h2><div class="row" style="gap:6px"><button class="btn primary" data-act="scan">📷 Escanear</button>${gest?`<button class="btn" data-act="bNuevo">+ Barriles</button>`:""}${B.length?`<button class="btn" data-act="etiquetas">🖨 Etiquetas QR</button>`:""}</div></div>
     ${S.barrilErr?`<div class="banner">No se pudieron cargar los barriles. Si aún no activas esta función, hay que pegar una vez el bloque SQL de barriles en Supabase (SQL Editor).</div>`:""}
     ${B.length?`<section class="kpis">
       ${tile("en_cliente","📍 En clientes",enCli.length,atr?`✕ ${atr} pasados de ${S.cfg.barrilDias} días`:"✓ Todos en plazo")}
+      ${tile("interno","🏠 Uso interno",internos.length,[...new Set(internos.map(b=>b.destino).filter(Boolean))].map(esc).join(" · ")||"Restaurante, eventos…")}
       ${tile("lleno","Llenos en bodega",llenos.length,Object.entries(porEst).map(([e,k])=>`${k} ${esc(e)}`).join(" · ")||"—")}
       ${tile("limpio","Limpios",n("limpio"),"Listos para llenar")}
       ${tile("vacio","Por lavar",n("vacio"),`${B.length} barriles en total`)}
     </section>
-    ${gest?`<div class="row" style="gap:6px"><span class="muted small">Mover varios a la vez:</span><button class="btn sm" data-act="bLote" data-v="lavar">🧽 Lavar</button><button class="btn sm" data-act="bLote" data-v="llenar">🍺 Embarrilar</button><button class="btn sm" data-act="bLote" data-v="entregar">🚚 Entregar</button><button class="btn sm" data-act="bLote" data-v="retirar">↩ Retirar</button></div>`:""}
+    ${gest?`<div class="row" style="gap:6px"><span class="muted small">Mover varios a la vez:</span><button class="btn sm" data-act="bLote" data-v="lavar">🧽 Lavar</button><button class="btn sm" data-act="bLote" data-v="llenar">🍺 Embarrilar</button><button class="btn sm" data-act="bLote" data-v="entregar">🚚 Entregar</button><button class="btn sm" data-act="bLote" data-v="interno">🏠 Uso interno</button><button class="btn sm" data-act="bLote" data-v="retirar">↩ Retirar</button></div>`:""}
     <div class="filters"><input id="bq" type="search" placeholder="Buscar por código, estilo, lote, cliente o factura" value="${esc(S.bq)}" aria-label="Buscar barril">
+      ${caps.length>1?`<select id="bLit" aria-label="Capacidad"><option value="todos">Todas las capacidades</option>${caps.map(c=>`<option value="${c}"${String(c)===String(S.bLit)?" selected":""}>${n1(c)} L</option>`).join("")}</select>`:""}
       <div class="seg" role="group" aria-label="Estado">${filtros.map(([k,l])=>`<button data-act="bFiltro" data-v="${k}" aria-pressed="${S.bFiltro===k&&!q}">${l}</button>`).join("")}</div></div>
     <div class="list">${L.length?L.map(barrilRow).join(""):`<div class="empty">${q?"Ningún barril coincide con la búsqueda.":"No hay barriles en este estado."}</div>`}</div>`
     :`<div class="card empty"><b>Aún no hay barriles registrados.</b><span class="small">Crea tus barriles, imprime sus etiquetas QR y pégalas. Desde ahí, cada movimiento se registra escaneando.</span>${gest?`<button class="btn primary" data-act="bNuevo">+ Agregar barriles</button>`:""}</div>`}
     <details class="card"><summary>Cómo funciona</summary><div class="stack small" style="gap:6px;margin-top:8px">
       <div><b>1.</b> Crea los barriles e imprime sus etiquetas QR. Pégalas plastificadas o usa etiqueta para exteriores: los barriles se lavan y se mojan.</div>
-      <div><b>2.</b> Cada vez que un barril cambia (se lava, se llena, se entrega o vuelve vacío), escanéalo y toca la acción. También puedes mover varios a la vez.</div>
+      <div><b>2.</b> Cada vez que un barril cambia (se lava, se llena, se entrega a un cliente o pasa a uso interno, o vuelve vacío), escanéalo y toca la acción. También puedes mover varios a la vez.</div>
       <div><b>3.</b> El QR no cambia nunca: al escanearlo abre la ficha al día del barril, con estilo, lote, fecha de embarrilado, dónde se facturó y cuántos días lleva.</div>
       <div><b>4.</b> Funciona con la cámara normal del teléfono: apunta al QR y toca el enlace. Quien lo escanee debe tener cuenta en la app con permiso de barriles.</div>
     </div></details>
@@ -1421,19 +1436,20 @@ function barrilSheet(id){
   const b=S.barriles.find(x=>x.id===id);if(!b){closeSheet();toast("Barril no encontrado");return}
   const sc=S.barrilAbierto===id?($("#modal .sheet")?.scrollTop||0):0;
   const s=semBarril(b),gest=moverBarriles(),cl=b.clienteId?S.clientes.find(c=>c.id===b.clienteId):null;
-  const cont=b.estado==="lleno"||b.estado==="en_cliente",dEmb=b.fechaEmbarrilado?days(b.fechaEmbarrilado,today()):null;
+  const cont=b.estado==="lleno"||enUso(b),dEmb=b.fechaEmbarrilado?days(b.fechaEmbarrilado,today()):null;
   const fila=(t,v)=>v?`<span class="muted">${t}</span><span style="text-align:right">${v}</span>`:"";
   const lote=(v,t,pri)=>`<button class="btn${pri?" primary":""}" data-act="bLote" data-v="${v}" data-id="${b.id}">${t}</button>`;
   const rapido=(a,t,pri)=>`<button class="btn${pri?" primary":""}" data-act="${a}" data-id="${b.id}">${t}</button>`;
   const acc={vacio:[rapido("bLavar","🧽 Marcar lavado",1),lote("llenar","🍺 Embarrilar")],limpio:[lote("llenar","🍺 Embarrilar",1)],
-    lleno:[lote("entregar","🚚 Entregar a cliente",1),lote("llenar","Corregir llenado")],en_cliente:[rapido("bRetirar","↩ Retirar vacío",1),lote("entregar","Cambiar cliente o factura")],
+    lleno:[lote("entregar","🚚 Entregar a cliente",1),lote("interno","🏠 Uso interno"),lote("llenar","Corregir llenado")],en_cliente:[rapido("bRetirar","↩ Retirar vacío",1),lote("entregar","Cambiar cliente o factura")],
+    interno:[rapido("bRetirar","↩ Retirar vacío",1),lote("interno","Cambiar destino")],
     baja:[rapido("bReactivar","Volver a usar",1)]}[b.estado]||[];
   openSheet(`<div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${btnVolver()}<h2 class="num">🛢️ ${esc(b.codigo)}</h2></span><button class="btn sm" data-act="close">Cerrar</button></div>
     <div class="row">${pill(s)}<span class="chip strong">${esc(B_EST[b.estado]||b.estado)}</span></div>
     <section class="card"><div class="dsum">
       ${cont?fila("Estilo",`<b>${esc(b.estilo||"—")}</b>`)+fila("Lote",esc(b.lote||"—")):""}
       ${cont&&b.fechaEmbarrilado?fila("Embarrilado",`${fdate(b.fechaEmbarrilado)} <span class="muted small">(hace ${dEmb} ${dEmb===1?"día":"días"})</span>`):""}
-      ${fila("Capacidad",b.litros?n1(b.litros)+" L":"")}
+      ${fila("Capacidad",n1(litB(b))+" L")}
       ${!cont&&b.estilo?fila("Último llenado",esc(b.estilo)+(b.lote?" · lote "+esc(b.lote):"")):""}
       ${!cont&&b.ultimoCliente?fila("Último cliente",esc(b.ultimoCliente)):""}
     </div>${b.notas?`<div class="small muted" style="margin-top:8px;white-space:pre-wrap">📝 ${esc(b.notas)}</div>`:""}</section>
@@ -1441,6 +1457,8 @@ function barrilSheet(id){
       <div>${cl?`<button class="btn link" style="font-weight:600" data-act="openClient" data-id="${cl.id}">${esc(cl.nombre)} ›</button>`:`<b>${esc(b.clienteNombre||"—")}</b>`}</div>
       <div class="dsum">${fila("Factura",esc(b.factura||"—"))}${fila("Entregado",fdate(b.fechaEntrega))}${fila("Días en el local",`<b class="num">${s.dias}</b>`)}</div>
       ${cl?.direccion?`<div class="small muted">${esc(cl.direccion)}</div>`:""}</section>`:""}
+    ${b.estado==="interno"?`<section class="card stack" style="gap:6px"><h3>Dónde está</h3><div><b>🏠 ${esc(b.destino||"Uso interno")}</b></div>
+      <div class="dsum">${fila("Desde",fdate(b.fechaEntrega))}${fila("Días en uso",`<b class="num">${s.dias??"—"}</b>`)}</div></section>`:""}
     ${gest&&acc.length?`<div class="row">${acc.join("")}</div>`:""}
     <div class="row">${gest?rapido("bEditar","Editar"):""}<button class="btn" data-act="etiquetas" data-id="${b.id}">🖨 Imprimir QR</button></div>
     <h3>Historial (${(b.historial||[]).length})</h3>
@@ -1450,7 +1468,7 @@ function barrilSheet(id){
 }
 /* un mismo formulario para lavar, embarrilar, entregar o retirar uno o varios barriles */
 const B_LOTE={lavar:["Marcar lavados","Guardar",["vacio"],"Fecha de lavado"],llenar:["Embarrilar","Guardar",["limpio","vacio"],"Fecha de embarrilado"],
-  entregar:["Entregar a cliente","Entregar",["lleno"],"Fecha de entrega"],retirar:["Retirar vacíos","Retirar",["en_cliente"],"Fecha de retiro"]};
+  entregar:["Entregar a cliente","Entregar",["lleno"],"Fecha de entrega"],interno:["Uso interno","Guardar",["lleno"],"Desde"],retirar:["Retirar vacíos","Retirar",["en_cliente","interno"],"Fecha de retiro"]};
 function bLoteForm(acc,o={}){
   if(!moverBarriles()){toast(S.offline?"Sin conexión: por ahora solo puedes mirar":"No tienes permiso para mover barriles");return}
   const T=B_LOTE[acc],uno=o.ids?.length===1?S.barriles.find(b=>b.id===o.ids[0]):null;
@@ -1460,21 +1478,22 @@ function bLoteForm(acc,o={}){
   const sel=new Set(o.ids||(acc==="retirar"&&o.cli?cands.map(b=>b.id):[]));
   const vta=o.venta?S.ventas.find(v=>v.id===o.venta):null;
   const cid=o.cli||vta?.clienteId||(uno?.estado==="en_cliente"?uno.clienteId:"")||"";
-  const pedirEstilo=acc==="llenar"||(acc==="entregar"&&uno&&uno.estado!=="lleno"&&uno.estado!=="en_cliente");
+  const pedirEstilo=acc==="llenar"||((acc==="entregar"||acc==="interno")&&uno&&uno.estado!=="lleno"&&!enUso(uno));
   const corrige=acc==="llenar"&&uno?.estado==="lleno";
-  const f0=corrige?uno.fechaEmbarrilado:acc==="entregar"&&uno?.estado==="en_cliente"?uno.fechaEntrega:today();
+  const f0=corrige?uno.fechaEmbarrilado:(acc==="entregar"&&uno?.estado==="en_cliente")||(acc==="interno"&&uno?.estado==="interno")?uno.fechaEntrega:today();
   openSheet(`<div class="row spread"><h2>${T[0]}${uno?" · "+esc(uno.codigo):""}</h2><button class="btn sm" data-act="close">Cerrar</button></div>
   <form id="bLoteForm" class="form" data-acc="${acc}" data-ids="${uno?uno.id:""}">
-    ${pedirEstilo?`<div class="field"><label for="bxEst">Estilo *</label><input id="bxEst" list="bxEstL" required autocomplete="off" value="${esc(corrige||acc==="entregar"?uno?.estilo:"")}"><datalist id="bxEstL">${bEstilos().map(e=>`<option value="${esc(e)}">`).join("")}</datalist></div>
+    ${pedirEstilo?`<div class="field"><label for="bxEst">Estilo *</label><input id="bxEst" list="bxEstL" required autocomplete="off" value="${esc(corrige||acc!=="llenar"?uno?.estilo:"")}"><datalist id="bxEstL">${bEstilos().map(e=>`<option value="${esc(e)}">`).join("")}</datalist></div>
       <div class="field"><label for="bxLote">Lote</label><input id="bxLote" autocomplete="off" value="${esc(corrige?uno.lote:"")}" placeholder="Ej: IPA-2609"></div>
-      ${acc==="entregar"?`<div class="field"><label for="bxFEmb">Fecha de embarrilado</label><input id="bxFEmb" type="date" value="${esc(uno.fechaEmbarrilado||today())}"></div>`:""}`:""}
+      ${acc!=="llenar"?`<div class="field"><label for="bxFEmb">Fecha de embarrilado</label><input id="bxFEmb" type="date" value="${esc(uno.fechaEmbarrilado||today())}"></div>`:""}`:""}
     ${acc==="entregar"?(S.clientes.length?`<div class="field full"><label for="bxCli">Cliente *</label><select id="bxCli" required><option value="">Elige un cliente</option>${clientOptions(cid)}</select></div>
       <div class="field full"><label for="bxVenta">Venta (para enlazar la factura)</label><select id="bxVenta" data-pre="${esc(o.venta||(uno?.estado==="en_cliente"?uno.ventaId:"")||"")}"></select></div>
       <div class="field"><label for="bxFact">N° factura</label><input id="bxFact" autocomplete="off" value="${esc(vta?.factura||(uno?.estado==="en_cliente"?uno.factura:"")||"")}"></div>`
       :`<div class="banner full">No tienes clientes visibles para entregar barriles.</div>`):""}
+    ${acc==="interno"?`<div class="field"><label for="bxDest">Destino *</label><input id="bxDest" list="bxDestL" required autocomplete="off" value="${esc(uno?.estado==="interno"?uno.destino:"")}" placeholder="Ej: Restaurante"><datalist id="bxDestL">${bDestinos().map(d=>`<option value="${esc(d)}">`).join("")}</datalist></div>`:""}
     <div class="field"><label for="bxFecha">${T[3]}</label><input id="bxFecha" type="date" value="${esc(f0||today())}"></div>
     ${uno?"":`<div class="field full"><div class="row spread"><span class="lbl">Barriles (<span id="bxN">${sel.size}</span> elegidos)</span><span class="row" style="gap:6px"><button type="button" class="btn sm" data-act="bxTodos" data-v="1">Todos</button><button type="button" class="btn sm" data-act="bxTodos" data-v="0">Ninguno</button></span></div>
-      ${cands.length?`<div class="stack" style="gap:6px;max-height:38vh;overflow:auto;padding:4px 2px">${cands.map(b=>`<label class="row" style="gap:8px;flex-wrap:nowrap;font-weight:500"><input type="checkbox" data-bid="${b.id}" ${sel.has(b.id)?"checked":""}><span><b class="num">${esc(b.codigo)}</b> <span class="muted small">${esc(bResumen(b))}</span></span></label>`).join("")}</div>`
+      ${cands.length?`<div class="stack" style="gap:6px;max-height:38vh;overflow:auto;padding:4px 2px">${cands.map(b=>`<label class="row" style="gap:8px;flex-wrap:nowrap;font-weight:500"><input type="checkbox" data-bid="${b.id}" ${sel.has(b.id)?"checked":""}><span><b class="num">${esc(b.codigo)}</b> <span class="chip num">${n1(litB(b))} L</span> <span class="muted small">${esc(bResumen(b))}</span></span></label>`).join("")}</div>`
         :`<div class="muted small">No hay barriles ${T[2].map(e=>B_EST[e].toLowerCase()).join(" ni ")} ahora.</div>`}</div>`}
     <div class="full"><button class="btn primary" type="submit">${T[1]}</button></div>
   </form>`);
@@ -1505,7 +1524,7 @@ function bNuevoForm(cod=""){
       <div class="field" style="justify-content:flex-end"><span id="bnPrev" class="small"></span></div>
     </div>
     <div class="bnUno field full" ${cod?"":"hidden"}><label for="bnCod">Código</label><input id="bnCod" value="${esc(cod)}" autocomplete="off" autocapitalize="characters" placeholder="Ej: el número grabado en el barril"><span class="muted small">Sirve para barriles que ya traen número o código de barras.</span></div>
-    <div class="field"><label for="bnLit">Capacidad (litros)</label><input id="bnLit" type="number" min="0" step="0.5" value="30"></div>
+    <div class="field"><label for="bnLit">Capacidad</label><select id="bnLit">${[...new Set([...B_CAP,30])].map(c=>`<option value="${c}"${c===30?" selected":""}>${n1(c)} L</option>`).join("")}</select></div>
     <div class="field"><label for="bnEst">Estado inicial</label><select id="bnEst"><option value="vacio">Vacío · por lavar</option><option value="limpio">Limpio · listo para llenar</option></select></div>
     <div class="full"><button class="btn primary" type="submit">Crear</button></div>
   </form>`);
@@ -1518,7 +1537,7 @@ function bEditForm(id){
   openSheet(`<div class="row spread"><h2>Editar ${esc(b.codigo)}</h2><button class="btn sm" data-act="close">Cerrar</button></div>
   <form id="bEditForm" class="form" data-id="${id}">
     <div class="field"><label for="beCod">Código</label><input id="beCod" required value="${esc(b.codigo)}" autocomplete="off" autocapitalize="characters"><span class="muted small">Si lo cambias, imprime una etiqueta nueva: la antigua deja de funcionar.</span></div>
-    <div class="field"><label for="beLit">Capacidad (litros)</label><input id="beLit" type="number" min="0" step="0.5" value="${b.litros||30}"></div>
+    <div class="field"><label for="beLit">Capacidad</label><select id="beLit">${[...new Set([...B_CAP,litB(b)])].map(c=>`<option value="${c}"${c===litB(b)?" selected":""}>${n1(c)} L</option>`).join("")}</select></div>
     <div class="field full"><label for="beEst">Estado</label><select id="beEst">${Object.entries(B_EST).map(([k,l])=>`<option value="${k}"${b.estado===k?" selected":""}>${l}</option>`).join("")}</select><span class="muted small">Para corregir a mano. Lo normal es usar los botones de cada paso.</span></div>
     <div class="field full"><label for="beNota">Notas</label><textarea id="beNota" placeholder="Ej: válvula dañada, abollado, de préstamo…">${esc(b.notas)}</textarea></div>
     <div class="full row spread"><button class="btn primary" type="submit">Guardar</button>${can("eliminar")?`<button class="btn danger" type="button" data-act="bBorrar" data-id="${id}">Eliminar barril</button>`:""}</div>
@@ -1929,8 +1948,8 @@ function exportarCSV(){
   const cl=[["Nombre","Estado","Importancia","Tipo","Zona","Marcas","Asignado a","Contacto","Teléfono","Dirección","Horario","Próxima acción","Qué hacer","Notas","Razón social","RUT empresa","Giro","Email","Dueño","RUT dueño","Teléfono dueño","Email dueño"],
     ...S.clientes.map(c=>[c.nombre,c.estado,impOf(c),c.tipo,c.zona,(c.marcas||[]).join(" + "),nombreDe(ownerOf(c)),c.contacto,c.telefono,c.direccion,c.horario,c.proxFecha,c.proxTexto,c.notas,c.razonSocial,c.rutEmpresa,c.giro,c.email,c.dueno,c.rutDueno,c.telDueno,c.emailDueno])];
   setTimeout(()=>descargar(`clientes-${today()}.csv`,"﻿"+csv(cl),"text/csv"),400);
-  if(S.barriles.length){const br=[["Código","Estado","Estilo","Lote","Embarrilado","Cliente","Factura","Entregado","Días en cliente","Litros","Notas"],
-    ...[...S.barriles].sort(bOrden).map(b=>[b.codigo,B_EST[b.estado]||b.estado,b.estilo,b.lote,b.fechaEmbarrilado,b.clienteNombre,b.factura,b.fechaEntrega,b.estado==="en_cliente"&&b.fechaEntrega?days(b.fechaEntrega,today()):"",b.litros,b.notas])];
+  if(S.barriles.length){const br=[["Código","Litros","Estado","Estilo","Lote","Embarrilado","Cliente o destino","Factura","Desde","Días fuera","Notas"],
+    ...[...S.barriles].sort(bOrden).map(b=>[b.codigo,litB(b),B_EST[b.estado]||b.estado,b.estilo,b.lote,b.fechaEmbarrilado,b.clienteNombre||b.destino,b.factura,b.fechaEntrega,enUso(b)&&b.fechaEntrega?days(b.fechaEntrega,today()):"",b.notas])];
     setTimeout(()=>descargar(`barriles-${today()}.csv`,"﻿"+csv(br),"text/csv"),800)}
 }
 async function importarRespaldo(file){
@@ -2131,7 +2150,7 @@ document.addEventListener("click",async e=>{
     case"bLavar":{const b=S.barriles.find(x=>x.id===id);if(b)await guard(()=>bGuardar(b,{estado:"limpio"},"lavado"),"Barril marcado como lavado");break}
     case"bReactivar":{const b=S.barriles.find(x=>x.id===id);if(b)await guard(()=>bGuardar(b,{estado:"vacio"},"reactivado"),"Barril de vuelta en uso");break}
     case"bRetirar":{const b=S.barriles.find(x=>x.id===id);if(!b)return;
-      if(!await confirmar(`¿Retirar ${esc(b.codigo)} vacío?`,`Vuelve a bodega como "por lavar".${b.clienteNombre?` Estuvo ${b.fechaEntrega?days(b.fechaEntrega,today())+" días ":""}en <b>${esc(b.clienteNombre)}</b>.`:""}`,"Sí, retirar","Cancelar"))return;
+      if(!await confirmar(`¿Retirar ${esc(b.codigo)} vacío?`,`Vuelve a bodega como "por lavar".${b.clienteNombre||b.destino?` Estuvo ${b.fechaEntrega?days(b.fechaEntrega,today())+" días ":""}en <b>${esc(b.clienteNombre||b.destino)}</b>.`:""}`,"Sí, retirar","Cancelar"))return;
       await guard(()=>bRetiro(b),"Barril retirado");break}
     case"bBorrar":if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Toca otra vez para eliminar";return}
       if(await guard(()=>DB.delete("barriles",id),"Barril eliminado"))closeSheet();break;
@@ -2190,6 +2209,7 @@ document.addEventListener("change",e=>{
     if(mk&&mk!==$("#sMarca").value)document.querySelector(`#saleForm [data-act="sMarca"][data-v="${mk}"]`)?.click()}
   if(e.target.id==="tareasDe"){S.tareasDe=e.target.value;render()}
   if(e.target.id==="bxCli")bVentasCli();
+  if(e.target.id==="bLit"){S.bLit=e.target.value;render()}
   if(e.target.id==="bxVenta"){const v=S.ventas.find(x=>x.id===e.target.value);if(v?.factura)$("#bxFact").value=v.factura}
   if(e.target.dataset.bid&&$("#bxN"))$("#bxN").textContent=$("#modal").querySelectorAll("[data-bid]:checked").length;
   if(e.target.dataset.eid)$("#etN").textContent=$("#modal").querySelectorAll("[data-eid]:checked").length;
@@ -2208,7 +2228,7 @@ function collectCfgForm(){
   const zonasDia={};WEEK_ORDER.forEach(w=>zonasDia[String(w)]=[]);
   document.querySelectorAll("[data-zd]").forEach(cb=>{if(cb.checked&&zonas.includes(cb.dataset.z))zonasDia[cb.dataset.zd].push(cb.dataset.z)});
   const rows=(sel,keys)=>[...document.querySelectorAll(sel+" tr")].map(tr=>{const o={};keys.forEach(k=>o[k]=tr.querySelector(`[data-k="${k}"]`).value);return o});
-  S.cfg={...S.cfg,comL:g("comL"),horas:g("horas"),imm:g("imm"),desc:g("desc"),pctK:g("pctK"),ret:g("ret"),meta:g("meta"),grat:$("#grat").checked,tolPago:g("tolPago"),barrilDias:g("barrilDias")||30,barrilFresco:g("barrilFresco")||60,
+  S.cfg={...S.cfg,comL:g("comL"),horas:g("horas"),imm:g("imm"),desc:g("desc"),pctK:g("pctK"),ret:g("ret"),meta:g("meta"),grat:$("#grat").checked,tolPago:g("tolPago"),barrilDias:g("barrilDias")||30,barrilFresco:g("barrilFresco")||60,destinosInternos:($("#destInt")?.value||"").split(",").map(x=>x.trim()).filter(Boolean),
     frec:{cerveza:g("frecC")||14,kombucha:g("frecK")||14},plazo:{cerveza:g("plazoC")||0,kombucha:g("plazoK")||0},
     frecVisita:{A:g("fvA")||7,B:g("fvB")||14,C:g("fvC")||30},zonas,zonasDia,
     productos:rows("#prodBody",["marca","formato","estilo","nombre","litros","neto"]).map((o,i)=>({id:S.cfg.productos[i]?.id||"p"+i,marca:o.marca,formato:o.formato,estilo:o.estilo.trim(),nombre:o.nombre,litros:Number(o.litros)||0,neto:Number(o.neto)||0})),
@@ -2272,10 +2292,13 @@ document.addEventListener("submit",async e=>{
     if(acc==="entregar"){const cl=S.clientes.find(c=>c.id===$("#bxCli")?.value);if(!cl){toast("Elige el cliente");return}
       cambios={estado:"en_cliente",clienteId:cl.id,clienteNombre:cl.nombre,factura:val("bxFact"),ventaId:$("#bxVenta")?.value||"",fechaEntrega:fecha};
       if($("#bxEst")){const e2=val("bxEst");if(!e2){toast("Falta el estilo");return}Object.assign(cambios,{estilo:e2,lote:val("bxLote"),fechaEmbarrilado:val("bxFEmb")||fecha})}}
-    const n=ids.length,msg={lavar:"lavado",llenar:"embarrilado",entregar:"entregado",retirar:"retirado"}[acc];
+    if(acc==="interno"){const destino=val("bxDest");if(!destino){toast("Escribe el destino");return}
+      cambios={estado:"interno",...SIN_CLIENTE,destino,fechaEntrega:fecha};
+      if($("#bxEst")){const e2=val("bxEst");if(!e2){toast("Falta el estilo");return}Object.assign(cambios,{estilo:e2,lote:val("bxLote"),fechaEmbarrilado:val("bxFEmb")||fecha})}}
+    const n=ids.length,msg={lavar:"lavado",llenar:"embarrilado",entregar:"entregado",interno:"a uso interno",retirar:"retirado"}[acc];
     const ok=await guard(async()=>{for(const id of ids){const b=S.barriles.find(x=>x.id===id);if(!b)continue;
-      if(acc==="retirar")await bRetiro(b,fecha);else await bGuardar(b,cambios,{lavar:"lavado",llenar:"llenado",entregar:"entrega"}[acc],{fecha})}},
-      n===1?`Barril ${msg}`:`${n} barriles ${msg}s`);
+      if(acc==="retirar")await bRetiro(b,fecha);else await bGuardar(b,cambios,{lavar:"lavado",llenar:"llenado",entregar:"entrega",interno:"interno"}[acc],{fecha})}},
+      acc==="interno"?(n===1?"Barril pasado a uso interno":`${n} barriles pasados a uso interno`):n===1?`Barril ${msg}`:`${n} barriles ${msg}s`);
     if(ok){if(f.dataset.ids)barrilSheet(ids[0]);else closeSheet()}
     return;
   }
@@ -2294,8 +2317,8 @@ document.addEventListener("submit",async e=>{
     const b=S.barriles.find(x=>x.id===f.dataset.id);if(!b)return;
     const codigo=codigoLimpio(val("beCod"));if(!codigo){toast("Falta el código");return}
     if(codigo!==b.codigo&&barrilDe(codigo)){toast("Ese código de barril ya existe");return}
-    const estado=val("beEst"),cambios={codigo,litros:Number(val("beLit"))||b.litros||30,notas:val("beNota"),estado};
-    if(estado!=="en_cliente"&&b.estado==="en_cliente")Object.assign(cambios,SIN_CLIENTE,{ultimoCliente:b.clienteNombre||""});
+    const estado=val("beEst"),cambios={codigo,litros:Number(val("beLit"))||litB(b),notas:val("beNota"),estado};
+    if(estado!==b.estado&&enUso(b))Object.assign(cambios,SIN_CLIENTE,{ultimoCliente:b.clienteNombre||b.destino||""});
     const notaMov=[codigo!==b.codigo&&`código ${b.codigo} → ${codigo}`,estado!==b.estado&&`estado: ${B_EST[estado]}`].filter(Boolean).join(" · ");
     const ok=await guard(()=>bGuardar(b,cambios,estado==="baja"&&b.estado!=="baja"?"baja":"edicion",{nota:notaMov}),"Barril guardado");
     if(ok)barrilSheet(b.id);
@@ -2596,7 +2619,7 @@ const EN={
   "Desde el número":"Starting number","Código":"Code","Capacidad (litros)":"Capacity (liters)","Estado inicial":"Initial status","Crear":"Create","Etiquetas QR":"QR labels","Tamaño":"Size",
   "🖨 Imprimir etiquetas":"🖨 Print labels","Barril El Growler · escanéame":"El Growler keg · scan me","Eliminar barril":"Delete keg","Barril marcado como lavado":"Keg marked as washed",
   "Barril retirado":"Keg picked up","Barril eliminado":"Keg deleted","Barril guardado":"Keg saved","Barril creado":"Keg created","Elige al menos un barril":"Choose at least one keg",
-  "Sin barriles asignados":"No kegs assigned","Asignar barriles":"Assign kegs","🚚 Entregar barriles":"🚚 Deliver kegs","No tiene barriles ahora.":"No kegs there now.","🛢️ Barriles en clientes":"🛢️ Kegs at customers",
+  "Sin barriles asignados":"No kegs assigned","Asignar barriles":"Assign kegs","En uso interno":"In internal use","Uso interno":"Internal use","🏠 Uso interno":"🏠 Internal use","Cambiar destino":"Change destination","Destino *":"Destination *","Desde":"Since","Días en uso":"Days in use","Todas las capacidades":"All sizes","Capacidad":"Capacity","🚚 Entregar barriles":"🚚 Deliver kegs","No tiene barriles ahora.":"No kegs there now.","🛢️ Barriles en clientes":"🛢️ Kegs at customers",
   "✓ Todos en plazo":"✓ All within limit","Ver barriles":"See kegs","Mover barriles":"Move kegs","↩ Retirar barriles":"↩ Pick up kegs","Aún no hay barriles registrados.":"No kegs registered yet.",
   "+ Agregar barriles":"+ Add kegs","Barriles: días máximo en el cliente":"Kegs: max days at a customer","Barriles llenos: revisar frescura después de (días)":"Full kegs: check freshness after (days)",
   "Datos de ejemplo":"Sample data","Cargar 10 clientes de ejemplo":"Load 10 sample customers","Toca otra vez para cargar":"Tap again to load","Cargando…":"Loading…",
