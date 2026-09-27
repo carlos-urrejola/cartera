@@ -13,15 +13,27 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Cartera Valdivia</title>
 <script>
-// Tema por dispositivo: "oscuro" (por defecto), "claro" o "auto" (sigue al sistema)
-function temaGet(){try{return localStorage.getItem("cartera-tema")||"oscuro"}catch(e){return "oscuro"}}
+// Preferencias de este dispositivo: idioma, tema, tamaño de letra y pestaña de inicio.
+// "cartera-prefs" = lo que eligió la persona; "cartera-ef" = lo último aplicado,
+// que puede venir fijado por el administrador (ver aplicarPrefs).
+const PREF_BASE={idioma:"es",tema:"oscuro",letra:"normal",inicio:"resumen"};
+function prefsLocal(){
+  let p={};try{p=JSON.parse(localStorage.getItem("cartera-prefs")||"{}")||{}}catch(e){}
+  if(!p.tema){try{const t=localStorage.getItem("cartera-tema");if(t)p.tema=t}catch(e){}}
+  return p;
+}
+function prefsEf(){try{return JSON.parse(localStorage.getItem("cartera-ef")||"null")||{}}catch(e){return{}}}
+function letraAplicar(l){const r=document.documentElement;if(l==="grande"||l==="muygrande")r.setAttribute("data-letra",l);else r.removeAttribute("data-letra")}
 function temaAplicar(t){
   const r=document.documentElement;
   if(t==="auto")r.removeAttribute("data-theme");else r.setAttribute("data-theme",t==="claro"?"light":"dark");
   const dark=t==="oscuro"||(t==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content",dark?"#121814":"#18221D");
 }
-temaAplicar(temaGet());
+const BOOT={...PREF_BASE,...prefsLocal(),...prefsEf()};
+const LANG=BOOT.idioma==="en"?"en":"es";
+document.documentElement.lang=LANG;
+temaAplicar(BOOT.tema);letraAplicar(BOOT.letra);
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -145,6 +157,13 @@ input[type=checkbox]{width:auto!important;flex:none}
 .choice b{font-size:16px}
 .act{border-left:3px solid var(--line);padding:2px 0 2px 10px;display:flex;flex-direction:column;gap:3px}
 .zgrid td,.zgrid th{text-align:center} .zgrid td:first-child,.zgrid th:first-child{text-align:left}
+:root[data-letra="grande"] body{zoom:1.12}
+:root[data-letra="muygrande"] body{zoom:1.25}
+.menu h3{margin-bottom:2px}
+.prefrow{display:grid;grid-template-columns:1fr minmax(140px,190px);gap:10px;align-items:center}
+.prefrow select,.menu input{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);width:100%}
+.lock{font-size:12px;color:var(--muted)}
+.menu form .btn{white-space:nowrap;flex:none}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}}
 </style>
 </head>
@@ -205,7 +224,9 @@ const DEFAULT_CFG = {
     {id:"m-gb",marca:"kombucha",nombre:"Ginger Bear",unidad:"lata"},
     {id:"m-db",marca:"kombucha",nombre:"Dos Boas",unidad:"lata"},
     {id:"m-el",marca:"kombucha",nombre:"Estay Loica",unidad:"lata"}
-  ]
+  ],
+  // Qué preferencias puede cambiar cada usuario y con qué valor parten (las define el admin)
+  prefs:{permitir:{idioma:true,tema:true,letra:true,inicio:true},defecto:{idioma:"es",tema:"oscuro",letra:"normal",inicio:"resumen"}}
 };
 const TIPOS=["Bar","Restorán","Botillería","Almacén","Minimarket","Cafetería","Hotel","Evento","Otro"];
 const ESTADOS={prospecto:"Prospecto",activo:"Activo",pausado:"Pausado"};
@@ -213,8 +234,8 @@ const IMPORT={A:"A · Clave",B:"B · Importante",C:"C · Ocasional"};
 const TIPOS_ACT=["Visita","Activación / degustación","Entrega de muestras","Cobranza","Reparto","Llamada / WhatsApp","Evento"];
 const PRESENCIAL=new Set(["Visita","Activación / degustación","Entrega de muestras","Cobranza","Reparto","Evento"]);
 const RESULTADOS=["","Interesado","Pidió cotización","Hizo pedido","Volver más adelante","No interesado"];
-const DIAS=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-const DIAS_L=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+const DIAS=LANG==="en"?["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]:["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+const DIAS_L=LANG==="en"?["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]:["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
 const WEEK_ORDER=[1,2,3,4,5,6,0];
 
 const S={clientes:[],ventas:[],acts:[],cfg:structuredClone(DEFAULT_CFG),tab:"resumen",q:"",fMarca:"todas",fSem:"todos",fZona:"todas",vFiltro:"pendientes",mes:null,rutaFecha:null,dbState:"loading",openDetail:null,equipo:[],perfiles:[],offline:false,rutaDe:null,scope:"todas"};
@@ -228,7 +249,7 @@ const days=(a,b)=>Math.round((toUTC(b)-toUTC(a))/86400000);
 function addDays(s,n){return new Date(toUTC(s)+n*86400000).toISOString().slice(0,10)}
 const wday=s=>new Date(toUTC(s)).getUTCDay();
 const fdate=s=>{if(!s)return"—";const[y,m,d]=s.split("-");return d+"/"+m+"/"+y.slice(2)};
-const MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const MESES=LANG==="en"?["January","February","March","April","May","June","July","August","September","October","November","December"]:["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 S.mes=today().slice(0,7); S.rutaFecha=today();
 
 function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>el.hidden=true,2200)}
@@ -344,7 +365,7 @@ function weekStart(fecha){const w=wday(fecha);return addDays(fecha,w===0?-6:1-w)
 /* ---------- views ---------- */
 function render(){
   const vt=ME.perfil?visibleTabs():[];document.querySelectorAll("nav.tabs button").forEach(b=>{b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false");b.hidden=!vt.includes(b.dataset.tab)});
-  $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn" data-act="newClient">+ Cliente</button>`:""}`;
+  $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn" data-act="newClient">+ Cliente</button>`:""}<button class="btn" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
   const v=$("#view");
   if(S.dbState==="loading"){v.innerHTML=`<div class="empty">Cargando tu cartera…</div>`;return}
@@ -471,9 +492,7 @@ function vVentas(){
 function vAjustes(){
   const c=S.cfg;
   const f=(id,label,val,step="1",hint="")=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" type="number" step="${step}" value="${val}">${hint?`<span class="muted small">${hint}</span>`:""}</div>`;
-  return `<div class="stack"><h2>Ajustes</h2>
-  <section class="card row spread"><div><b>${esc(ME.perfil?.nombre||"")}</b><div class="muted small">${esc(ME.user?.email||"")} · ${isAdmin()?"Administrador":"Usuario"}</div></div><button class="btn" data-act="logout">Cerrar sesión</button></section>
-  <section class="card row spread"><div><b>Apariencia</b><div class="muted small">Se guarda en este dispositivo</div></div><select id="tema" aria-label="Apariencia">${[["oscuro","Oscuro"],["claro","Claro"],["auto","Como el sistema"]].map(([v,l])=>`<option value="${v}" ${temaGet()===v?"selected":""}>${l}</option>`).join("")}</select></section>
+  return `<div class="stack"><div class="row spread"><h2>Ajustes</h2><button class="btn sm" data-act="menu">⚙️ Mi perfil y preferencias</button></div>
   <form id="cfgForm" class="stack">
   <section class="card stack"><h3>Zonas y ruta</h3>
     <div class="field"><label for="zonas">Zonas (separadas por coma)</label><input id="zonas" value="${esc(c.zonas.join(", "))}"><span class="muted small">Si cambias las zonas, guarda y luego marca qué días va cada una.</span></div>
@@ -559,10 +578,10 @@ function clientForm(id){
   openSheet(`<div class="row spread"><h2>${id?"Editar cliente":"Nuevo cliente"}</h2><button class="btn sm" data-act="close">Cerrar</button></div>
   <form id="clientForm" class="form" data-id="${id||""}">
    <div class="field full"><label for="cNombre">Nombre del local *</label><input id="cNombre" required value="${esc(cl.nombre)}"></div>
-   <div class="field"><label for="cTipo">Tipo de local</label><select id="cTipo"><option value="">—</option>${TIPOS.map(t=>`<option${sel(cl.tipo,t)}>${t}</option>`).join("")}</select></div>
+   <div class="field"><label for="cTipo">Tipo de local</label><select id="cTipo"><option value="">—</option>${TIPOS.map(t=>`<option value="${t}"${sel(cl.tipo,t)}>${t}</option>`).join("")}</select></div>
    <div class="field"><label for="cEstado">Estado</label><select id="cEstado">${Object.entries(ESTADOS).map(([k,v])=>`<option value="${k}"${sel(cl.estado,k)}>${v}</option>`).join("")}</select></div>
    <div class="field"><label for="cImp">Importancia</label><select id="cImp">${Object.entries(IMPORT).map(([k,v])=>`<option value="${k}"${sel(impOf(cl),k)}>${v}</option>`).join("")}</select></div>
-   <div class="field"><label for="cZona">Zona</label><select id="cZona"><option value="">—</option>${zonas.map(z=>`<option${sel(cl.zona,z)}>${esc(z)}</option>`).join("")}</select></div>
+   <div class="field"><label for="cZona">Zona</label><select id="cZona"><option value="">—</option>${zonas.map(z=>`<option value="${esc(z)}"${sel(cl.zona,z)}>${esc(z)}</option>`).join("")}</select></div>
    ${can("ver_todos_clientes")&&S.equipo.length>1?`<div class="field"><label for="cAsig">A cargo de</label><select id="cAsig">${S.equipo.map(u=>`<option value="${u.id}"${(id?ownerOf(cl):ME.user.id)===u.id?" selected":""}>${esc(u.nombre)}</option>`).join("")}</select></div>`:""}
    <div class="field full"><span class="lbl">Le vendo</span><div class="checks"><label><input type="checkbox" id="mC" ${(cl.marcas||[]).includes("cerveza")?"checked":""}> Cerveza El Growler</label><label><input type="checkbox" id="mK" ${(cl.marcas||[]).includes("kombucha")?"checked":""}> Kombucha Animal Social</label></div></div>
    <div class="field full"><span class="lbl">Días fijos de visita (opcional)</span><div class="checks">${WEEK_ORDER.map(w=>`<label><input type="checkbox" data-dv="${w}" ${(cl.diasVisita||[]).map(String).includes(String(w))?"checked":""}> ${DIAS[w]}</label>`).join("")}</div></div>
@@ -591,7 +610,7 @@ function actForm(clienteId,actId){
   <form id="actForm" class="form" data-id="${actId||""}">
    <div class="field full"><label for="aCli">Cliente</label><select id="aCli" required><option value="">Elige un cliente</option>${clientOptions(cid)}</select></div>
    <div class="field"><label for="aFecha">Fecha</label><input id="aFecha" type="date" value="${a?.fecha||today()}"></div>
-   <div class="field"><label for="aTipo">Tipo</label><select id="aTipo">${TIPOS_ACT.map(t=>`<option${(a?.tipo||"Visita")===t?" selected":""}>${t}</option>`).join("")}</select></div>
+   <div class="field"><label for="aTipo">Tipo</label><select id="aTipo">${TIPOS_ACT.map(t=>`<option value="${t}"${(a?.tipo||"Visita")===t?" selected":""}>${t}</option>`).join("")}</select></div>
    <div class="field full"><span class="lbl">Muestras entregadas</span><div id="muLines" class="stack" style="gap:8px"></div><button type="button" class="btn sm" data-act="addMuLine" style="align-self:flex-start">+ Muestra</button><span class="muted small">Déjalo vacío si no entregaste muestras.</span></div>
    <div class="field"><label for="aRes">Resultado</label><select id="aRes">${RESULTADOS.map(r=>`<option value="${r}"${(a?.resultado||"")===r?" selected":""}>${r||"—"}</option>`).join("")}</select></div>
    <div class="field"><label for="aProxF">Próxima acción</label><input id="aProxF" type="date" value="${esc(a?"":(cl?.proxFecha&&cl.proxFecha>today()?cl.proxFecha:""))}"></div>
@@ -670,7 +689,8 @@ const KEYCACHE=()=>"cartera-cache-"+(ME.user?.id||"");
 function mergeCfg(d){
   const D=structuredClone(DEFAULT_CFG);d=d||{};
   return{...D,...structuredClone(d),frec:{...D.frec,...(d.frec||{})},plazo:{...D.plazo,...(d.plazo||{})},frecVisita:{...D.frecVisita,...(d.frecVisita||{})},
-    zonas:d.zonas||D.zonas,zonasDia:{...D.zonasDia,...(d.zonasDia||{})},muestras:d.muestras||D.muestras,productos:d.productos||D.productos};
+    zonas:d.zonas||D.zonas,zonasDia:{...D.zonasDia,...(d.zonasDia||{})},muestras:d.muestras||D.muestras,productos:d.productos||D.productos,
+    prefs:{permitir:{...D.prefs.permitir,...(d.prefs?.permitir||{})},defecto:{...D.prefs.defecto,...(d.prefs?.defecto||{})}}};
 }
 const strip=o=>{const{id,clienteId,asignado_a,creado_por,actualizado,...rest}=o;return rest};
 const fromCliente=r=>({...r.data,id:r.id,asignado_a:r.asignado_a,creado_por:r.creado_por});
@@ -770,7 +790,7 @@ function authScreen(mode="login",msg=""){
   showApp(false);
   const cfgFalta=!SB;
   $("#auth").innerHTML=`<div class="authbox">
-    <div><h1>Cartera Valdivia</h1><div class="muted small">Cerveza El Growler · Kombucha Animal Social</div></div>
+    <div class="row spread" style="align-items:flex-start"><div><h1>Cartera Valdivia</h1><div class="muted small">Cerveza El Growler · Kombucha Animal Social</div></div><button type="button" class="btn sm" data-act="lang" data-v="${LANG==="en"?"es":"en"}" data-notr>${LANG==="en"?"Español":"English"}</button></div>
     ${cfgFalta?`<div class="banner">Falta conectar la base de datos. Pega la dirección y la clave pública de tu proyecto Supabase en el archivo <b>config.js</b> (ver LEEME).</div>`:
     mode==="pendiente"?`<div class="card stack"><h2>Cuenta pendiente</h2><p style="margin:0">Hola ${esc(ME.perfil?.nombre||"")}. Tu cuenta ya está creada. El administrador tiene que aprobarla antes de que puedas entrar.</p><div class="row"><button class="btn primary" data-act="recheck">Ya me aprobaron</button><button class="btn" data-act="logout">Salir</button></div></div>`:
     mode==="nueva-clave"?`<form id="pwForm" class="card stack"><h2>Nueva contraseña</h2><div class="field"><label for="npw">Contraseña nueva (mínimo 8)</label><input id="npw" type="password" minlength="8" required autocomplete="new-password"></div><button class="btn primary" type="submit">Guardar contraseña</button></form>`:
@@ -791,8 +811,10 @@ async function afterLogin(){
     if(loadCache()){S.offline=true}else{authScreen("login","No se pudo conectar. Revisa tu internet e intenta de nuevo.");return}
   }
   if(!ME.perfil||!ME.perfil.activo){authScreen("pendiente");return}
+  const ef=aplicarPrefs();
+  if(ef.idioma!==LANG&&prefsEf().idioma===ef.idioma){location.reload();return}
   S.dbState="on";S.rutaDe=ME.user.id;
-  if(!visibleTabs().includes(S.tab))S.tab="resumen";
+  S.tab=visibleTabs().includes(ef.inicio)?ef.inicio:"resumen";
   render();
 }
 function visibleTabs(){
@@ -810,7 +832,7 @@ async function initCloud(){
   const{data}=await SB.auth.getSession();
   if(data?.session&&!location.hash.includes("type=recovery")){ME.user=data.session.user;afterLogin()}
   else if(!location.hash.includes("type=recovery"))authScreen();
-  document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&ME.perfil?.activo&&!$("#modal").innerHTML){try{await loadAll();refresh()}catch(e){}}});
+  document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&ME.perfil?.activo&&!$("#modal").innerHTML){try{await loadAll();aplicarPrefs();refresh()}catch(e){}}});
   window.addEventListener("online",async()=>{if(ME.perfil?.activo){try{await loadAll();refresh();toast("Conexión recuperada")}catch(e){}}});
 }
 
@@ -844,6 +866,46 @@ async function guardarUsuario(f){
   await guard(()=>chk(SB.from("perfiles").update({rol,activo,permisos}).eq("id",id)),"Permisos guardados");
 }
 
+/* ---------- menú ⚙️: perfil, preferencias y plataforma ---------- */
+const PREF_OPC={
+  idioma:["Idioma",[["es","Español"],["en","English"]]],
+  tema:["Apariencia",[["oscuro","Oscuro"],["claro","Claro"],["auto","Como el sistema"]]],
+  letra:["Tamaño de letra",[["normal","Normal"],["grande","Grande"],["muygrande","Muy grande"]]],
+  inicio:["Pestaña de inicio",[["resumen","Resumen"],["ruta","Ruta"],["clientes","Clientes"],["ventas","Ventas"]]]
+};
+const prefPuede=k=>isAdmin()||S.cfg.prefs.permitir[k]!==false;
+const prefDef=k=>S.cfg.prefs.defecto[k]??PREF_BASE[k];
+function prefValor(k){const v=prefPuede(k)?prefsLocal()[k]:undefined;return v??prefDef(k)}
+function aplicarPrefs(){
+  const ef={};Object.keys(PREF_BASE).forEach(k=>ef[k]=prefValor(k));
+  try{localStorage.setItem("cartera-ef",JSON.stringify(ef))}catch(e){}
+  temaAplicar(ef.tema);letraAplicar(ef.letra);
+  return ef;
+}
+const prefOpciones=k=>PREF_OPC[k][1].filter(([v])=>k!=="inicio"||visibleTabs().includes(v));
+const prefSelect=(k,val,attrs)=>`<select ${attrs} aria-label="${PREF_OPC[k][0]}">${prefOpciones(k).map(([v,l])=>`<option value="${v}"${v===val?" selected":""}>${l}</option>`).join("")}</select>`;
+function menuSheet(){
+  const admin=isAdmin();
+  const prefs=Object.keys(PREF_OPC).map(k=>{const puede=prefPuede(k);
+    return `<div class="prefrow"><div><b style="font-weight:600">${PREF_OPC[k][0]}</b>${puede?"":`<div class="lock">🔒 Definido por el administrador</div>`}</div>${prefSelect(k,prefValor(k),`data-pref="${k}"${puede?"":" disabled"}`)}</div>`}).join("");
+  const plataforma=admin||can("editar_ajustes")?`<section class="card stack"><h3>Plataforma</h3>
+    <div class="row"><button class="btn" data-tab="ajustes">Precios, zonas y comisiones</button>${admin?`<button class="btn" data-tab="equipo">Equipo y permisos</button>`:""}</div>
+    ${admin?`<form id="prefsAdmin" class="stack" style="gap:10px"><div><b>Qué puede cambiar cada usuario</b><div class="muted small">Si desmarcas una opción, todos usan el valor que elijas aquí. Tú, como administrador, siempre puedes cambiar las tuyas.</div></div>
+      ${Object.keys(PREF_OPC).map(k=>`<div class="prefrow"><label class="row" style="gap:8px;flex-wrap:nowrap"><input type="checkbox" data-permitir="${k}" ${S.cfg.prefs.permitir[k]!==false?"checked":""}> ${PREF_OPC[k][0]}</label>${prefSelect(k,prefDef(k),`data-defecto="${k}"`)}</div>`).join("")}
+      <div class="muted small">Casilla marcada: cada persona elige. La lista indica con qué valor parte.</div>
+      <div class="row"><button class="btn primary sm" type="submit">Guardar para todos</button></div></form>`:""}
+  </section>`:"";
+  openSheet(`<div class="menu stack"><div class="row spread"><h2>Configuración</h2><button class="btn sm" data-act="close">Cerrar</button></div>
+  <section class="card stack"><h3>Mi perfil</h3>
+    <div class="muted small">${esc(ME.user?.email||"")} · ${admin?"Administrador":"Usuario"}</div>
+    <form id="perfilForm" class="row" style="flex-wrap:nowrap"><input id="pfNombre" aria-label="Tu nombre" value="${esc(ME.perfil?.nombre||"")}" required><button class="btn sm" type="submit">Guardar nombre</button></form>
+    <form id="claveForm" class="row" style="flex-wrap:nowrap"><input id="pfClave" type="password" minlength="8" required autocomplete="new-password" placeholder="Contraseña nueva (mínimo 8)" aria-label="Contraseña nueva (mínimo 8)"><button class="btn sm" type="submit">Cambiar contraseña</button></form>
+    <div><button class="btn" data-act="logout">Cerrar sesión</button></div>
+  </section>
+  <section class="card stack"><div><h3>Preferencias</h3><div class="muted small">Se guardan en este dispositivo</div></div>${prefs}</section>
+  ${plataforma}</div>`,null);
+}
+
 /* ---------- events ---------- */
 document.addEventListener("click",async e=>{
   const t=e.target.closest("[data-act],[data-tab]");if(!t)return;
@@ -854,6 +916,8 @@ document.addEventListener("click",async e=>{
     case"close":case"closeBg":closeSheet();break;
     case"chooser":openSheet(`<div class="row spread"><h2>¿Qué quieres registrar?</h2><button class="btn sm" data-act="close">Cerrar</button></div><div class="choice"><button data-act="newAct"><b>Visita o activación</b><span class="muted small">Visitas, degustaciones, muestras entregadas, cobranza</span></button>${can("registrar_ventas")?`<button data-act="newSale"><b>Venta</b><span class="muted small">Barriles, cajas de latas o cajas de kombucha</span></button>`:""}${can("editar_clientes")?`<button data-act="newClient"><b>Cliente nuevo</b><span class="muted small">Un local para tu cartera o tu ruta</span></button>`:""}</div>`);break;
     case"logout":closeSheet();await SB?.auth.signOut();break;
+    case"menu":menuSheet();break;
+    case"lang":{const p=prefsLocal();p.idioma=t.dataset.v;try{localStorage.setItem("cartera-prefs",JSON.stringify(p));localStorage.setItem("cartera-ef",JSON.stringify({...prefsEf(),idioma:t.dataset.v}))}catch(err){}location.reload();break}
     case"authMode":authScreen(t.dataset.m);break;
     case"recheck":afterLogin();break;
     case"scope":S.scope=t.dataset.v;render();break;
@@ -901,7 +965,12 @@ document.addEventListener("input",e=>{
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="impFile"&&e.target.files[0]){importarRespaldo(e.target.files[0]);e.target.value=""}
-  if(e.target.id==="tema"){try{localStorage.setItem("cartera-tema",e.target.value)}catch(err){}temaAplicar(e.target.value)}
+  if(e.target.dataset.pref){
+    const k=e.target.dataset.pref,p=prefsLocal();p[k]=e.target.value;
+    try{localStorage.setItem("cartera-prefs",JSON.stringify(p))}catch(err){}
+    const ef=aplicarPrefs();
+    if(k==="idioma"&&ef.idioma!==LANG)location.reload();
+  }
   if(e.target.id==="rutaDe"){S.rutaDe=e.target.value;render()}
   if(e.target.id==="fMarca"){S.fMarca=e.target.value;render()}
   if(e.target.id==="fSem"){S.fSem=e.target.value;render()}
@@ -946,6 +1015,26 @@ document.addEventListener("submit",async e=>{
     const{data}=await SB.auth.getSession();ME.user=data?.session?.user;toast("Contraseña actualizada");afterLogin();return;
   }
   if(f.classList.contains("userCard")){await guardarUsuario(f);return}
+  if(f.id==="perfilForm"){
+    const nombre=$("#pfNombre").value.trim();if(!nombre){toast("Escribe tu nombre");return}
+    if(await guard(()=>chk(SB.from("perfiles").update({nombre}).eq("id",ME.user.id)),"Nombre guardado"))menuSheet();
+    return;
+  }
+  if(f.id==="claveForm"){
+    const btn=f.querySelector("button");btn.disabled=true;
+    const{error}=await SB.auth.updateUser({password:$("#pfClave").value});
+    btn.disabled=false;
+    if(error){toast("No se pudo cambiar: "+error.message);return}
+    $("#pfClave").value="";toast("Contraseña actualizada");return;
+  }
+  if(f.id==="prefsAdmin"){
+    const permitir={},defecto={};
+    f.querySelectorAll("[data-permitir]").forEach(x=>permitir[x.dataset.permitir]=x.checked);
+    f.querySelectorAll("[data-defecto]").forEach(x=>defecto[x.dataset.defecto]=x.value);
+    S.cfg.prefs={permitir,defecto};
+    if(await guard(()=>DB.setCfg(structuredClone(S.cfg)),"Guardado para todos")){aplicarPrefs();menuSheet()}
+    return;
+  }
   const val=id=>document.getElementById(id).value.trim();
   if(f.id==="clientForm"){
     const marcas=[$("#mC").checked&&"cerveza",$("#mK").checked&&"kombucha"].filter(Boolean);
@@ -997,6 +1086,177 @@ document.addEventListener("submit",async e=>{
   if(f.id==="cfgForm"){collectCfgForm();await guard(()=>DB.setCfg(structuredClone(S.cfg)),"Ajustes guardados");render()}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#modal").innerHTML)closeSheet()});
+
+/* ---------- idioma inglés ----------
+   La app se escribe en español. Con idioma "en", cada texto que aparece en pantalla
+   se traduce al vuelo con este diccionario (textos fijos) y EN_RX (textos con números).
+   Los datos guardados no cambian: por eso las <option> llevan value explícito.
+   Texto nuevo en la app → agregar su traducción aquí. */
+const EN={
+  "Clientes de cerveza El Growler y kombucha Animal Social":"Customers for El Growler beer and Animal Social kombucha",
+  "+ Registrar":"+ Log","Resumen":"Summary","Ruta":"Route","Clientes":"Customers","Ventas":"Sales","Ajustes":"Setup","Equipo":"Team",
+  "+ Cliente":"+ Customer","Configuración":"Settings","Reintentar":"Retry","Cargando tu cartera…":"Loading your portfolio…",
+  "Al día":"Up to date","Atención":"Attention","Atrasado":"Overdue","atrasado":"overdue","Sin datos":"No data",
+  "Prospecto, aún sin compras":"Prospect, no purchases yet","Prospecto":"Prospect","Activo":"Active","Pausado":"Paused",
+  "Sin compras registradas":"No purchases recorded","Sin compras":"No purchases","Sin facturas pendientes":"No pending invoices","Sin deuda":"No debt",
+  "Vence hoy":"Due today","En plazo":"Within terms","Sin próxima acción agendada":"No next action scheduled","Sin agendar":"Not scheduled",
+  "Seguimiento":"Follow-up","seguimiento":"follow-up","hoy":"today","Hoy":"Today","HOY":"TODAY","Nunca visitado":"Never visited","Sin visitas":"No visits",
+  "Visita":"Visit","Recompra":"Reorder","Pago":"Payment","Visitado":"Visited","Ver":"View",
+  "Todo el equipo":"Whole team","Solo lo mío":"Only mine","Mes anterior":"Previous month","Mes siguiente":"Next month",
+  "Ingreso estimado":"Estimated income","Líquido estimado del mes":"Estimated net pay this month","El Growler":"El Growler","Kombucha":"Kombucha",
+  "Litros cerveza":"Beer liters","Cajas kombucha":"Kombucha boxes","Por cobrar (con IVA)":"To collect (incl. VAT)","Vencido":"Overdue",
+  "Ruta de hoy":"Today's route","Visitas del mes":"Visits this month","Muestras del mes":"Samples this month","Conversión 60 días":"60-day conversion",
+  "Variedad":"Variety","Cantidad":"Quantity","Qué atender":"Needs attention","Todo al día. Nada urgente por ahora.":"All up to date. Nothing urgent for now.",
+  "Agrega tu primer cliente para empezar a ver alertas.":"Add your first customer to start seeing alerts.",
+  "Ruta de":"Route of","Mi ruta":"My route","Semana anterior":"Previous week","Semana siguiente":"Next week","Días de la semana":"Days of the week",
+  "Zonas del día":"Zones for the day","ninguna asignada":"none assigned","Cambiar zonas por día":"Change zones per day",
+  "Nada sugerido para este día.":"Nothing suggested for this day.",
+  "La ruta se arma con: clientes de las zonas asignadas a este día a los que les toca visita según su importancia, los que tienen este día como día fijo y los que agendaste para esta fecha.":"The route includes: customers in the zones assigned to this day who are due a visit based on their importance, those with this day as a fixed visit day, and those you scheduled for this date.",
+  "Agendado":"Scheduled","Día fijo de visita":"Fixed visit day","Cobrar":"Collect","Recompra atrasada":"Reorder overdue","Sin zona":"No zone",
+  "✓ Visitado":"✓ Visited","Registrar visita / muestras":"Log visit / samples","+ Venta":"+ Sale","Mapa":"Map",
+  "Cerveza":"Beer","A cargo":"Assigned to","+ Nuevo cliente":"+ New customer","Buscar por nombre, contacto, zona o dirección":"Search by name, contact, zone or address",
+  "Buscar":"Search","Marca":"Brand","Zona":"Zone","Estado":"Status","Todas las marcas":"All brands","Todas las zonas":"All zones","Todos":"All","Todas":"All",
+  "✕ Con algo atrasado":"✕ Something overdue","! Con algo por atender":"! Something to handle","✓ Al día":"✓ Up to date",
+  "Importancia A":"Importance A","Importancia B":"Importance B","Importancia C":"Importance C","Prospectos":"Prospects","Pausados":"Paused",
+  "Ningún cliente coincide con el filtro.":"No customer matches the filter.",
+  "Aún no tienes clientes. Parte agregando bares, botillerías o almacenes que quieras visitar como prospectos.":"You don't have customers yet. Start by adding bars, liquor stores or grocery stores you want to visit as prospects.",
+  "+ Agregar cliente":"+ Add customer","Clave":"Key","Importante":"Important","Ocasional":"Occasional",
+  "(cliente borrado)":"(deleted customer)","Deshacer pago":"Undo payment","Marcar pagada":"Mark as paid","Editar":"Edit",
+  "Ventas y cobros":"Sales and collections","Filtro":"Filter","Por cobrar":"To collect","Fecha":"Date","Cliente":"Customer","Total c/IVA":"Total incl. VAT",
+  "Acciones":"Actions","Total":"Total","No hay facturas por cobrar.":"No invoices to collect.","No hay ventas en este filtro.":"No sales in this filter.",
+  "⚙️ Mi perfil y preferencias":"⚙️ My profile and preferences","Zonas y ruta":"Zones and route","Zonas (separadas por coma)":"Zones (comma separated)",
+  "Si cambias las zonas, guarda y luego marca qué días va cada una.":"If you change the zones, save and then check which days each one is visited.",
+  "Visitar clientes A cada (días)":"Visit A customers every (days)","Visitar clientes B cada (días)":"Visit B customers every (days)","Visitar clientes C cada (días)":"Visit C customers every (days)",
+  "Semáforos de compra y pago":"Purchase and payment indicators","Recompra esperada cerveza (días)":"Expected beer reorder (days)",
+  "Verde hasta este plazo, amarillo hasta 1,5 veces, luego rojo":"Green up to this period, yellow up to 1.5 times, then red",
+  "Recompra esperada kombucha (días)":"Expected kombucha reorder (days)","Plazo de pago cerveza (días)":"Beer payment terms (days)",
+  "Plazo de pago kombucha (días)":"Kombucha payment terms (days)","0 = contra entrega":"0 = cash on delivery","Días de atraso para pasar a rojo":"Days late before turning red",
+  "Ingresos":"Income","Comisión El Growler por litro":"El Growler commission per liter","Horas semanales":"Weekly hours","Sueldo mínimo (IMM)":"Minimum wage (IMM)",
+  "Descuentos legales (%)":"Legal deductions (%)","Comisión kombucha (%)":"Kombucha commission (%)","Retención boleta (%)":"Invoice withholding (%)",
+  "Meta líquida mensual":"Monthly net goal","Incluir gratificación legal":"Include legal bonus","Productos y precios netos":"Products and net prices",
+  "+ Producto":"+ Product","Producto":"Product","Litros":"Liters","Neto":"Net","Quitar producto":"Remove product",
+  "Precios del catálogo El Growler 2024 y de la propuesta Animal Social, sin IVA. Revisa que sigan vigentes.":"Prices from the El Growler 2024 catalog and the Animal Social proposal, excluding VAT. Check they are still current.",
+  "Variedades para muestras":"Sample varieties","+ Variedad":"+ Variety","Unidad":"Unit","Quitar variedad":"Remove variety","Respaldo y exportar":"Backup and export",
+  "Tus datos están guardados en la nube. Igual puedes descargar una copia o llevar las ventas a Excel.":"Your data is stored in the cloud. You can still download a copy or take your sales to Excel.",
+  "Descargar copia (JSON)":"Download copy (JSON)","Exportar a Excel (CSV)":"Export to Excel (CSV)","Cargar respaldo…":"Load backup…",
+  "Cargar respaldo agrega los clientes, ventas y visitas del archivo a la nube; no borra nada.":"Loading a backup adds the file's customers, sales and visits to the cloud; it doesn't delete anything.",
+  "Guardar ajustes":"Save setup","Volver a valores de fábrica":"Reset to defaults",
+  "Puedes ver los ajustes, pero para cambiarlos necesitas permiso del administrador.":"You can see the setup, but you need the administrator's permission to change it.",
+  "Toca otra vez para confirmar":"Tap again to confirm","Toca otra vez para eliminar":"Tap again to delete","Cerrar":"Close",
+  "Recompra cerveza":"Beer reorder","Recompra kombucha":"Kombucha reorder","+ Visita / activación":"+ Visit / activation",
+  "Contacto":"Contact","Teléfono":"Phone","Dirección":"Address","Próxima acción":"Next action","Notas":"Notes","Muestras entregadas":"Samples given",
+  "Sin visitas registradas.":"No visits recorded.","Sin ventas registradas.":"No sales recorded.","Muestras":"Samples",
+  "Editar cliente":"Edit customer","Nuevo cliente":"New customer","Nombre del local *":"Business name *","Tipo de local":"Business type","Importancia":"Importance",
+  "A cargo de":"Assigned to","Le vendo":"I sell them","Días fijos de visita (opcional)":"Fixed visit days (optional)","Mejor horario":"Best time",
+  "Ej: 11 a 13 h, abre 18:00":"E.g.: 11 am to 1 pm, opens 6 pm","Visitar cada (días)":"Visit every (days)","Según importancia":"Based on importance",
+  "Nombre y cargo":"Name and role","Recompra cerveza cada (días)":"Beer reorder every (days)","Recompra kombucha cada (días)":"Kombucha reorder every (days)",
+  "Próxima acción (fecha)":"Next action (date)","Qué hacer":"What to do","Visitar, llevar degustación, cobrar…":"Visit, bring a tasting, collect…",
+  "Guardar":"Save","Eliminar cliente":"Delete customer",
+  "Bar":"Bar","Restorán":"Restaurant","Botillería":"Liquor store","Almacén":"Grocery store","Cafetería":"Café","Evento":"Event","Otro":"Other",
+  "Editar visita":"Edit visit","Registrar visita o activación":"Log visit or activation","Elige un cliente":"Choose a customer","Tipo":"Type",
+  "+ Muestra":"+ Sample","Déjalo vacío si no entregaste muestras.":"Leave it empty if you didn't give samples.","Resultado":"Result",
+  "Interesado":"Interested","Pidió cotización":"Asked for a quote","Hizo pedido":"Placed an order","Volver más adelante":"Come back later","No interesado":"Not interested",
+  "Qué hacer en la próxima":"What to do next time","Volver con degustación, enviar precios, cobrar…":"Come back with a tasting, send prices, collect…",
+  "Notas de la visita":"Visit notes","Con quién hablaste, qué le gustó, qué objeciones puso…":"Who you talked to, what they liked, what objections they raised…",
+  "Eliminar":"Delete","Activación / degustación":"Activation / tasting","Entrega de muestras":"Sample delivery","Cobranza":"Collection","Reparto":"Delivery",
+  "Llamada / WhatsApp":"Call / WhatsApp","Quitar":"Remove","Quitar línea":"Remove line",
+  "Editar venta":"Edit sale","Registrar venta":"Log sale","Productos":"Products","+ Otra línea":"+ Another line","Fecha de venta":"Sale date",
+  "Vence el pago":"Payment due","N° factura":"Invoice no.","Ya está pagada":"Already paid","Nota":"Note","Guardar venta":"Save sale","Eliminar venta":"Delete sale",
+  "Con IVA":"Incl. VAT","Tu comisión bruta ≈":"Your gross commission ≈","(al cobrar)":"(when collected)",
+  "Ver toda la cartera":"See the whole portfolio","Si no, ve solo los clientes asignados a él o que creó":"Otherwise, they only see customers assigned to them or that they created",
+  "Crear y editar clientes":"Create and edit customers","Registrar ventas":"Log sales","Ver cobranza y montos":"See collections and amounts",
+  "Facturas por cobrar, totales y marcar pagos":"Invoices to collect, totals and marking payments","Ver ingresos y metas":"See income and goals",
+  "Cálculo de líquido estimado del resumen":"Estimated net pay calculation in the summary","Eliminar registros":"Delete records",
+  "Borrar clientes, ventas y visitas":"Delete customers, sales and visits","Editar ajustes":"Edit setup","Precios, zonas, comisiones y variedades":"Prices, zones, commissions and varieties",
+  "Sin conexión: no se guardó. Intenta cuando tengas señal.":"Offline: not saved. Try again when you have signal.","No tienes permiso para hacer esto":"You don't have permission to do this",
+  "No se pudo guardar":"Could not save","Sin conexión: por ahora solo puedes mirar":"Offline: for now you can only look","Registro no encontrado":"Record not found",
+  "Respaldo descargado":"Backup downloaded","Solo el administrador puede cargar respaldos":"Only the administrator can load backups",
+  "Ese archivo no es un respaldo de Cartera Valdivia":"That file is not a Cartera Valdivia backup","Primero agrega un cliente":"Add a customer first",
+  "Visita registrada":"Visit logged","Venta marcada como pagada":"Sale marked as paid","Pago deshecho":"Payment undone","Venta eliminada":"Sale deleted",
+  "Registro eliminado":"Record deleted","Cliente eliminado":"Customer deleted","Ajustes restablecidos":"Setup reset","Cliente guardado":"Customer saved",
+  "Visita guardada":"Visit saved","Venta guardada":"Sale saved","Ajustes guardados":"Setup saved","Falta el nombre del local":"The business name is missing",
+  "Marca al menos una: cerveza o kombucha":"Check at least one: beer or kombucha","Elige el cliente":"Choose the customer",
+  "Agrega al menos un producto con cantidad":"Add at least one product with a quantity","Permisos guardados":"Permissions saved",
+  "Contraseña actualizada":"Password updated","Conexión recuperada":"Connection restored","Escribe tu correo primero":"Enter your email first",
+  "Cuenta pendiente":"Account pending","Ya me aprobaron":"I've been approved","Salir":"Sign out","Nueva contraseña":"New password",
+  "Contraseña nueva (mínimo 8)":"New password (at least 8)","Guardar contraseña":"Save password","Crear cuenta":"Create account","Entrar":"Sign in",
+  "Tu nombre":"Your name","Correo":"Email","Contraseña":"Password","Ya tengo cuenta":"I already have an account","Crear cuenta nueva":"Create new account",
+  "Olvidé mi contraseña":"I forgot my password","No se pudo enviar el correo":"Could not send the email",
+  "Te enviamos un correo con un enlace para crear una contraseña nueva.":"We sent you an email with a link to create a new password.",
+  "Ese correo ya tiene cuenta. Entra con tu contraseña.":"That email already has an account. Sign in with your password.","No se pudo crear la cuenta":"Could not create the account",
+  "Cuenta creada. Revisa tu correo para confirmarla y luego entra.":"Account created. Check your email to confirm it, then sign in.",
+  "Correo o contraseña incorrectos.":"Incorrect email or password.","Primero confirma tu correo (revisa tu bandeja de entrada).":"Confirm your email first (check your inbox).",
+  "No se pudo conectar con la base de datos. Revisa tu internet o los datos de config.js.":"Could not connect to the database. Check your internet or the config.js settings.",
+  "No se pudo entrar":"Could not sign in","No se pudo cambiar":"Could not change it","No se pudo conectar. Revisa tu internet e intenta de nuevo.":"Could not connect. Check your internet and try again.",
+  "Solo el administrador ve esta sección.":"Only the administrator can see this section.","Pendiente o desactivado":"Pending or disabled","(sin nombre)":"(no name)","tú":"you",
+  "Rol":"Role","Usuario":"User","Administrador":"Administrator","Administrador (todo)":"Administrator (everything)","Acceso aprobado":"Access approved",
+  "Permisos":"Permissions","Permisos (el administrador los tiene todos)":"Permissions (the administrator has all of them)","Guardar cambios":"Save changes",
+  "Cómo sumar a alguien":"How to add someone",
+  "Compártele la dirección de la app. La persona toca \"Crear cuenta\" y aparece aquí como pendiente. Tú la apruebas y eliges qué puede ver y hacer. Nadie puede cambiarse sus propios permisos.":"Share the app's address with them. The person taps \"Create account\" and shows up here as pending. You approve them and choose what they can see and do. Nobody can change their own permissions.",
+  "¿Qué quieres registrar?":"What do you want to log?","Visita o activación":"Visit or activation","Visitas, degustaciones, muestras entregadas, cobranza":"Visits, tastings, samples given, collections",
+  "Venta":"Sale","Barriles, cajas de latas o cajas de kombucha":"Kegs, boxes of cans or boxes of kombucha","Cliente nuevo":"New customer","Un local para tu cartera o tu ruta":"A business for your portfolio or route",
+  "Idioma":"Language","Apariencia":"Appearance","Oscuro":"Dark","Claro":"Light","Como el sistema":"Same as system","Tamaño de letra":"Text size",
+  "Grande":"Large","Muy grande":"Extra large","Pestaña de inicio":"Start tab","🔒 Definido por el administrador":"🔒 Set by the administrator",
+  "Plataforma":"Platform","Precios, zonas y comisiones":"Prices, zones and commissions","Equipo y permisos":"Team and permissions",
+  "Qué puede cambiar cada usuario":"What each user can change",
+  "Si desmarcas una opción, todos usan el valor que elijas aquí. Tú, como administrador, siempre puedes cambiar las tuyas.":"If you uncheck an option, everyone uses the value you choose here. As the administrator, you can always change your own.",
+  "Casilla marcada: cada persona elige. La lista indica con qué valor parte.":"Checked: each person chooses. The list sets the starting value.",
+  "Guardar para todos":"Save for everyone","Guardado para todos":"Saved for everyone","Mi perfil":"My profile","Guardar nombre":"Save name",
+  "Cambiar contraseña":"Change password","Cerrar sesión":"Sign out","Preferencias":"Preferences","Se guardan en este dispositivo":"Saved on this device",
+  "Escribe tu nombre":"Enter your name","Nombre guardado":"Name saved"
+};
+const EN_UNIT={lata:"can",latas:"cans",litro:"liter",litros:"liters"};
+const EN_RX=[
+  [/^Sin conexión\. Estás viendo los datos guardados (?:el (\S+) a las (\S+))?; no puedes hacer cambios hasta recuperar señal\.$/,m=>`Offline. You're viewing data saved${m[1]?` on ${m[1]} at ${m[2]}`:""}; you can't make changes until you have signal again.`],
+  [/^Última compra hace (\S+) días \(esperado cada (\S+)\)$/,m=>`Last purchase ${m[1]} days ago (expected every ${m[2]})`],
+  [/^Última visita hace (\S+) días \(cada (\S+) por importancia (\S+)\)$/,m=>`Last visit ${m[1]} days ago (every ${m[2]} for importance ${m[3]})`],
+  [/^Factura vencida hace (\S+) días$/,m=>`Invoice overdue by ${m[1]} days`],
+  [/^Vencida hace (\S+) días$/,m=>`Overdue by ${m[1]} days`],
+  [/^(\S+) por cobrar, dentro de plazo$/,m=>`${m[1]} to collect, within terms`],
+  [/^(\S+) por cobrar$/,m=>`${m[1]} to collect`],
+  [/^Vencida (\S+) d$/,m=>`Overdue ${m[1]} d`],[/^Atrasado (\S+) d$/,m=>`Overdue ${m[1]} d`],[/^atrasado (\S+) días$/,m=>`${m[1]} days overdue`],
+  [/^Pagada (\S+)$/,m=>`Paid ${m[1]}`],[/^Vence (\S+)$/,m=>`Due ${m[1]}`],
+  [/^(\S+) días$/,m=>`${m[1]} days`],
+  [/^Resumen de (.+)$/,m=>`Summary for ${m[1]}`],
+  [/^Sobre la meta de (.+)$/,m=>`Above the goal of ${m[1]}`],[/^Faltan (\S+) para (\S+)$/,m=>`${m[1]} short of ${m[2]}`],
+  [/^Growler: base (\S+) h \+ (\S+)\/L( \+ gratificación)?\. Kombucha: (\S+)% sobre lo cobrado en el mes\.$/,m=>`Growler: base ${m[1]} h + ${m[2]}/L${m[3]?" + legal bonus":""}. Kombucha: ${m[4]}% of what was collected this month.`],
+  [/^(\S+) ventas$/,m=>`${m[1]} sales`],[/^(\S+) neto$/,m=>`${m[1]} net`],[/^(\S+) activos$/,m=>`${m[1]} active`],[/^(\S+) prospectos$/,m=>`${m[1]} prospects`],
+  [/^(\S+) por visitar$/,m=>`${m[1]} to visit`],[/^Ver ruta de (.+) ›$/,m=>`See ${m[1]}'s route ›`],[/^(\S+) activaciones$/,m=>`${m[1]} activations`],
+  [/^(\S+) cerveza ·$/,m=>`${m[1]} beer ·`],[/^(\S+) de (\S+) activados compraron$/,m=>`${m[1]} of ${m[2]} activated bought`],
+  [/^Muestras entregadas en (.+)$/,m=>`Samples given in ${m[1]}`],[/^(\S+) (latas?|litros?)$/,m=>`${m[1]} ${EN_UNIT[m[2]]}`],
+  [/^(.+) \((latas?|litros?)\)$/,m=>`${m[1]} (${EN_UNIT[m[2]]})`],[/^(\S+) alertas$/,m=>`${m[1]} alerts`],
+  [/^(\S+) de (\S+) visitados$/,m=>`${m[1]} of ${m[2]} visited`],[/^Toca visita \((\S+) d\)$/,m=>`Visit due (${m[1]} d)`],
+  [/^Orden dentro de cada zona: importancia \(A, B, C\), luego agendados, cobros y recompras atrasadas\. Frecuencia de visita: A cada (\S+) días, B cada (\S+), C cada (\S+)\.$/,m=>`Order within each zone: importance (A, B, C), then scheduled, collections and overdue reorders. Visit frequency: A every ${m[1]} days, B every ${m[2]}, C every ${m[3]}.`],
+  [/^Clientes \((\d+)\)$/,m=>`Customers (${m[1]})`],[/^Visitas y activaciones \((\d+)\)$/,m=>`Visits and activations (${m[1]})`],[/^Ventas \((\d+)\)$/,m=>`Sales (${m[1]})`],
+  [/^(\S+) cajas$/,m=>`${m[1]} boxes`],[/^(\S+) cajas \((\S+) L\)$/,m=>`${m[1]} boxes (${m[2]} L)`],[/^total con IVA (.+)$/,m=>`total incl. VAT ${m[1]}`],
+  [/^(\d+) clientes a cargo$/,m=>`${m[1]} customers assigned`],[/^(\d+) cuentas? esperan? aprobación\.$/,m=>`${m[1]} account${m[1]==="1"?"":"s"} waiting for approval.`],
+  [/^Hola (.*)\. Tu cuenta ya está creada\. El administrador tiene que aprobarla antes de que puedas entrar\.$/,m=>`Hi ${m[1]}. Your account is created. The administrator has to approve it before you can sign in.`],
+  [/^Respaldo cargado: (\d+) clientes, (\d+) ventas$/,m=>`Backup loaded: ${m[1]} customers, ${m[2]} sales`],
+  [/^Eliminar cliente y sus (\d+) registros: toca otra vez$/,m=>`Delete customer and its ${m[1]} records: tap again`],
+  [/^(.+) el (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/,m=>`${m[1]} on ${m[2]}`],
+  [/^El Growler (\S+), kombucha (\S+), meta (\S+)$/,m=>`El Growler ${m[1]}, kombucha ${m[2]}, goal ${m[3]}`]
+];
+function trTxt(s){
+  if(Object.hasOwn(EN,s))return EN[s];
+  for(const[rx,f]of EN_RX){const m=s.match(rx);if(m)return f(m)}
+  for(const sep of[" · ",": "]){const i=s.indexOf(sep);
+    if(i>0){const a=s.slice(0,i),b=s.slice(i+sep.length),ta=trTxt(a),tb=trTxt(b);if(ta!==null||tb!==null)return(ta??a)+sep+(tb??b)}}
+  return null;
+}
+const NOTR="textarea,script,style,[data-notr]";
+function trNodo(n){
+  if(n.nodeType===3){
+    const p=n.parentElement;if(!p||p.closest(NOTR))return;
+    const v=n.nodeValue,s=v.trim();if(!s)return;
+    const t=trTxt(s);if(t!==null&&t!==s)n.nodeValue=v.replace(s,()=>t);
+    return;
+  }
+  if(n.nodeType!==1||n.closest("script,style,[data-notr]"))return;
+  [n,...n.querySelectorAll("[placeholder],[aria-label],[title]")].forEach(el=>{if(el.closest("[data-notr]"))return;
+    ["placeholder","aria-label","title"].forEach(a=>{const v=el.getAttribute(a);if(v){const t=trTxt(v.trim());if(t!==null)el.setAttribute(a,t)}})});
+  const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT);const ns=[];while(w.nextNode())ns.push(w.currentNode);ns.forEach(trNodo);
+}
+if(LANG==="en"){trNodo(document.body);new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(trNodo))).observe(document.body,{childList:true,subtree:true})}
 
 render();
 initCloud();
