@@ -42,7 +42,7 @@ temaAplicar(BOOT.tema);letraAplicar(BOOT.letra);
 :root{
   --bg:#F1F4F0; --surface:#FFFFFF; --surface-2:#E8EDE7; --ink:#18221D; --muted:#56665D; --line:#D3DBD2;
   --beer:#A85F0A; --kom:#00836B; --focus:#00836B;
-  --f1:#2a78d6; --f2:#eb6834; --f3:#1baf7a;
+  --f1:#2a78d6; --f2:#eb6834; --f3:#1baf7a; --seq:#256abf; --hmk:1; --hm-hi:#fff;
   --ok:#23703A; --ok-soft:#DCEFDF; --warn:#8A5A00; --warn-soft:#F8EBC8; --bad:#A8321F; --bad-soft:#F7E0DA; --none:#6B7770; --none-soft:#E6EAE6;
   --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
   --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
@@ -50,11 +50,11 @@ temaAplicar(BOOT.tema);letraAplicar(BOOT.letra);
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;
   --bg:#121814; --surface:#1A221D; --surface-2:#243029; --ink:#E6EDE8; --muted:#9AAAA1; --line:#314038;
-  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70;
+  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70; --seq:#3987e5; --hmk:.8; --hm-hi:var(--ink);
   --ok:#6CCB86; --ok-soft:#1B3524; --warn:#E8C067; --warn-soft:#3A3016; --bad:#F08A76; --bad-soft:#3D1F1A; --none:#9AAAA1; --none-soft:#26302A;}}
 :root[data-theme="dark"]{color-scheme:dark;
   --bg:#121814; --surface:#1A221D; --surface-2:#243029; --ink:#E6EDE8; --muted:#9AAAA1; --line:#314038;
-  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70;
+  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70; --seq:#3987e5; --hmk:.8; --hm-hi:var(--ink);
   --ok:#6CCB86; --ok-soft:#1B3524; --warn:#E8C067; --warn-soft:#3A3016; --bad:#F08A76; --bad-soft:#3D1F1A; --none:#9AAAA1; --none-soft:#26302A;}
 *{box-sizing:border-box}
 html{padding-top:env(safe-area-inset-top,0px)}
@@ -190,6 +190,20 @@ input[type=checkbox]{width:auto!important;flex:none}
 .cc-x{display:flex;margin-left:46px;padding-top:4px}
 .cc-x span{flex:1;text-align:center;font-size:11px;color:var(--muted)}
 details.card summary{cursor:pointer;font-weight:600}
+.sw-ok{background:var(--ok)} .sw-warn{background:var(--warn)} .sw-bad{background:var(--bad)}
+.hb-row.link{cursor:pointer}
+/* mapa de calor: un solo tono, de la superficie (poco) al azul (mucho); 2px de separación entre celdas */
+table.hm{border-collapse:separate;border-spacing:0}
+table.hm th.c,table.hm td.c{text-align:center;min-width:64px}
+table.hm td.c{position:relative;border-bottom:0;padding:9px 6px;font-family:var(--mono);font-size:12px}
+table.hm td.c::before{content:"";position:absolute;inset:2px;border-radius:4px;background:var(--seq);opacity:calc(var(--p) * var(--hmk));pointer-events:none}
+table.hm td.c span{position:relative}
+table.hm td.c.hi{color:var(--hm-hi)}
+table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";position:absolute;inset:1px;border-radius:5px;box-shadow:inset 0 0 0 2px var(--ink);pointer-events:none}
+.hm-key{display:flex;align-items:center;gap:6px}
+.hm-key i{display:block;width:64px;height:10px;border-radius:3px;background:linear-gradient(to right,color-mix(in srgb,var(--seq) 8%,var(--surface)),var(--seq))}
+.zgridcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.zcard{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:3px}
 .tip{position:fixed;z-index:70;background:var(--ink);color:var(--bg);padding:6px 9px;border-radius:6px;font-size:13px;pointer-events:none;max-width:280px;line-height:1.35}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}}
 </style>
@@ -524,7 +538,7 @@ function vVentas(){
   <div class="card tbox">${vs.length?`<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Cantidad</th><th class="r">Total c/IVA</th><th>Pago</th><th class="r">Acciones</th></tr></thead><tbody>${vs.map(v=>ventaRow(v)).join("")}</tbody></table>`:`<div class="empty">${S.vFiltro==="pendientes"?"No hay facturas por cobrar.":"No hay ventas en este filtro."}</div>`}</div></div>`;
 }
 /* ---------- índices (dashboards) ---------- */
-S.ix={vista:"productos",periodo:"mes",marca:"todas",formato:"todos",quien:"todos",medida:"litros",modo:"juntos"};
+S.ix={vista:"productos",periodo:"mes",marca:"todas",formato:"todos",quien:"todos",medida:"litros",modo:"juntos",zmodo:"mezcla"};
 const MARCA_SW={cerveza:"beer",kombucha:"kom"};
 const FMT_SW={barril:"f1",caja:"f2",lata:"f3",otro:"f0"};
 function ixRango(p){
@@ -545,7 +559,8 @@ function ixLineas(){
   const out=[];
   S.ventas.filter(v=>v.fecha>=d&&v.fecha<=h&&(x.marca==="todas"||v.marca===x.marca)&&(x.quien==="todos"||v.creado_por===x.quien)).forEach(v=>
     (v.items||[]).forEach(it=>{const i=infoItem(it);if(x.formato!=="todos"&&i.formato!==x.formato)return;
-      out.push({marca:v.marca,...i,unidades:it.cant||0,litros:(it.cant||0)*(it.litrosU||0),neto:(it.cant||0)*(it.netoU||0)})}));
+      const cl=S.clientes.find(c=>c.id===v.clienteId);
+      out.push({marca:v.marca,...i,clienteId:v.clienteId,zona:cl?.zona||"Sin zona",unidades:it.cant||0,litros:(it.cant||0)*(it.litrosU||0),neto:(it.cant||0)*(it.netoU||0)})}));
   return out;
 }
 const ixFmt=(n,m)=>m==="neto"?money(n):m==="unidades"?n1(n)+" u.":n1(n)+" L";
@@ -554,25 +569,27 @@ function hbars(filas,medida){
   const max=Math.max(...filas.map(f=>f.segs.reduce((s,x)=>s+x.v,0)),0)||1;
   return `<div class="hb">${filas.map(f=>{const tot=f.segs.reduce((s,x)=>s+x.v,0);const segs=f.segs.filter(x=>x.v>0);
     const tip=`${f.lab}: ${ixFmt(tot,medida)}${segs.length>1?" · "+segs.map(x=>`${x.nombre}: ${ixFmt(x.v,medida)}`).join(" · "):""}`;
-    return `<div class="hb-row" tabindex="0" data-tip="${esc(tip)}"><span class="hb-lab" title="${esc(f.lab)}">${esc(f.lab)}</span><span class="hb-track"><span class="hb-bar" style="width:${tot/max*82}%">${segs.map(x=>`<i class="sw-${x.sw}" style="flex:${x.v}"></i>`).join("")}</span><span class="hb-val">${ixFmt(tot,medida)}</span></span></div>`}).join("")}</div>`;
+    return `<div class="hb-row${f.id?" link":""}" tabindex="0" data-tip="${esc(tip)}"${f.id?` data-act="openClient" data-id="${f.id}"`:""}><span class="hb-lab" title="${esc(f.lab)}">${esc(f.lab)}</span><span class="hb-track"><span class="hb-bar" style="width:${tot/max*82}%">${segs.map(x=>`<i class="sw-${x.sw}" style="flex:${x.v}"></i>`).join("")}</span><span class="hb-val">${ixFmt(tot,medida)}</span></span></div>`}).join("")}</div>`;
 }
 const leyenda=items=>items.length>1?`<div class="legend">${items.map(([sw,t])=>`<span><i class="sw sw-${sw}"></i>${esc(t)}</span>`).join("")}</div>`:"";
 function vIndices(){
   const x=S.ix,sueldo=can("ver_ingresos"),plata=can("ver_cobranza");
-  if(x.vista==="sueldo"&&!sueldo)x.vista="productos";
+  const vistas=[["productos","Productos"],["zonas","Zonas"],["clientes","Clientes"],...(plata?[["cobranza","Cobranza"]]:[]),...(sueldo?[["sueldo","Sueldo y meta"]]:[])];
+  if(!vistas.some(([k])=>k===x.vista))x.vista="productos";
   if(x.medida==="neto"&&!plata)x.medida="litros";
   const opt=(v,t,cur)=>`<option value="${v}"${cur===v?" selected":""}>${esc(t)}</option>`;
   const equipo=S.equipo.length>1&&can("ver_todos_clientes");
-  return `<div class="stack"><div class="row spread"><h2>Índices</h2>
-    ${sueldo?`<div class="seg" role="group" aria-label="Tablero"><button data-act="ixv" data-v="productos" aria-pressed="${x.vista==="productos"}">Productos</button><button data-act="ixv" data-v="sueldo" aria-pressed="${x.vista==="sueldo"}">Sueldo y meta</button></div>`:""}</div>
-  ${x.vista==="sueldo"?ixSueldo():`
+  const cuerpo={productos:ixProductos,zonas:ixZonas,clientes:ixClientes,cobranza:ixCobranza,sueldo:ixSueldo}[x.vista];
+  return `<div class="stack"><h2>Índices</h2>
+    <div class="seg" role="group" aria-label="Tablero">${vistas.map(([k,l])=>`<button data-act="ixv" data-v="${k}" aria-pressed="${x.vista===k}">${l}</button>`).join("")}</div>
+  ${x.vista==="sueldo"||x.vista==="cobranza"?cuerpo():`
   <div class="filters">
     <select data-ix="periodo" aria-label="Período">${opt("mes","Este mes",x.periodo)}${opt("mesAnt","Mes anterior",x.periodo)}${opt("3m","Últimos 3 meses",x.periodo)}${opt("anio","Este año",x.periodo)}${opt("todo","Todo",x.periodo)}</select>
     <select data-ix="marca" aria-label="Marca">${opt("todas","Todas las marcas",x.marca)}${opt("cerveza","Cerveza",x.marca)}${opt("kombucha","Kombucha",x.marca)}</select>
     <select data-ix="formato" aria-label="Formato">${opt("todos","Todos los formatos",x.formato)}${Object.entries(FORMATOS).map(([k,l])=>opt(k,l,x.formato)).join("")}</select>
     ${equipo?`<select data-ix="quien" aria-label="Vendedor">${opt("todos","Todo el equipo",x.quien)}${S.equipo.map(u=>opt(u.id,u.id===ME.user.id?"Solo yo":u.nombre,x.quien)).join("")}</select>`:""}
     <select data-ix="medida" aria-label="Medida">${opt("litros","Litros",x.medida)}${opt("unidades","Unidades",x.medida)}${plata?opt("neto","Neto $",x.medida):""}</select>
-  </div>${ixProductos()}`}</div>`;
+  </div>${cuerpo()}`}</div>`;
 }
 function ixProductos(){
   const x=S.ix,L=ixLineas(),m=x.medida,sum=(arr,k)=>arr.reduce((s,r)=>s+r[k],0);
@@ -601,6 +618,101 @@ function ixProductos(){
     ${tabla.map(r=>`<tr><td><span class="row" style="gap:6px;flex-wrap:nowrap"><i class="sw ${r.mk==="cerveza"?"beer":"kom"}"></i>${esc(r.e)}</span></td><td>${FORMATOS[r.f]||esc(r.f)}</td><td class="r num">${n1(r.u)}</td><td class="r num">${n1(r.l)}</td>${can("ver_cobranza")?`<td class="r num">${money(r.n)}</td>`:""}</tr>`).join("")}
   </tbody></table></div></details>`;
 }
+/* zonas: mapa de calor zona × estilo, por marca, y qué ofrecer en cada zona */
+const sumM=(arr,m)=>arr.reduce((s,r)=>s+r[m],0);
+const pctTxt=v=>Math.round(v*100)+"%";
+function heatmap(marca,L,m,modo){
+  const rs=L.filter(r=>r.marca===marca);if(!rs.length)return"";
+  const total=sumM(rs,m)||1;
+  const estilos=[...new Set(rs.map(r=>r.estilo))].map(e=>[e,sumM(rs.filter(r=>r.estilo===e),m)]).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  const shG=Object.fromEntries(estilos.map(e=>[e,sumM(rs.filter(r=>r.estilo===e),m)/total]));
+  const orden=[...S.cfg.zonas,"Sin zona"],pos=z=>{const i=orden.indexOf(z);return i<0?99:i};
+  const zonas=[...new Set(rs.map(r=>r.zona))].sort((a,b)=>pos(a)-pos(b));
+  const totZ=Object.fromEntries(zonas.map(z=>[z,sumM(rs.filter(r=>r.zona===z),m)]));
+  const val=(z,e)=>sumM(rs.filter(r=>r.zona===z&&r.estilo===e),m);
+  const esc2=(z,e)=>{const v=val(z,e);return{v,sh:totZ[z]?v/totZ[z]:0}};
+  let max=0;zonas.forEach(z=>estilos.forEach(e=>{const c=esc2(z,e);max=Math.max(max,modo==="mezcla"?c.sh:c.v)}));max=max||1;
+  const corto=v=>m==="neto"?moneyK(v):n1(v);
+  const tabla=`<div class="tbox"><table class="hm"><thead><tr><th>Zona</th>${estilos.map(e=>`<th class="c">${esc(e)}</th>`).join("")}<th class="r">Total</th></tr></thead><tbody>
+    ${zonas.map(z=>`<tr><td>${esc(z)}</td>${estilos.map(e=>{const c=esc2(z,e),p=(modo==="mezcla"?c.sh:c.v)/max;
+      return `<td class="c${p>=.78?" hi":""}" style="--p:${p.toFixed(3)}" tabindex="0" data-tip="${esc(`${z} · ${e}: ${pctTxt(c.sh)} · ${ixFmt(c.v,m)}`)}"><span>${c.v?(modo==="mezcla"?pctTxt(c.sh):corto(c.v)):"–"}</span></td>`}).join("")}<td class="r num">${ixFmt(totZ[z],m)}</td></tr>`).join("")}
+  </tbody></table></div>`;
+  // lectura: lo que más sale en cada zona y qué estilos conviene ofrecer
+  const tops=Object.fromEntries(zonas.map(z=>[z,estilos.map(e=>[e,esc2(z,e).sh]).sort((a,b)=>b[1]-a[1]).filter(x=>x[1]>0)]));
+  const favoritos={};zonas.forEach(z=>{const t=tops[z][0];if(t)favoritos[t[0]]=(favoritos[t[0]]||0)+1});
+  const [fav,nFav]=Object.entries(favoritos).sort((a,b)=>b[1]-a[1])[0]||[];
+  const ofrecer=z=>estilos.filter(e=>shG[e]>=.1&&esc2(z,e).sh<shG[e]/3).slice(0,3);
+  const sinVentas=S.cfg.zonas.filter(z=>!zonas.includes(z));
+  const lectura=`<div class="stack" style="gap:8px">
+    ${zonas.length>1&&fav?`<div class="small"><b>${esc(fav)}</b> es lo más vendido en ${nFav} de ${zonas.length} zonas.</div>`:""}
+    <div class="zgridcards">${zonas.map(z=>{const o=ofrecer(z);return `<div class="zcard"><b>${esc(z)}</b>
+      <div class="small">Lo que más sale: ${tops[z].slice(0,2).map(([e,s])=>`${esc(e)} (${pctTxt(s)})`).join(", ")}</div>
+      ${o.length?`<div class="small">Para ofrecer: <b>${o.map(esc).join(", ")}</b></div>`:""}</div>`}).join("")}</div>
+    ${sinVentas.length?`<div class="small muted">Zonas sin ventas en este período: ${sinVentas.map(esc).join(", ")}. Buena oportunidad para llevar ${estilos.slice(0,2).map(esc).join(" y ")}.</div>`:""}
+    <div class="muted small">"Para ofrecer" son estilos que se venden bien en general pero poco o nada en esa zona.</div>
+  </div>`;
+  return `<section class="card stack"><div class="row spread"><div><h3><span class="row" style="gap:6px"><i class="sw ${MARCA_SW[marca]}"></i>${marca==="cerveza"?"Cerveza por zona":"Kombucha por zona"}</span></h3>
+    <div class="muted small">${modo==="mezcla"?"% de lo vendido en cada zona":"Cantidad vendida"} · ${m==="neto"?"neto":m==="unidades"?"unidades":"litros"}</div></div>
+    <div class="hm-key small muted"><span>Menos</span><i></i><span>Más</span></div></div>
+    ${tabla}${lectura}</section>`;
+}
+function ixZonas(){
+  const x=S.ix,L=ixLineas();
+  if(!L.length)return `<div class="card empty">No hay ventas con estos filtros.<span class="small">Prueba con otro período o registra una venta.</span></div>`;
+  const marcas=["cerveza","kombucha"].filter(mk=>L.some(r=>r.marca===mk));
+  return `<div class="row spread"><span class="muted small">Cada fila es una zona y cada columna un estilo.</span>
+    <div class="seg" role="group" aria-label="Mostrar"><button data-act="ixz" data-v="mezcla" aria-pressed="${x.zmodo==="mezcla"}">% por zona</button><button data-act="ixz" data-v="cantidad" aria-pressed="${x.zmodo==="cantidad"}">Cantidad</button></div></div>
+  ${marcas.map(mk=>heatmap(mk,L,x.medida,x.zmodo)).join("")}`;
+}
+/* clientes: ranking y activos que no compraron en el período */
+function ixClientes(){
+  const m=S.ix.medida,L=ixLineas();
+  if(!L.length)return `<div class="card empty">No hay ventas con estos filtros.<span class="small">Prueba con otro período o registra una venta.</span></div>`;
+  const total=sumM(L,m)||1,ids=[...new Set(L.map(r=>r.clienteId))];
+  const filas=ids.map(id=>{const rs=L.filter(r=>r.clienteId===id),cl=S.clientes.find(c=>c.id===id);
+    return{id:cl?id:null,lab:cl?.nombre||"(cliente borrado)",tot:sumM(rs,m),segs:["cerveza","kombucha"].map(mk=>({k:mk,sw:MARCA_SW[mk],nombre:mk==="cerveza"?"Cerveza":"Kombucha",v:sumM(rs.filter(r=>r.marca===mk),m)}))}}).sort((a,b)=>b.tot-a.tot);
+  const top3=filas.slice(0,3).reduce((s,f)=>s+f.tot,0)/total;
+  const marcas=[...new Set(L.map(r=>r.marca))];
+  const sinCompra=S.clientes.filter(c=>c.estado==="activo"&&!ids.includes(c.id)&&(S.ix.marca==="todas"||(c.marcas||[]).includes(S.ix.marca)));
+  return `<section class="kpis">
+    <div class="kpi"><span class="lab">Clientes que compraron</span><span class="val">${ids.length}</span></div>
+    <div class="kpi"><span class="lab">Promedio por cliente</span><span class="val">${ixFmt(total/ids.length,m)}</span></div>
+    ${ids.length>3?`<div class="kpi"><span class="lab">Peso de los 3 mayores</span><span class="val">${pctTxt(top3)}</span><span class="muted small">del total vendido</span></div>`:""}
+    <div class="kpi"><span class="lab">Activos sin comprar</span><span class="val">${sinCompra.length}</span><span class="muted small">en este período</span></div>
+  </section>
+  <section class="card stack"><div><h3>Mejores clientes</h3><div class="muted small">Los ${Math.min(10,filas.length)} que más compraron · toca uno para ver su ficha</div></div>
+    ${leyenda(marcas.map(mk=>[MARCA_SW[mk],mk==="cerveza"?"Cerveza":"Kombucha"]))}${hbars(filas.slice(0,10),m)}</section>
+  ${sinCompra.length?`<section class="card stack"><div><h3>Activos que no compraron</h3><div class="muted small">Clientes activos sin ventas en este período. Buenos candidatos para visitar.</div></div>
+    <div class="chips">${sinCompra.slice(0,30).map(c=>`<button class="chip strong" style="cursor:pointer;background:none" data-act="openClient" data-id="${c.id}">${esc(c.nombre)}${c.zona?` · ${esc(c.zona)}`:""}</button>`).join("")}</div></section>`:""}
+  <details class="card"><summary>Ver tabla</summary><div class="tbox" style="margin-top:10px"><table><thead><tr><th>#</th><th>Cliente</th><th class="r">Total</th><th class="r">% del total</th></tr></thead><tbody>
+    ${filas.map((f,i)=>`<tr><td class="num">${i+1}</td><td>${esc(f.lab)}</td><td class="r num">${ixFmt(f.tot,m)}</td><td class="r num">${pctTxt(f.tot/total)}</td></tr>`).join("")}
+  </tbody></table></div></details>`;
+}
+/* cobranza: deuda por antigüedad y morosos */
+function ixCobranza(){
+  const t=today(),tol=S.cfg.tolPago;
+  const pend=S.ventas.filter(v=>!v.pagado).map(v=>({v,atr:days(v.vence||v.fecha,t),monto:(v.neto||0)*1.19}));
+  const porCobrar=pend.reduce((s,p)=>s+p.monto,0),venc=pend.filter(p=>p.atr>0),vencido=venc.reduce((s,p)=>s+p.monto,0);
+  const pagadas=S.ventas.filter(v=>v.pagado&&v.fechaPago&&v.fechaPago>=addDays(t,-90));
+  const diasPago=pagadas.length?pagadas.reduce((s,v)=>s+Math.max(0,days(v.fecha,v.fechaPago)),0)/pagadas.length:null;
+  const tramos=[["ok","✓ Por vencer",p=>p.atr<0],["warn",`! Vence hoy o hasta ${tol} días de atraso`,p=>p.atr>=0&&p.atr<=tol],["bad",`✕ ${tol+1} a 30 días de atraso`,p=>p.atr>tol&&p.atr<=30],["bad","✕ Más de 30 días de atraso",p=>p.atr>30]];
+  const filas=tramos.map(([sw,lab,f])=>{const ps=pend.filter(f);return{lab,segs:[{k:sw,sw,nombre:lab,v:ps.reduce((s,p)=>s+p.monto,0)}],n:ps.length}});
+  const morosos=[...new Set(venc.map(p=>p.v.clienteId))].map(id=>{const ps=venc.filter(p=>p.v.clienteId===id),cl=S.clientes.find(c=>c.id===id);
+    return{id,cl,monto:ps.reduce((s,p)=>s+p.monto,0),n:ps.length,max:Math.max(...ps.map(p=>p.atr))}}).sort((a,b)=>b.monto-a.monto);
+  if(!pend.length&&!pagadas.length)return `<div class="card empty">No hay facturas por cobrar ni pagos recientes.</div>`;
+  return `<section class="kpis">
+    <div class="kpi"><span class="lab">Por cobrar (con IVA)</span><span class="val">${money(porCobrar)}</span><span class="muted small">${pend.length} facturas</span></div>
+    <div class="kpi"><span class="lab">Vencido</span><span class="val">${money(vencido)}</span><span class="muted small">${porCobrar?pctTxt(vencido/porCobrar):"0%"} de lo por cobrar</span></div>
+    <div class="kpi"><span class="lab">Días promedio de pago</span><span class="val">${diasPago===null?"—":n1(diasPago)}</span><span class="muted small">pagos de los últimos 90 días</span></div>
+    <div class="kpi"><span class="lab">Clientes con deuda vencida</span><span class="val">${morosos.length}</span></div>
+  </section>
+  ${pend.length?`<section class="card stack"><div><h3>Deuda por antigüedad</h3><div class="muted small">Monto con IVA de las facturas pendientes</div></div>${hbars(filas.filter(f=>f.n),"neto")}</section>`:""}
+  ${morosos.length?`<section class="card stack"><div><h3>Morosos</h3><div class="muted small">Clientes con facturas vencidas, de mayor a menor deuda</div></div>
+    <div class="tbox"><table><thead><tr><th>Cliente</th><th class="r">Vencido</th><th class="r">Facturas</th><th>Atraso</th></tr></thead><tbody>
+    ${morosos.map(r=>`<tr><td>${r.cl?`<button class="btn link" style="font-size:14px" data-act="openClient" data-id="${r.id}">${esc(r.cl.nombre)}</button>`:"(cliente borrado)"}</td><td class="r num">${money(r.monto)}</td><td class="r num">${r.n}</td><td>${pill({level:r.max>tol?"bad":"warn",short:`Vencida ${r.max} d`})}</td></tr>`).join("")}
+    </tbody></table></div></section>`:`<div class="card empty">Nadie tiene facturas vencidas. 👌</div>`}`;
+}
+
 /* compacto para ejes: $850k, $1,2M */
 const moneyK=n=>n>=1e6?"$"+(Math.round(n/1e5)/10).toLocaleString("es-CL")+"M":n>=1e3?"$"+Math.round(n/1e3)+"k":"$"+Math.round(n);
 function pasoLindo(v){const p=10**Math.floor(Math.log10(v||1));return[1,2,2.5,5,10].map(k=>k*p).find(s=>s>=v)}
@@ -1108,6 +1220,7 @@ document.addEventListener("click",async e=>{
     case"vf":S.vFiltro=t.dataset.v;render();break;
     case"ixv":S.ix.vista=t.dataset.v;render();break;
     case"ixm":S.ix.modo=t.dataset.v;render();break;
+    case"ixz":S.ix.zmodo=t.dataset.v;render();break;
     case"newClient":clientForm();break;
     case"editClient":clientForm(id);break;
     case"openClient":clientDetail(id);break;
@@ -1408,7 +1521,19 @@ const EN={
   "Meta del mes":"This month's goal","Llevas este mes":"So far this month","Meta cumplida":"Goal reached","Solo tus ventas. Kombucha cuenta lo cobrado en el mes.":"Only your sales. Kombucha counts what was collected this month.",
   "Proyección fin de mes":"End-of-month projection","Te falta":"Still needed","✓ Nada":"✓ Nothing","líquido para la meta":"net pay to reach the goal",
   "Cerveza que falta":"Beer still needed","O kombucha por cobrar":"Or kombucha to collect","neto cobrado":"net collected",
-  "Sueldo líquido por mes":"Net pay by month","El Growler":"El Growler","Meta":"Goal","Mes":"Month","% meta":"% of goal"
+  "Sueldo líquido por mes":"Net pay by month","El Growler":"El Growler","Meta":"Goal","Mes":"Month","% meta":"% of goal",
+  "Zonas":"Zones","Cobranza":"Collections","Cada fila es una zona y cada columna un estilo.":"Each row is a zone and each column a style.",
+  "Mostrar":"Show","% por zona":"% per zone","Cantidad":"Quantity","Cerveza por zona":"Beer by zone","Kombucha por zona":"Kombucha by zone",
+  "Menos":"Less","Más":"More","Lo que más sale":"Best sellers","Para ofrecer":"To offer",
+  "\"Para ofrecer\" son estilos que se venden bien en general pero poco o nada en esa zona.":"\"To offer\" are styles that sell well overall but little or not at all in that zone.",
+  "Clientes que compraron":"Customers who bought","Promedio por cliente":"Average per customer","Peso de los 3 mayores":"Share of top 3",
+  "del total vendido":"of total sold","Activos sin comprar":"Active, no purchases","en este período":"in this period","Mejores clientes":"Top customers",
+  "Activos que no compraron":"Active customers who didn't buy","Clientes activos sin ventas en este período. Buenos candidatos para visitar.":"Active customers with no sales in this period. Good candidates to visit.",
+  "#":"#","% del total":"% of total","✓ Por vencer":"✓ Not yet due","✕ Más de 30 días de atraso":"✕ More than 30 days late",
+  "No hay facturas por cobrar ni pagos recientes.":"No invoices to collect and no recent payments.","Días promedio de pago":"Average days to pay",
+  "pagos de los últimos 90 días":"payments in the last 90 days","Clientes con deuda vencida":"Customers with overdue debt","Deuda por antigüedad":"Debt by age",
+  "Monto con IVA de las facturas pendientes":"Pending invoice amounts incl. VAT","Morosos":"Late payers","Clientes con facturas vencidas, de mayor a menor deuda":"Customers with overdue invoices, largest debt first",
+  "Vencido":"Overdue","Facturas":"Invoices","Atraso":"Days late","Nadie tiene facturas vencidas. 👌":"Nobody has overdue invoices. 👌"
 };
 const EN_UNIT={lata:"can",latas:"cans",litro:"liter",litros:"liters"};
 const EN_RX=[
@@ -1444,7 +1569,13 @@ const EN_RX=[
   [/^(\d+)% de la meta de (\S+)$/,m=>`${m[1]}% of the ${m[2]} goal`],[/^(\d+)% de la meta$/,m=>`${m[1]}% of the goal`],
   [/^A este ritmo \(día (\d+) de (\d+)\)$/,m=>`At this pace (day ${m[1]} of ${m[2]})`],[/^≈ (\d+) barriles de 30 L$/,m=>`≈ ${m[1]} kegs of 30 L`],
   [/^Estimado con tus ventas de cada mes, contra la meta de (\S+)$/,m=>`Estimated from your sales each month, against the ${m[1]} goal`],
-  [/^Sueldo líquido de los últimos (\d+) meses$/,m=>`Net pay for the last ${m[1]} months`],[/^(\S+) u\.$/,m=>`${m[1]} units`]
+  [/^Sueldo líquido de los últimos (\d+) meses$/,m=>`Net pay for the last ${m[1]} months`],[/^(\S+) u\.$/,m=>`${m[1]} units`],
+  [/^es lo más vendido en (\d+) de (\d+) zonas\.$/,m=>`is the best seller in ${m[1]} of ${m[2]} zones.`],[/^Para ofrecer:$/,()=>"To offer:"],
+  [/^Zonas sin ventas en este período: (.+)\. Buena oportunidad para llevar (.+)\.$/,m=>`Zones with no sales in this period: ${m[1]}. A good opportunity to bring ${m[2].replace(" y "," and ")}.`],
+  [/^% de lo vendido en cada zona$/,()=>"% of what was sold in each zone"],[/^Cantidad vendida$/,()=>"Quantity sold"],
+  [/^Los (\d+) que más compraron$/,m=>`The ${m[1]} that bought the most`],[/^toca uno para ver su ficha$/,()=>"tap one to see their profile"],
+  [/^(\d+) facturas$/,m=>`${m[1]} invoices`],[/^(\S+) de lo por cobrar$/,m=>`${m[1]} of what's owed`],
+  [/^! Vence hoy o hasta (\d+) días de atraso$/,m=>`! Due today or up to ${m[1]} days late`],[/^✕ (\d+) a 30 días de atraso$/,m=>`✕ ${m[1]} to 30 days late`]
 ];
 function trTxt(s){
   if(Object.hasOwn(EN,s))return EN[s];
