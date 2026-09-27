@@ -198,6 +198,13 @@ details.card summary{cursor:pointer;font-weight:600}
 .overlay.confirm .sheet{border-radius:14px;width:calc(100% - 32px);overflow:visible;background:var(--surface);border:1px solid var(--line);box-shadow:0 12px 40px rgba(0,0,0,.35);animation:none}
 .semlink{cursor:pointer}
 .semlink:hover,.semlink:focus-visible{box-shadow:0 0 0 2px currentColor}
+.tarea{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.tarea.alta{border-left-color:var(--bad)}
+.titem{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start}
+.testados{gap:6px;margin-top:6px}
+.testados .btn.on{border-color:var(--ink)}
+.tbanner{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line);cursor:pointer;width:100%;font:inherit;color:inherit;text-align:left}
+.tbanner:hover{border-color:var(--muted)}
 .compra{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;background:var(--surface)}
 .lnkh{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 .lnkh:hover{text-decoration-color:currentColor}
@@ -240,12 +247,12 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 <button class="btn primary fab" data-act="chooser">+ Registrar</button>
 <nav class="tabs" aria-label="Secciones">
   <button data-tab="resumen">Resumen</button>
+  <button data-tab="tareas">Tareas</button>
   <button data-tab="ruta">Ruta</button>
   <button data-tab="clientes">Clientes</button>
   <button data-tab="ventas">Ventas</button>
   <button data-tab="indices">Índices</button>
   <button data-tab="ajustes">Ajustes</button>
-  <button data-tab="equipo">Equipo</button>
 </nav>
 <div id="modal"></div>
 <div id="toast" class="toast" hidden></div>
@@ -496,7 +503,7 @@ function render(){
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
   const v=$("#view");
   if(S.dbState==="loading"){v.innerHTML=`<div class="empty">Cargando tu cartera…</div>`;return}
-  v.innerHTML=({resumen:vResumen,ruta:vRuta,clientes:vClientes,ventas:vVentas,indices:vIndices,ajustes:vAjustes,equipo:vEquipo}[S.tab]||vResumen)();
+  v.innerHTML=({resumen:vResumen,tareas:vTareas,ruta:vRuta,clientes:vClientes,ventas:vVentas,indices:vIndices,ajustes:vAjustes,equipo:vEquipo}[S.tab]||vResumen)();
 }
 function mesLabel(m){const[y,mm]=m.split("-");return MESES[Number(mm)-1]+" "+y}
 function shiftMes(m,d){const[y,mm]=m.split("-").map(Number);const t=new Date(y,mm-1+d,1);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")}
@@ -515,7 +522,9 @@ function vResumen(){
   });
   al.sort((a,b)=>rank[b.s.level]-rank[a.s.level]||impOf(a.cl).localeCompare(impOf(b.cl)));
   const muRows=Object.entries(r.mu).sort((a,b)=>b[1]-a[1]);
+  const tHoy=tareasAbiertas().filter(x=>x.fecha<=today()),cHoy=new Set(tHoy.map(x=>x.c.id)).size;
   return `<div class="stack">
+  ${tHoy.length?`<button class="tbanner" data-tab="tareas"><span><b>📋 Hoy tienes ${tHoy.length} ${tHoy.length===1?"tarea":"tareas"}</b> <span class="muted small">en ${cHoy} ${cHoy===1?"cliente":"clientes"} · ${[...new Set(tHoy.map(x=>x.tipo))].map(k=>TAREA_ICO[k]).join(" ")}</span></span><span class="muted">Ver ›</span></button>`:""}
   <div class="row spread"><h2>Resumen de ${mesLabel(S.mes)}</h2>${S.equipo.length>1&&can("ver_todos_clientes")?`<div class="seg" role="group" aria-label="Ver"><button data-act="scope" data-v="todas" aria-pressed="${S.scope!=="mias"}">Todo el equipo</button><button data-act="scope" data-v="mias" aria-pressed="${S.scope==="mias"}">Solo lo mío</button></div>`:""}
     <div class="mnav"><button class="btn sm" data-act="mes" data-d="-1" aria-label="Mes anterior">‹</button><button class="btn sm" data-act="mes" data-d="0">Hoy</button><button class="btn sm" data-act="mes" data-d="1" aria-label="Mes siguiente">›</button></div></div>
   ${can("ver_ingresos")?`  <section class="card hero" aria-label="Ingreso estimado">
@@ -925,6 +934,93 @@ function ixSueldo(){
   </tbody></table></div></details>`;
 }
 
+/* ---------- tareas: qué hacer hoy, mañana y las próximas semanas, calculado con los datos ---------- */
+S.tareasDe=null;
+const TAREA_ICO={cobrar:"💰",recompra:"🛒",dormido:"⚠️",visita:"📍",seg:"📅",prospecto:"🍺"};
+/* estado de cada tarea: se guarda en la nube como un registro tipo "Tarea" del cliente (el último manda) */
+const TAREA_EST={abierta:"Abierta",proceso:"En proceso",listo:"Listo",no_lograda:"No se logró"};
+const esTarea=a=>a.tipo==="Tarea";
+function estadosTareas(){
+  const m={};S.acts.filter(esTarea).sort((a,b)=>(a.ts||a.fecha||"").localeCompare(b.ts||b.fecha||"")).forEach(a=>{m[a.tarea]={estado:a.estado,fecha:a.fecha,titulo:a.titulo,clienteId:a.clienteId}});
+  return m;
+}
+function frecReal(c,mk){const f=[...new Set(ventasDe(c.id).filter(v=>v.marca===mk).map(v=>v.fecha).filter(Boolean))].sort();return f.length>2?Math.round(days(f[0],f.at(-1))/(f.length-1)):null}
+function generarTareas(){
+  const t=today(),hasta=addDays(t,21),out=[],quien=S.tareasDe||ME.user?.id;
+  const clientes=S.clientes.filter(c=>c.estado!=="pausado"&&(!quien||quien==="todos"||(ownerOf(c)||ME.user?.id)===quien));
+  const add=(fecha,tipo,c,titulo,detalle,prio)=>{if(fecha<=hasta)out.push({fecha:fecha<t?fecha:fecha,tipo,c,titulo,detalle,prio})};
+  clientes.forEach(c=>{
+    // cobranza: una tarea por cliente con sus facturas pendientes
+    const pend=ventasDe(c.id).filter(v=>!v.pagado);
+    if(pend.length&&can("ver_cobranza")||pend.some(v=>v.creado_por===ME.user?.id)){
+      const primero=pend.map(v=>v.vence||v.fecha).sort()[0],monto=pend.reduce((s,v)=>s+(v.neto||0)*1.19,0),atr=days(primero,t);
+      if(primero)add(primero,"cobrar",c,`Cobrar ${money(monto)}`,`${pend.length} ${pend.length===1?"factura":"facturas"}${atr>0?` · la más antigua vencida hace ${atr} días`:atr===0?" · vence hoy":""}${c.telDueno||c.telefono?"":" · sin teléfono"}`,atr>S.cfg.tolPago?3:2);
+    }
+    // recompra según la frecuencia real (o la configurada si aún no hay suficientes compras)
+    (c.marcas||[]).forEach(mk=>{
+      const vs=ventasDe(c.id).filter(v=>v.marca===mk);if(!vs.length||c.estado==="prospecto")return;
+      const ult=vs.map(v=>v.fecha).sort().pop(),real=frecReal(c,mk),f=real||Number(c.frec?.[mk])||S.cfg.frec[mk]||14,prox=addDays(ult,f),sin=days(ult,t);
+      const L=vs.flatMap(v=>(v.items||[]).map(it=>({...infoItem(it),cant:it.cant||0})));
+      const top=[...new Set(L.map(r=>r.estilo+"|"+r.formato))].map(k=>{const[e,fo]=k.split("|");return{e,fo,n:sumM(L.filter(r=>r.estilo===e&&r.formato===fo),"cant")}}).sort((a,b)=>b.n-a.n)[0];
+      const nunca=[...new Set(S.cfg.productos.filter(p=>p.marca===mk).map(p=>p.estilo))].filter(e=>!L.some(r=>r.estilo===e));
+      const Z=lineasDesde(hace6m(),v=>v.marca===mk).filter(r=>r.zona===(c.zona||"Sin zona")&&nunca.includes(r.estilo));
+      const nuevo=nunca.slice().sort((a,b)=>sumM(Z.filter(r=>r.estilo===b),"litros")-sumM(Z.filter(r=>r.estilo===a),"litros"))[0];
+      const det=`Compra ${mk} cada ~${f} días${real?"":" (estimado)"} · última hace ${sin} días${top?` · suele llevar ${top.e} (${FORMATOS[top.fo]||top.fo}), ~${n1(top.n/vs.length)}`:""}${nuevo?` · ofrécele ${nuevo}`:""}`;
+      if(sin>f*2)add(t,"dormido",c,`Cliente dormido: no compra ${mk} hace ${sin} días`,`Normalmente compra cada ~${f} días. Llámalo o visítalo para saber qué pasó${nuevo?` · lleva ${nuevo} para reactivarlo`:""}`,3);
+      else add(prox,"recompra",c,`Ofrecer pedido de ${mk}`,det,prox<t?2:1);
+    });
+    // visita según importancia, en el día que pasas por su zona
+    const sv=semVisita(c),lv=lastVisit(c);
+    let pv=lv?addDays(lv,sv.f):t;if(pv<t)pv=t;
+    const dz=Object.entries(S.cfg.zonasDia).filter(([,zs])=>zs.includes(c.zona)).map(([d])=>Number(d));
+    if(dz.length)for(let i=0;i<7;i++){const f2=addDays(pv,i);if(dz.includes(wday(f2))){pv=f2;break}}
+    add(lv&&addDays(lv,sv.f)<t?addDays(lv,sv.f):pv,"visita",c,lv?`Visita (cada ${sv.f} días)`:"Primera visita",`${lv?`Última visita hace ${days(lv,t)} días`:"Nunca visitado"}${c.zona?` · zona ${c.zona}${dz.length?" ("+dz.map(d=>DIAS[d]).join(", ")+")":""}`:""}${c.recepcion?` · recibe ${c.recepcion}`:""}`,sv.level==="bad"?2:1);
+    // seguimiento agendado
+    if(c.proxFecha)add(c.proxFecha,"seg",c,c.proxTexto||"Seguimiento","Próxima acción agendada",c.proxFecha<t?2:1);
+    // degustación o muestras sin compra posterior
+    const act=S.acts.filter(a=>a.clienteId===c.id&&(a.tipo==="Activación / degustación"||(a.muestras||[]).length)&&a.fecha>=addDays(t,-60)).map(a=>a.fecha).sort().pop();
+    if(act&&!ventasDe(c.id).some(v=>v.fecha>=act)&&!c.proxFecha)add(addDays(act,7),"prospecto",c,"Volver después de la degustación",`Degustación o muestras el ${fdate(act)} y aún no compra · lleva precios y ofrece un primer pedido`,2);
+  });
+  const est=estadosTareas();
+  return out.map(x=>{const key=x.tipo+"|"+x.c.id+"|"+x.fecha;return{...x,key,estado:est[key]?.estado||"abierta"}});
+}
+const tareasAbiertas=()=>generarTareas().filter(x=>x.estado==="abierta"||x.estado==="proceso");
+function grupoFecha(f){
+  const t=today(),d=days(t,f),finSem=addDays(weekStart(t),6),finProx=addDays(finSem,7);
+  if(d<0)return[0,"Atrasadas"];if(d===0)return[1,"Hoy"];if(d===1)return[2,"Mañana"];
+  if(f<=finSem)return[3,"Esta semana"];if(f<=finProx)return[4,"Próxima semana"];return[5,"Más adelante"];
+}
+function vTareas(){
+  const TT=generarTareas(),T=TT.filter(x=>x.estado==="abierta"||x.estado==="proceso"),equipo=S.equipo.length>1&&can("ver_todos_clientes");
+  const cerradas=TT.filter(x=>x.estado==="listo"||x.estado==="no_lograda");
+  const tel=c=>{const x=(c.telefono||c.telDueno||"").replace(/\D/g,"");return x?`https://wa.me/${x.length===9?"56"+x:x}`:""};
+  // una tarjeta por cliente y día, con todas sus tareas
+  // las atrasadas de un mismo cliente van juntas en una tarjeta
+  const tarjetas={};T.forEach(x=>{const k=(x.fecha<today()?"atr":x.fecha)+"|"+x.c.id;const tj=(tarjetas[k]=tarjetas[k]||{fecha:x.fecha,c:x.c,items:[]});if(x.fecha<tj.fecha)tj.fecha=x.fecha;tj.items.push(x)});
+  const lista=Object.values(tarjetas).map(tj=>({...tj,prio:Math.max(...tj.items.map(i=>i.prio)),g:grupoFecha(tj.fecha)}))
+    .sort((a,b)=>a.g[0]-b.g[0]||a.fecha.localeCompare(b.fecha)||b.prio-a.prio||impOf(a.c).localeCompare(impOf(b.c)));
+  const grupos=[...new Set(lista.map(x=>x.g[0]))];
+  const card=tj=>{const c=tj.c,tipos=tj.items.map(i=>i.tipo),w=tel(c);
+    return `<div class="tarea${tj.prio>=3?" alta":""}">
+      <div class="row spread" style="flex-wrap:nowrap;align-items:flex-start"><button class="btn link" style="font-weight:700;font-size:15px" data-act="openClient" data-id="${c.id}">${impBadge(c)} ${esc(c.nombre)}</button><span class="muted small" style="white-space:nowrap">${tj.g[0]===0?"desde ":""}${fdate(tj.fecha)}</span></div>
+      ${tj.items.map(i=>{const b=(v,l)=>`<button class="btn sm${i.estado===v?" on":""}" data-act="tareaEstado" data-v="${v}" data-k="${esc(i.key)}" data-id="${c.id}" data-t="${esc(i.titulo)}">${l}</button>`;
+        return `<div class="titem"><span aria-hidden="true">${TAREA_ICO[i.tipo]}</span><div><b style="font-weight:600">${esc(i.titulo)}</b>${i.estado==="proceso"?` <span class="chip strong">⏳ En proceso</span>`:""}<div class="small muted">${esc(i.detalle)}</div>
+          <div class="row testados">${b("listo","✓ Listo")}${i.estado==="proceso"?b("abierta","Quitar en proceso"):b("proceso","⏳ En proceso")}${b("no_lograda","✕ No se logró")}</div></div></div>`}).join("")}
+      <div class="row" style="gap:6px">
+        ${tipos.some(x=>x==="recompra"||x==="dormido")&&can("registrar_ventas")?`<button class="btn sm primary" data-act="newSale" data-id="${c.id}">+ Venta</button>`:""}
+        ${tipos.includes("cobrar")?`<button class="btn sm" data-act="sem" data-k="${esc("pago|"+c.id)}">Cobrar</button>`:""}
+        ${tipos.some(x=>x!=="cobrar")?`<button class="btn sm" data-act="newAct" data-id="${c.id}">Registrar visita</button>`:""}
+        ${w?`<a class="btn sm" href="${w}" target="_blank" rel="noopener">WhatsApp</a>`:""}
+        ${mapsUrl(c)?`<a class="btn sm" href="${mapsUrl(c,!!c.gps)}" target="_blank" rel="noopener">${c.gps?"Cómo llegar":"Mapa"}</a>`:""}
+      </div></div>`};
+  const hoyN=lista.filter(x=>x.g[0]<=1).length;
+  return `<div class="stack"><div class="row spread"><div><h2>Tareas</h2><div class="muted small">${hoyN} para hoy (incluye atrasadas) · calculadas con la frecuencia de compra, cobros, visitas y degustaciones</div></div>
+    ${equipo?`<select id="tareasDe" aria-label="Tareas de" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><option value="${ME.user.id}">Mis tareas</option>${S.equipo.filter(u=>u.id!==ME.user.id).map(u=>`<option value="${u.id}"${S.tareasDe===u.id?" selected":""}>${esc(u.nombre)}</option>`).join("")}<option value="todos"${S.tareasDe==="todos"?" selected":""}>Todo el equipo</option></select>`:""}</div>
+    ${lista.length?grupos.map(g=>{const xs=lista.filter(x=>x.g[0]===g);return `<section class="stack" style="gap:8px"><h3>${xs[0].g[1]} <span class="muted small">(${xs.length})</span></h3>${xs.map(card).join("")}</section>`}).join(""):`<div class="empty">No hay tareas pendientes para las próximas 3 semanas. 👌</div>`}
+    ${cerradas.length?`<details class="card"><summary>Cerradas (${cerradas.length})</summary><div style="margin-top:8px">${cerradas.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(x=>`<div class="drow" style="cursor:default"><span>${TAREA_ICO[x.tipo]}</span><span><b style="font-weight:600">${esc(x.c.nombre)}</b> · ${esc(x.titulo)}<div class="sub">${x.estado==="listo"?"✓ Listo":"✕ No se logró"} · ${fdate(x.fecha)}</div></span><button class="btn sm" data-act="tareaEstado" data-v="abierta" data-k="${esc(x.key)}" data-id="${x.c.id}" data-t="${esc(x.titulo)}">Reabrir</button></div>`).join("")}</div></details>`:""}
+    <div class="muted small">Las tareas se calculan solas con tus datos: al registrar la venta, la visita o el pago, se actualizan. "Listo" y "No se logró" las sacan de la lista y quedan en el historial del cliente.</div></div>`;
+}
+
 /* ---------- detalle al tocar un cuadro del Resumen ---------- */
 S.drillSub="activo";
 const dMine=x=>S.scope!=="mias"||x.creado_por===ME.user?.id;
@@ -1097,7 +1193,7 @@ function drillSheet(k){
     h=dHdr(`Ruta de hoy`,`${DIAS_L[wday(today())]} · ${pend.length} por visitar de ${p.items.length}`)+(pend.length?`<section class="card">${pend.map(it=>dFila(it.c.id,[it.zona,...it.why.map(w=>w.t)].map(esc).join(" · "),pill(semVisita(it.c)))).join("")}</section>`:`<div class="empty">Nada pendiente para hoy.</div>`)+`<button class="btn primary" data-tab="ruta">Ir a la ruta</button>`;
   }
   else if(k==="visitas"){
-    const as=S.acts.filter(a=>dMes(a.fecha)&&dMine(a)).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+    const as=S.acts.filter(a=>dMes(a.fecha)&&dMine(a)&&!esTarea(a)).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
     const tipos=[...new Set(as.map(a=>a.tipo))].map(t=>({lab:t,segs:[{k:t,sw:"f1",nombre:t,v:as.filter(a=>a.tipo===t).length}]})).sort((a,b)=>b.segs[0].v-a.segs[0].v);
     h=dHdr("Visitas y registros",mes)+(as.length?`<section class="card stack"><h3>Por tipo</h3>${hbars(tipos,"cuenta")}</section>
       <section class="card"><h3 style="margin-bottom:4px">Registros (${as.length})</h3>${as.map(a=>dFila(a.clienteId,`${fdate(a.fecha)} · ${esc(a.tipo)}${(a.muestras||[]).length?" · con muestras":""}`,a.resultado?`<span class="chip">${esc(a.resultado)}</span>`:"")).join("")}</section>`:`<div class="empty">Sin visitas registradas en ${mes}.</div>`);
@@ -1200,6 +1296,7 @@ function openSheet(html,detailId=null){S.openDetail=detailId;$("#modal").innerHT
 function closeSheet(){S.openDetail=null;S.pila=[];$("#modal").innerHTML="";tipHide?.()}
 
 function actLine(a){
+  if(esTarea(a))return `<div class="act"><div class="row spread"><b>${fdate(a.fecha)} · Tarea</b><span class="chip">${esc(TAREA_EST[a.estado]||a.estado)}</span></div><div class="small">${esc(a.titulo||"")}</div></div>`;
   const mu=(a.muestras||[]).map(m=>`${n1(m.cant)} ${esc(m.nombre)}`).join(", ");
   return `<div class="act"><div class="row spread"><b>${fdate(a.fecha)} · ${esc(a.tipo)}</b><span class="row" style="gap:6px">${a.resultado?`<span class="chip">${esc(a.resultado)}</span>`:""}<button class="btn sm" data-act="editAct" data-id="${a.id}">Editar</button></span></div>${mu?`<div class="small">Muestras: ${mu}</div>`:""}${a.nota?`<div class="small muted" style="white-space:pre-wrap">${esc(a.nota)}</div>`:""}</div>`;
 }
@@ -1207,7 +1304,7 @@ function clientDetail(id){
   const cl=S.clientes.find(c=>c.id===id);if(!cl){closeSheet();return}
   const sc=$("#modal .sheet")?.scrollTop||0;
   const vs=ventasDe(id).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
-  const as=actsDe(id).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  const as=actsDe(id).sort((a,b)=>((b.fecha||"")+(b.ts||"")).localeCompare((a.fecha||"")+(a.ts||"")));
   const tel=(cl.telefono||"").replace(/\D/g,"");
   const wa=tel?`https://wa.me/${tel.length===9?"56"+tel:tel}`:"";
   const deuda=deudaDe(id).reduce((s,d)=>s+d.v.neto*1.19,0);
@@ -1566,7 +1663,7 @@ async function afterLogin(){
   render();
 }
 function visibleTabs(){
-  const t=["resumen","ruta","clientes"];
+  const t=["resumen","tareas","ruta","clientes"];
   if(can("ver_cobranza")||can("registrar_ventas"))t.push("ventas");
   t.push("indices","ajustes");if(isAdmin())t.push("equipo");
   return t;
@@ -1619,7 +1716,7 @@ const PREF_OPC={
   idioma:["Idioma",[["es","Español"],["en","English"]]],
   tema:["Apariencia",[["oscuro","Oscuro"],["claro","Claro"],["auto","Como el sistema"]]],
   letra:["Tamaño de letra",[["normal","Normal"],["grande","Grande"],["muygrande","Muy grande"]]],
-  inicio:["Pestaña de inicio",[["resumen","Resumen"],["ruta","Ruta"],["clientes","Clientes"],["ventas","Ventas"],["indices","Índices"]]]
+  inicio:["Pestaña de inicio",[["resumen","Resumen"],["tareas","Tareas"],["ruta","Ruta"],["clientes","Clientes"],["ventas","Ventas"],["indices","Índices"]]]
 };
 const prefPuede=k=>isAdmin()||S.cfg.prefs.permitir[k]!==false;
 const prefDef=k=>S.cfg.prefs.defecto[k]??PREF_BASE[k];
@@ -1688,6 +1785,9 @@ document.addEventListener("click",async e=>{
     case"sem":e.preventDefault();e.stopPropagation();navPush();drillSheet("sem:"+t.dataset.k);break;
     case"drillSub":S.drillSub=t.dataset.v;drillSheet("clientes");break;
     case"volver":navVolver();break;
+    case"tareaEstado":{const v=t.dataset.v;t.disabled=true;
+      await guard(()=>DB.add("actividades",{clienteId:id,fecha:today(),ts:new Date().toISOString(),tipo:"Tarea",tarea:t.dataset.k,estado:v,titulo:t.dataset.t,muestras:[],resultado:"",nota:""}),
+        {listo:"Tarea lista",no_lograda:"Tarea cerrada como no lograda",proceso:"Tarea en proceso",abierta:"Tarea reabierta"}[v]);break}
     case"gran":{S.gran=t.dataset.v;const sh=$("#modal .sheet"),sc=sh?.scrollTop||0;
       if($("#modal .drill"))drillSheet(S.drillK);else if(S.openDetail)clientDetail(S.openDetail);else render();
       const sh2=$("#modal .sheet");if(sh2)sh2.scrollTop=sc;break}
@@ -1744,6 +1844,7 @@ document.addEventListener("change",e=>{
   // al elegir el cliente de la venta, si compra una sola marca se muestran solo sus productos
   if(e.target.id==="sCli"){const cl=S.clientes.find(c=>c.id===e.target.value),mk=cl?.marcas?.length===1?cl.marcas[0]:null;
     if(mk&&mk!==$("#sMarca").value)document.querySelector(`#saleForm [data-act="sMarca"][data-v="${mk}"]`)?.click()}
+  if(e.target.id==="tareasDe"){S.tareasDe=e.target.value;render()}
   if(e.target.dataset.ix){S.ix[e.target.dataset.ix]=e.target.value;render()}
   if(e.target.id==="rutaDe"){S.rutaDe=e.target.value;render()}
   if(e.target.id==="fMarca"){S.fMarca=e.target.value;render()}
@@ -2083,6 +2184,15 @@ const EN={
   "Verde: acción agendada a futuro. Amarillo: es hoy. Rojo: la fecha ya pasó. Se agenda al registrar una visita o en la ficha del cliente.":"Green: action scheduled in the future. Yellow: it's today. Red: the date has passed. Schedule it when logging a visit or in the customer profile.",
   "+ Caja mixta":"+ Mixed box","Caja mixta de 24 latas":"Mixed box of 24 cans","Cantidad de cajas":"Number of boxes","+ Estilo":"+ Style","Latas":"Cans",
   "Quitar caja mixta":"Remove mixed box","Quitar estilo":"Remove style","caja mixta":"mixed box","cajas mixtas":"mixed boxes",
+  "⏳ En proceso":"⏳ In progress","✕ No se logró":"✕ Not achieved","Quitar en proceso":"Remove in progress","Reabrir":"Reopen","Tarea":"Task",
+  "En proceso":"In progress","No se logró":"Not achieved","Abierta":"Open","Listo":"Done","Tarea cerrada como no lograda":"Task closed as not achieved",
+  "Tarea en proceso":"Task in progress","Tarea reabierta":"Task reopened",
+  "Las tareas se calculan solas con tus datos: al registrar la venta, la visita o el pago, se actualizan. \"Listo\" y \"No se logró\" las sacan de la lista y quedan en el historial del cliente.":"Tasks are calculated from your data: when you log the sale, visit or payment, they update. \"Done\" and \"Not achieved\" remove them from the list and they stay in the customer's history.",
+  "Tareas":"Tasks","Tareas de":"Tasks of","Mis tareas":"My tasks","Atrasadas":"Overdue","Mañana":"Tomorrow","Esta semana":"This week","Próxima semana":"Next week","Más adelante":"Later",
+  "✓ Listo":"✓ Done","Tarea lista":"Task done","Ocultar en este dispositivo":"Hide on this device","Cobrar":"Collect","Registrar visita":"Log visit","Primera visita":"First visit",
+  "Próxima acción agendada":"Scheduled next action","Volver después de la degustación":"Go back after the tasting","Nunca visitado":"Never visited","Ver ›":"See ›",
+  "No hay tareas pendientes para las próximas 3 semanas. 👌":"No pending tasks for the next 3 weeks. 👌",
+  "\"✓ Listo\" oculta la tarea solo en este dispositivo. Al registrar la venta, la visita o el pago, las tareas se recalculan solas.":"\"✓ Done\" hides the task on this device only. When you log the sale, visit or payment, tasks recalculate on their own.",
   "Datos de ejemplo":"Sample data","Cargar 10 clientes de ejemplo":"Load 10 sample customers","Toca otra vez para cargar":"Tap again to load","Cargando…":"Loading…",
   "Toca otra vez para borrar":"Tap again to delete","Borrando…":"Deleting…","Datos de ejemplo borrados":"Sample data deleted",
   "Carga 10 clientes ficticios con 6 meses de ventas, visitas y deudas, para probar los Índices. Quedan marcados como \"Ejemplo\" y los puedes borrar todos juntos.":"Loads 10 fictional customers with 6 months of sales, visits and debts to try out Insights. They're marked \"Sample\" and you can delete them all at once."
@@ -2141,6 +2251,16 @@ const EN_RX=[
   [/^Vence (en .+)$/,m=>`Due ${trTxt(m[1])??m[1]}`],[/^Vencida (hace .+)$/,m=>`Overdue, ${trTxt(m[1])??m[1]}`],[/^Este cliente suele pagar$/,()=>"This customer usually pays"],
   [/^Próxima visita (.+) \(el (\S+)\)$/,m=>`Next visit ${trTxt(m[1])??m[1]} (on ${m[2]})`],[/^La visita está atrasada (\d+) días$/,m=>`The visit is ${m[1]} days late`],
   [/^Ver ficha de (.+) ›$/,m=>`See ${m[1]}'s profile ›`],
+  [/^(\d+) para hoy \(incluye atrasadas\) · calculadas con la frecuencia de compra, cobros, visitas y degustaciones$/,m=>`${m[1]} for today (includes overdue) · based on purchase frequency, collections, visits and tastings`],
+  [/^Cerradas \((\d+)\)$/,m=>`Closed (${m[1]})`],[/^(✓ Listo|✕ No se logró) · (\S+)$/,m=>`${m[1].startsWith("✓")?"✓ Done":"✕ Not achieved"} · ${m[2]}`],
+  [/^Cobrar (\S+)$/,m=>`Collect ${m[1]}`],[/^Ofrecer pedido de (cerveza|kombucha)$/,m=>`Offer a ${m[1]==="cerveza"?"beer":"kombucha"} order`],[/^Visita \(cada (\d+) días\)$/,m=>`Visit (every ${m[1]} days)`],
+  [/^Cliente dormido: no compra (cerveza|kombucha) hace (\d+) días$/,m=>`Dormant customer: no ${m[1]==="cerveza"?"beer":"kombucha"} for ${m[2]} days`],
+  [/^Hoy tienes (\d+) tareas?$/,m=>`You have ${m[1]} task${m[1]==="1"?"":"s"} today`],[/^en (\d+) clientes?(.*)$/,m=>`for ${m[1]} customer${m[1]==="1"?"":"s"}${m[2]}`],[/^desde (\S+)$/,m=>`since ${m[1]}`],
+  [/^Compra (cerveza|kombucha) cada ~(\d+) días( \(estimado\))? · (.+)$/,m=>`Buys ${m[1]==="cerveza"?"beer":"kombucha"} every ~${m[2]} days${m[3]?" (estimated)":""} · ${m[4].replace(/última hace (\d+) días/,"last one $1 days ago").replace(/suele llevar (.+?) \((.+?)\), ~/,(a,b,c)=>`usually takes ${b} (${EN[c]??c}), ~`).replace("ofrécele","offer them")}`],
+  [/^Normalmente compra cada ~(\d+) días\. Llámalo o visítalo para saber qué pasó(?: · lleva (.+) para reactivarlo)?$/,m=>`Usually buys every ~${m[1]} days. Call or visit to find out what happened${m[2]?` · bring ${m[2]} to win them back`:""}`],
+  [/^(\d+) facturas?(.*)$/,m=>`${m[1]} invoice${m[1]==="1"?"":"s"}${m[2].replace(/la más antigua vencida hace (\d+) días/,"oldest overdue by $1 days").replace("vence hoy","due today").replace("sin teléfono","no phone")}`],
+  [/^(Última visita hace (\d+) días|Nunca visitado)(.*)$/,m=>`${m[2]?`Last visit ${m[2]} days ago`:"Never visited"}${m[3].replace("zona","zone").replace("recibe","receives")}`],
+  [/^Degustación o muestras el (\S+) y aún no compra · lleva precios y ofrece un primer pedido$/,m=>`Tasting or samples on ${m[1]} and no purchase yet · bring prices and offer a first order`],
   [/^(\d+) latas, completa$/,m=>`${m[1]} cans, complete`],[/^Llevas (\d+) de (\d+) · (faltan|sobran) (\d+)$/,m=>`${m[1]} of ${m[2]} · ${m[4]} ${m[3]==="faltan"?"missing":"too many"}`],
   [/^(\d+) (cajas? mixtas?)$/,m=>`${m[1]} mixed box${m[1]==="1"?"":"es"}`],[/^Cada caja mixta debe sumar (\d+) latas \(una lleva (\d+)\)$/,m=>`Each mixed box must add up to ${m[1]} cans (one has ${m[2]})`],
   [/^No hay cajas de (cerveza|kombucha) en el catálogo \(Ajustes → Productos\)$/,m=>`There are no ${m[1]==="cerveza"?"beer":"kombucha"} boxes in the catalog (Setup → Products)`],
