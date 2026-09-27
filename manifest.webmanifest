@@ -1,0 +1,16 @@
+{
+  "name": "Cartera Valdivia",
+  "short_name": "Cartera",
+  "description": "Clientes, ruta, visitas y ventas de cerveza El Growler y kombucha Animal Social.",
+  "lang": "es-CL",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F1F4F0",
+  "theme_color": "#18221D",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
