@@ -42,7 +42,7 @@ temaAplicar(BOOT.tema);letraAplicar(BOOT.letra);
 :root{
   --bg:#F1F4F0; --surface:#FFFFFF; --surface-2:#E8EDE7; --ink:#18221D; --muted:#56665D; --line:#D3DBD2;
   --beer:#A85F0A; --kom:#00836B; --focus:#00836B;
-  --f1:#2a78d6; --f2:#eb6834; --f3:#1baf7a; --seq:#256abf; --hmk:1; --hm-hi:#fff;
+  --f1:#2a78d6; --f2:#eb6834; --f3:#1baf7a; --f4:#eda100; --f5:#e87ba4; --seq:#256abf; --hmk:1; --hm-hi:#fff;
   --ok:#23703A; --ok-soft:#DCEFDF; --warn:#8A5A00; --warn-soft:#F8EBC8; --bad:#A8321F; --bad-soft:#F7E0DA; --none:#6B7770; --none-soft:#E6EAE6;
   --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
   --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
@@ -50,11 +50,11 @@ temaAplicar(BOOT.tema);letraAplicar(BOOT.letra);
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;
   --bg:#121814; --surface:#1A221D; --surface-2:#243029; --ink:#E6EDE8; --muted:#9AAAA1; --line:#314038;
-  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70; --seq:#3987e5; --hmk:.8; --hm-hi:var(--ink);
+  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70; --f4:#c98500; --f5:#d55181; --seq:#3987e5; --hmk:.8; --hm-hi:var(--ink);
   --ok:#6CCB86; --ok-soft:#1B3524; --warn:#E8C067; --warn-soft:#3A3016; --bad:#F08A76; --bad-soft:#3D1F1A; --none:#9AAAA1; --none-soft:#26302A;}}
 :root[data-theme="dark"]{color-scheme:dark;
   --bg:#121814; --surface:#1A221D; --surface-2:#243029; --ink:#E6EDE8; --muted:#9AAAA1; --line:#314038;
-  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70; --seq:#3987e5; --hmk:.8; --hm-hi:var(--ink);
+  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70; --f4:#c98500; --f5:#d55181; --seq:#3987e5; --hmk:.8; --hm-hi:var(--ink);
   --ok:#6CCB86; --ok-soft:#1B3524; --warn:#E8C067; --warn-soft:#3A3016; --bad:#F08A76; --bad-soft:#3D1F1A; --none:#9AAAA1; --none-soft:#26302A;}
 *{box-sizing:border-box}
 html{padding-top:env(safe-area-inset-top,0px)}
@@ -175,7 +175,7 @@ input[type=checkbox]{width:auto!important;flex:none}
 .lock{font-size:12px;color:var(--muted)}
 .menu form .btn{white-space:nowrap;flex:none}
 /* índices: colores validados (paleta categórica, claro y oscuro) */
-.sw-beer{background:var(--beer)} .sw-kom{background:var(--kom)} .sw-f1{background:var(--f1)} .sw-f2{background:var(--f2)} .sw-f3{background:var(--f3)} .sw-f0{background:var(--none)}
+.sw-beer{background:var(--beer)} .sw-kom{background:var(--kom)} .sw-f1{background:var(--f1)} .sw-f2{background:var(--f2)} .sw-f3{background:var(--f3)} .sw-f4{background:var(--f4)} .sw-f5{background:var(--f5)} .sw-f0{background:var(--none)}
 .hb{display:flex;flex-direction:column;gap:2px}
 .hb-row{display:grid;grid-template-columns:minmax(80px,28%) 1fr;gap:10px;align-items:center;padding:4px 6px;border-radius:6px;outline-offset:0}
 .hb-row:hover,.hb-row:focus-visible{background:var(--surface-2)}
@@ -198,6 +198,11 @@ input[type=checkbox]{width:auto!important;flex:none}
 .cc-cap{position:absolute;left:0;right:0;text-align:center;margin-bottom:4px;font-family:var(--mono);font-size:11px;color:var(--ink);white-space:nowrap}
 .cc-x{display:flex;margin-left:46px;padding-top:4px}
 .cc-x span{flex:1;text-align:center;font-size:11px;color:var(--muted)}
+.cc-x.cat span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 1px}
+.cc-slot.link{cursor:pointer}
+/* armar gráfico */
+.tbox .lnkh{text-align:left}
+.agsel{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 details.card summary{cursor:pointer;font-weight:600}
 .sw-ok{background:var(--ok)} .sw-warn{background:var(--warn)} .sw-bad{background:var(--bad)}
 .hb-row.link{cursor:pointer}
@@ -707,7 +712,7 @@ function ixLineas(periodo=S.ix.periodo){
       out.push({marca:v.marca,...i,clienteId:v.clienteId,fecha:v.fecha,venta:v.id,zona:cl?.zona||"Sin zona",unidades:it.cant||0,litros:(it.cant||0)*(it.litrosU||0),neto:netoIt(it)})}));
   return out;
 }
-const ixFmt=(n,m)=>m==="neto"?money(n):m==="unidades"?n1(n)+" u.":m==="cuenta"?n1(n):n1(n)+" L";
+const ixFmt=(n,m)=>m==="neto"?money(n):m==="unidades"?n1(n)+" u.":m==="cuenta"?n1(n):m==="pct"?n1(n)+"%":n1(n)+" L";
 /* barras horizontales apiladas: filas [{lab,segs:[{k,sw,v,nombre}]}] */
 function hbars(filas,medida){
   const max=Math.max(...filas.map(f=>f.segs.reduce((s,x)=>s+x.v,0)),0)||1;
@@ -719,15 +724,15 @@ function hbars(filas,medida){
 const leyenda=items=>items.length>1?`<div class="legend">${items.map(([sw,t])=>`<span><i class="sw sw-${sw}"></i>${esc(t)}</span>`).join("")}</div>`:"";
 function vIndices(){
   const x=S.ix,sueldo=can("ver_ingresos"),plata=can("ver_cobranza");
-  const vistas=[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],...(plata?[["cobranza","Cobranza"]]:[]),...(sueldo?[["sueldo","Sueldo y meta"]]:[])];
+  const vistas=[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","✚ Armar gráfico"],...(plata?[["cobranza","Cobranza"]]:[]),...(sueldo?[["sueldo","Sueldo y meta"]]:[])];
   if(!vistas.some(([k])=>k===x.vista))x.vista="productos";
   if(x.medida==="neto"&&!plata)x.medida="litros";
   const opt=(v,t,cur)=>`<option value="${v}"${cur===v?" selected":""}>${esc(t)}</option>`;
   const equipo=S.equipo.length>1&&can("ver_todos_clientes");
-  const cuerpo={productos:ixProductos,tendencia:ixTendencia,zonas:ixZonas,clientes:ixClientes,cobranza:ixCobranza,sueldo:ixSueldo}[x.vista];
+  const cuerpo={productos:ixProductos,tendencia:ixTendencia,zonas:ixZonas,clientes:ixClientes,armar:ixArmar,cobranza:ixCobranza,sueldo:ixSueldo}[x.vista];
   return `<div class="stack"><h2>Índices</h2>
     <div class="seg" role="group" aria-label="Tablero">${vistas.map(([k,l])=>`<button data-act="ixv" data-v="${k}" aria-pressed="${x.vista===k}">${l}</button>`).join("")}</div>
-  ${x.vista==="sueldo"||x.vista==="cobranza"?cuerpo():`
+  ${x.vista==="sueldo"||x.vista==="cobranza"||x.vista==="armar"?cuerpo():`
   <div class="filters">
     ${x.vista==="tendencia"?"":`<select data-ix="periodo" aria-label="Período">${opt("mes","Este mes",x.periodo)}${opt("mesAnt","Mes anterior",x.periodo)}${opt("3m","Últimos 3 meses",x.periodo)}${opt("anio","Este año",x.periodo)}${opt("todo","Todo",x.periodo)}</select>`}
     <select data-ix="marca" aria-label="Marca">${opt("todas","Todas las marcas",x.marca)}${opt("cerveza","Cerveza",x.marca)}${opt("kombucha","Kombucha",x.marca)}</select>
@@ -975,6 +980,222 @@ function ixSueldo(){
   <details class="card"><summary>Ver tabla</summary><div class="tbox" style="margin-top:10px"><table><thead><tr><th>Mes</th><th class="r">Litros</th><th class="r">El Growler</th><th class="r">Kombucha</th><th class="r">Total</th><th class="r">% meta</th></tr></thead><tbody>
     ${[...R].reverse().map(r=>`<tr><td>${mesLabel(r.m)}</td><td class="r num">${n1(r.litros)}</td><td class="r num">${money(r.liqB)}</td><td class="r num">${money(r.liqK)}</td><td class="r num">${money(r.total)}</td><td class="r num">${Math.round(r.total/c.meta*100)}%</td></tr>`).join("")}
   </tbody></table></div></details>`;
+}
+
+/* ---------- armar gráfico: tú eliges qué medir, cómo agrupar, cómo separar y qué filtros ---------- */
+S.ag={med:"litros",por:"zona",sep:"estilo",gran:"mes",periodo:"3m",marca:"todas",formato:"todos",zona:"todas",tipo:"todos",quien:"todos",vista:"barras",top:"10"};
+const AG_MED={litros:["Litros vendidos","ventas"],unidades:["Unidades vendidas","ventas"],neto:["Neto vendido $","ventas"],ventas:["N° de ventas","ventas"],clientes:["Clientes que compraron","ventas"],visitas:["Visitas","visitas"],muestras:["Muestras entregadas","muestras"]};
+// cómo se muestra cada medida: litros, unidades, plata o conteo
+const AG_FMT={litros:"litros",unidades:"unidades",neto:"neto",ventas:"cuenta",clientes:"cuenta",visitas:"cuenta",muestras:"cuenta"};
+// dimensiones: nombre y de qué datos salen (v = ventas, a = visitas, m = muestras)
+const AG_DIM={zona:["Zona","vam"],estilo:["Estilo / variedad","vm"],formato:["Formato","v"],marca:["Marca","vm"],cliente:["Cliente","vam"],tipo:["Tipo de local","vam"],imp:["Importancia","vam"],quien:["Vendedor","vam"],tipoAct:["Tipo de visita","a"],resultado:["Resultado de la visita","a"],tiempo:["Tiempo","vam"]};
+const AG_SW=["f1","f2","f3","f4","f5"];
+const AG_IDEAS=[
+  ["⭐ Productos estrella por zona",{med:"litros",por:"zona",sep:"estilo",periodo:"3m",vista:"barras"}],
+  ["📈 Ventas por mes y zona",{med:"litros",por:"tiempo",gran:"mes",sep:"zona",vista:"columnas"}],
+  ["🏆 Mejores clientes",{med:"litros",por:"cliente",sep:"marca",periodo:"3m",vista:"barras"}],
+  ["🍺 Mezcla de estilos por tipo de local",{med:"litros",por:"tipo",sep:"estilo",periodo:"anio",vista:"pct"}],
+  ["📍 Visitas por zona",{med:"visitas",por:"zona",sep:"tipoAct",periodo:"mes",vista:"barras"}],
+  ["🧪 Muestras por variedad",{med:"muestras",por:"estilo",sep:"ninguno",periodo:"3m",vista:"barras"}]
+];
+const agFuente=()=>AG_MED[S.ag.med][1];
+const agLetra=()=>({ventas:"v",visitas:"a",muestras:"m"})[agFuente()];
+const agEquipo=()=>S.equipo.length>1&&can("ver_todos_clientes");
+function agDims(){const l=agLetra();return Object.keys(AG_DIM).filter(k=>AG_DIM[k][1].includes(l)&&(k!=="quien"||agEquipo()))}
+/* conteos (ventas, clientes) no se pueden separar por algo que cambia dentro de una misma venta o cliente */
+function agSeps(){
+  const m=S.ag.med,base=agDims().filter(k=>k!=="tiempo"&&k!=="cliente"&&k!=="resultado"&&k!==S.ag.por);
+  if(m==="ventas")return base.filter(k=>["marca","zona","tipo","imp","quien"].includes(k));
+  if(m==="clientes")return base.filter(k=>["zona","tipo","imp"].includes(k));
+  return base;
+}
+function agSanear(){
+  const a=S.ag;
+  if(!AG_MED[a.med]||(a.med==="neto"&&!can("ver_cobranza")))a.med="litros";
+  if(!agDims().includes(a.por))a.por="zona";
+  if(a.sep!=="ninguno"&&!agSeps().includes(a.sep))a.sep="ninguno";
+  if(!["barras","columnas","pct","tabla"].includes(a.vista))a.vista="barras";
+  if(!GRANS.some(([k])=>k===a.gran))a.gran="mes";
+}
+/* filas de datos ya filtradas, con los datos del cliente pegados */
+function agFilas(){
+  const a=S.ag,f=agFuente(),[d,h]=a.por==="tiempo"?["0000-01-01","9999-12-31"]:ixRango(a.periodo),out=[];
+  const dentro=x=>(x.fecha||"")>=d&&(x.fecha||"")<=h&&(a.quien==="todos"||x.creado_por===a.quien);
+  const add=(r,cid)=>{const cl=S.clientes.find(c=>c.id===cid);
+    const z=cl?.zona||"Sin zona",t=cl?.tipo||"Sin tipo";
+    if(a.zona!=="todas"&&z!==a.zona)return;if(a.tipo!=="todos"&&t!==a.tipo)return;
+    out.push({...r,clienteId:cid,zona:z,tipo:t,imp:cl?impOf(cl):"B"})};
+  if(f==="ventas")S.ventas.filter(v=>dentro(v)&&(a.marca==="todas"||v.marca===a.marca)).forEach(v=>(v.items||[]).forEach(it=>{
+    const i=infoItem(it);if(a.formato!=="todos"&&i.formato!==a.formato)return;
+    add({fecha:v.fecha,marca:v.marca,estilo:i.estilo,formato:i.formato,venta:v.id,quien:v.creado_por,litros:(it.cant||0)*(it.litrosU||0),unidades:it.cant||0,neto:netoIt(it)},v.clienteId)}));
+  if(f==="visitas")S.acts.filter(x=>dentro(x)&&PRESENCIAL.has(x.tipo)).forEach(x=>add({fecha:x.fecha,tipoAct:x.tipo,resultado:x.resultado||"Sin resultado",quien:x.creado_por,cuenta:1},x.clienteId));
+  if(f==="muestras")S.acts.filter(dentro).forEach(x=>(x.muestras||[]).forEach(m=>{if(a.marca!=="todas"&&m.marca!==a.marca)return;
+    add({fecha:x.fecha,marca:m.marca,estilo:m.nombre,quien:x.creado_por,cant:Number(m.cant)||0},x.clienteId)}));
+  return out;
+}
+function agValor(rs){
+  const m=S.ag.med;
+  if(m==="ventas")return new Set(rs.map(r=>r.venta)).size;
+  if(m==="clientes")return new Set(rs.map(r=>r.clienteId)).size;
+  if(m==="visitas")return rs.length;
+  if(m==="muestras")return sumM(rs,"cant");
+  return sumM(rs,m);
+}
+function agClave(r,dim){
+  if(dim==="estilo")return r.marca+"|"+r.estilo;
+  if(dim==="tiempo")return r.fecha?periodoDe(r.fecha,S.ag.gran):"";
+  return r[dim==="cliente"?"clienteId":dim]??"";
+}
+function agEtiqueta(k,dim,corta){
+  if(dim==="estilo")return k.split("|")[1];
+  if(dim==="formato")return FORMATOS[k]||k;
+  if(dim==="marca")return k==="cerveza"?"Cerveza":k==="kombucha"?"Kombucha":k;
+  if(dim==="cliente")return cliNom(k);
+  if(dim==="imp")return corta?k:IMPORT[k]||k;
+  if(dim==="quien")return nombreDe(k)||"(sin nombre)";
+  if(dim==="tiempo")return etiquetaPeriodo(k,S.ag.gran,corta);
+  return k;
+}
+/* orden fijo de cada dimensión, para que los colores no salten al cambiar filtros */
+function agOrdenFijo(dim){
+  if(dim==="zona")return[...S.cfg.zonas,"Sin zona"];
+  if(dim==="estilo")return[...new Set([...S.cfg.productos.map(p=>p.marca+"|"+estiloDe(p)),...S.cfg.muestras.map(m=>m.marca+"|"+m.nombre)])];
+  if(dim==="formato")return FMT_ORDEN;
+  if(dim==="marca")return["cerveza","kombucha"];
+  if(dim==="imp")return["A","B","C"];
+  if(dim==="tipo")return[...TIPOS,"Sin tipo"];
+  if(dim==="tipoAct")return TIPOS_ACT;
+  return null;
+}
+/* arma los datos del gráfico: grupos (filas o columnas) y series (colores) */
+function agDatos(){
+  const a=S.ag,L=agFilas(),por=a.por,sep=a.sep==="ninguno"?null:a.sep;
+  // series: las 5 mayores, en su orden fijo, y el resto como "Otros"
+  let series=[];
+  if(sep){
+    const tot=[...new Set(L.map(r=>agClave(r,sep)))].map(k=>[k,agValor(L.filter(r=>agClave(r,sep)===k))]).filter(x=>x[1]>0).sort((x,y)=>y[1]-x[1]);
+    const fijo=agOrdenFijo(sep)||[],pos=k=>{const i=fijo.indexOf(k);return i<0?99:i};
+    const top=tot.slice(0,5).map(x=>x[0]).sort((x,y)=>pos(x)-pos(y)||tot.findIndex(t=>t[0]===x)-tot.findIndex(t=>t[0]===y));
+    series=top.map((k,i)=>({k,nombre:agEtiqueta(k,sep),sw:sep==="marca"?MARCA_SW[k]||"f0":sep==="formato"?FMT_SW[k]||"f0":AG_SW[i]}));
+    if(tot.length===6)series.push({k:tot[5][0],nombre:agEtiqueta(tot[5][0],sep),sw:"f0"});
+    else if(tot.length>6)series.push({k:"__otros",nombre:`Otros (${tot.length-5})`,sw:"f0"});
+  }
+  const enSerie=(r,s)=>s.k==="__otros"?!series.some(x=>x.k!=="__otros"&&x.k===agClave(r,sep)):agClave(r,sep)===s.k;
+  // grupos
+  let claves;
+  if(por==="tiempo")claves=periodos(a.gran);
+  else{
+    claves=[...new Set(L.map(r=>agClave(r,por)))].filter(k=>k!=="");
+    const fijo=por==="imp"?agOrdenFijo("imp"):null;
+    const val=Object.fromEntries(claves.map(k=>[k,agValor(L.filter(r=>agClave(r,por)===k))]));
+    claves.sort(fijo?(x,y)=>fijo.indexOf(x)-fijo.indexOf(y):(x,y)=>val[y]-val[x]);
+  }
+  const unica=a.marca!=="todas"?MARCA_SW[a.marca]:"f1";
+  const grupos=claves.map(k=>{const rs=L.filter(r=>agClave(r,por)===k);
+    return{k,lab:agEtiqueta(k,por),corta:agEtiqueta(k,por,true),total:agValor(rs),
+      segs:sep?series.map(s=>({k:s.k,sw:s.sw,nombre:s.nombre,v:agValor(rs.filter(r=>enSerie(r,s)))})):[{k,sw:por==="marca"?MARCA_SW[k]||unica:unica,nombre:AG_MED[a.med][0],v:agValor(rs)}]}});
+  return{L,grupos,series,total:agValor(L)};
+}
+/* a dónde lleva tocar un grupo: ficha de zona, de estilo o del cliente */
+function agLink(g){
+  const por=S.ag.por;
+  if(por==="zona"&&g.k!=="Sin zona")return{act:"drill",arg:"zona:"+g.k};
+  if(por==="estilo"&&agFuente()==="ventas")return{act:"drill",arg:"estilo:"+g.k};
+  if(por==="cliente"&&S.clientes.some(c=>c.id===g.k))return{id:g.k};
+  return{};
+}
+/* columnas apiladas genéricas (mismo estilo que Tendencia) */
+function agColumnas(gs,medida){
+  const top=Math.max(...gs.map(g=>g.segs.reduce((s,x)=>s+x.v,0)),0);
+  if(!top)return `<div class="muted small">Sin datos en este período.</div>`;
+  const paso=pasoLindo(top*1.05/4),ymax=Math.ceil(top*1.05/paso)*paso,ticks=[];for(let v=0;v<=ymax+1e-9;v+=paso)ticks.push(v);
+  const pct=v=>v/ymax*100,fmt=v=>medida==="neto"?moneyK(v):medida==="pct"?Math.round(v)+"%":n1(v);
+  const cada=gs.length>12?2:1,mayor=gs.reduce((x,y)=>y.segs.reduce((s,z)=>s+z.v,0)>x.segs.reduce((s,z)=>s+z.v,0)?y:x);
+  return `<div class="cc" role="img" aria-label="Gráfico de columnas">
+    <div class="cc-plot">${ticks.map(v=>`<div class="cc-grid" style="bottom:${pct(v)}%"><span>${fmt(v)}</span></div>`).join("")}
+      <div class="cc-cols">${gs.map(g=>{const t=g.segs.reduce((s,x)=>s+x.v,0),segs=g.segs.filter(x=>x.v>0),l=agLink(g);
+        const tip=`${g.lab}: ${ixFmt(t,medida)}${segs.length>1?" · "+segs.map(x=>`${x.nombre}: ${ixFmt(x.v,medida)}`).join(" · "):""}`;
+        return `<div class="cc-slot${l.act||l.id?" link":""}" tabindex="0" data-tip="${esc(tip)}"${l.act?` data-act="${l.act}" data-k="${esc(l.arg)}"`:l.id?` data-act="openClient" data-id="${l.id}"`:""}>${g===mayor?`<span class="cc-cap" style="bottom:${pct(t)}%">${fmt(t)}</span>`:""}<div class="cc-col">${[...segs].reverse().map(x=>`<i class="sw-${x.sw}" style="height:${pct(x.v)}%"></i>`).join("")}</div></div>`}).join("")}</div></div>
+    <div class="cc-x${S.ag.por==="tiempo"?"":" cat"}">${gs.map((g,i)=>`<span title="${esc(g.lab)}">${(gs.length-1-i)%cada===0?esc(g.corta):""}</span>`).join("")}</div></div>`;
+}
+function agTabla(D,medida){
+  const a=S.ag,sep=a.sep!=="ninguno",tot=D.total||1;
+  return `<div class="tbox"><table><thead><tr><th>${esc(AG_DIM[a.por][0])}</th>${sep?D.series.map(s=>`<th class="r"><span class="row" style="gap:6px;flex-wrap:nowrap;justify-content:flex-end"><i class="sw sw-${s.sw}"></i>${esc(s.nombre)}</span></th>`).join(""):""}<th class="r">Total</th><th class="r">% del total</th></tr></thead><tbody>
+    ${D.grupos.filter(g=>g.total||a.por==="tiempo").map(g=>{const l=agLink(g);return `<tr><td>${l.act?`<button class="lnkh" data-act="${l.act}" data-k="${esc(l.arg)}">${esc(g.lab)}</button>`:l.id?`<button class="lnkh" data-act="openClient" data-id="${l.id}">${esc(g.lab)}</button>`:esc(g.lab)}</td>${sep?g.segs.map(x=>`<td class="r num">${x.v?ixFmt(x.v,medida):"–"}</td>`).join(""):""}<td class="r num">${ixFmt(g.total,medida)}</td><td class="r num">${pctTxt(g.total/tot)}</td></tr>`}).join("")}
+  </tbody></table></div>`;
+}
+function agGuardados(){try{return JSON.parse(localStorage.getItem("cartera-graficos")||"[]")||[]}catch(e){return[]}}
+function agGuardarLista(l){try{localStorage.setItem("cartera-graficos",JSON.stringify(l));return true}catch(e){return false}}
+function agTitulo(){
+  const a=S.ag,m=AG_MED[a.med][0],por=a.por==="tiempo"?GRANS.find(x=>x[0]===a.gran)[1].toLowerCase():AG_DIM[a.por][0].toLowerCase();
+  const per={mes:"este mes",mesAnt:"mes anterior","3m":"últimos 3 meses",anio:"este año",todo:"todo el historial"}[a.periodo];
+  return `${m} por ${por}${a.sep!=="ninguno"?", separado por "+AG_DIM[a.sep][0].toLowerCase():""}${a.por==="tiempo"?"":" · "+per}`;
+}
+function ixArmar(){
+  agSanear();
+  const a=S.ag,plata=can("ver_cobranza"),medida=AG_FMT[a.med],f=agFuente();
+  const opt=(v,t,cur)=>`<option value="${esc(v)}"${cur===v?" selected":""}>${esc(t)}</option>`;
+  const sel=(k,lab,opts)=>`<div class="field"><label for="ag-${k}">${lab}</label><select id="ag-${k}" data-ag="${k}">${opts}</select></div>`;
+  const guard=agGuardados();
+  const nFiltros=[a.marca!=="todas"&&f!=="visitas",a.formato!=="todos"&&f==="ventas",a.zona!=="todas",a.tipo!=="todos",a.quien!=="todos"&&agEquipo()].filter(Boolean).length;
+  const zonas=[...new Set([...S.cfg.zonas,...S.clientes.map(c=>c.zona).filter(Boolean)])];
+  const tipos=[...new Set([...TIPOS,...S.clientes.map(c=>c.tipo).filter(Boolean)])];
+  const D=agDatos(),hay=D.grupos.some(g=>g.total>0);
+  const n=a.top==="todos"||a.por==="tiempo"?D.grupos.length:Number(a.top);
+  const vis=(a.por==="tiempo"?D.grupos:D.grupos.filter(g=>g.total>0)).slice(0,n);
+  const resto=a.por==="tiempo"?0:D.grupos.filter(g=>g.total>0).length-vis.length;
+  let grafico="";
+  if(hay){
+    if(a.vista==="tabla")grafico=agTabla(D,medida);
+    else if(a.vista==="pct"){
+      const gp=vis.map(g=>{const t=g.segs.reduce((s,x)=>s+x.v,0)||1,sep=a.sep!=="ninguno";
+        return{...g,...agLink(g),segs:g.segs.map(x=>({...x,v:sep?x.v/t*100:x.v/(D.total||1)*100}))}});
+      grafico=a.por==="tiempo"?agColumnas(gp,"pct"):hbars(gp,"pct");
+    }
+    else if(a.vista==="columnas")grafico=agColumnas(vis,medida);
+    else grafico=hbars(vis.map(g=>({...g,...agLink(g)})),medida);
+  }
+  const leyendaAg=a.sep!=="ninguno"?leyenda(D.series.map(s=>[s.sw,s.nombre])):"";
+  return `<section class="card stack"><div><h3>Ideas rápidas</h3><div class="muted small">Toca una para partir, después cámbiala a tu gusto</div></div>
+    <div class="chips">${AG_IDEAS.map(([t],i)=>`<button class="chip strong lnk" data-act="agIdea" data-v="${i}">${esc(t)}</button>`).join("")}</div>
+    ${guard.length?`<div><div class="lbl small" style="font-weight:600;margin-bottom:6px">Mis gráficos</div><div class="chips">${guard.map((g,i)=>`<span class="chip strong" style="padding-right:2px"><button class="lnkh" style="text-decoration:none" data-act="agAbrir" data-v="${i}">📌 ${esc(g.nombre)}</button><button class="btn link small" style="padding:0 6px" data-act="agBorrar" data-v="${i}" aria-label="Borrar ${esc(g.nombre)}">✕</button></span>`).join("")}</div></div>`:""}
+  </section>
+  <section class="card stack"><h3>Qué quieres ver</h3>
+    <div class="agsel">
+      ${sel("med","Medir",Object.entries(AG_MED).filter(([k])=>k!=="neto"||plata).map(([k,[l]])=>opt(k,l,a.med)).join(""))}
+      ${sel("por","Agrupar por",agDims().map(k=>opt(k,AG_DIM[k][0],a.por)).join(""))}
+      ${a.por==="tiempo"?sel("gran","Cada",GRANS.map(([k,l])=>opt(k,l,a.gran)).join("")):""}
+      ${sel("sep","Separar colores por",opt("ninguno","Sin separar",a.sep)+agSeps().map(k=>opt(k,AG_DIM[k][0],a.sep)).join(""))}
+      ${a.por==="tiempo"?"":sel("periodo","Período",opt("mes","Este mes",a.periodo)+opt("mesAnt","Mes anterior",a.periodo)+opt("3m","Últimos 3 meses",a.periodo)+opt("anio","Este año",a.periodo)+opt("todo","Todo",a.periodo))}
+    </div>
+    <details id="agF"${S.agF||nFiltros?" open":""}><summary class="small" style="cursor:pointer;font-weight:600">Filtros y cantidad${nFiltros?` · ${nFiltros} ${nFiltros===1?"activo":"activos"}`:""}</summary>
+    <div class="agsel" style="margin-top:10px">
+      ${f!=="visitas"?sel("marca","Marca",opt("todas","Todas las marcas",a.marca)+opt("cerveza","Cerveza",a.marca)+opt("kombucha","Kombucha",a.marca)):""}
+      ${f==="ventas"?sel("formato","Formato",opt("todos","Todos los formatos",a.formato)+FMT_VENTA.map(k=>opt(k,FORMATOS[k],a.formato)).join("")):""}
+      ${sel("zona","Zona",opt("todas","Todas las zonas",a.zona)+zonas.map(z=>opt(z,z,a.zona)).join("")+opt("Sin zona","Sin zona",a.zona))}
+      ${sel("tipo","Tipo de local",opt("todos","Todos los tipos",a.tipo)+tipos.map(t=>opt(t,t,a.tipo)).join("")+opt("Sin tipo","Sin tipo",a.tipo))}
+      ${agEquipo()?sel("quien","Vendedor",opt("todos","Todo el equipo",a.quien)+S.equipo.map(u=>opt(u.id,u.id===ME.user?.id?"Solo yo":u.nombre,a.quien)).join("")):""}
+      ${a.por==="tiempo"?"":sel("top","Mostrar",opt("10","Los 10 mayores",a.top)+opt("20","Los 20 mayores",a.top)+opt("todos","Todos",a.top))}
+    </div></details>
+    <div class="seg" role="group" aria-label="Tipo de gráfico">${[["barras","▤ Barras"],["columnas","▥ Columnas"],["pct","% Participación"],["tabla","☰ Tabla"]].map(([k,l])=>`<button data-act="agVista" data-v="${k}" aria-pressed="${a.vista===k}">${l}</button>`).join("")}</div>
+  </section>
+  <section class="card stack"><div class="row spread" style="align-items:flex-start"><div><h3>${esc(agTitulo())}</h3>
+      <div class="muted small">${hay?`Total: <b class="num">${ixFmt(D.total,medida)}</b>${a.vista==="pct"?(a.sep!=="ninguno"?" · cada barra suma 100%":" · % del total"):""}${resto>0?` · se muestran los ${vis.length} mayores de ${vis.length+resto} (en la tabla están todos)`:""}`:"Sin datos"}</div></div>
+      ${hay?`<button class="btn sm" data-act="agCSV">⬇ CSV</button>`:""}</div>
+    ${hay?`${leyendaAg}${grafico}
+      ${a.med==="muestras"?`<div class="muted small">Las muestras se suman tal como se registran (latas y litros juntos).</div>`:""}
+      ${agLink(D.grupos[0]||{}).act||agLink(D.grupos[0]||{}).id?`<div class="muted small">Toca una barra para ver el detalle.</div>`:""}
+      ${a.vista==="tabla"?"":`<details class="card"><summary>Ver tabla</summary><div style="margin-top:10px">${agTabla(D,medida)}</div></details>`}`
+    :`<div class="empty">No hay datos con estos filtros.<span class="small">Prueba con otro período, otra zona o menos filtros.</span></div>`}
+    <form id="agGuardarForm" class="row" style="flex-wrap:nowrap"><input id="agNom" placeholder="Nombre para guardarlo, ej: Estrellas por zona" aria-label="Nombre del gráfico" maxlength="40" style="flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><button class="btn sm" type="submit">📌 Guardar</button></form>
+    <div class="muted small">Los gráficos guardados quedan en este dispositivo.</div>
+  </section>`;
+}
+function agCSV(){
+  const D=agDatos(),a=S.ag,sep=a.sep!=="ninguno",tot=D.total||1;
+  const filas=[[AG_DIM[a.por][0],...(sep?D.series.map(s=>s.nombre):[]),"Total","% del total"],
+    ...D.grupos.filter(g=>g.total||a.por==="tiempo").map(g=>[g.lab,...(sep?g.segs.map(x=>Math.round(x.v*100)/100):[]),Math.round(g.total*100)/100,Math.round(g.total/tot*1000)/10])];
+  descargar(`grafico-${today()}.csv`,"﻿"+csv([[agTitulo()],[],...filas]),"text/csv");
 }
 
 /* ---------- tareas: qué hacer hoy, mañana y las próximas semanas, calculado con los datos ---------- */
@@ -2242,6 +2463,13 @@ document.addEventListener("click",async e=>{
     case"ixv":S.ix.vista=t.dataset.v;render();break;
     case"ixm":S.ix.modo=t.dataset.v;render();break;
     case"ixz":S.ix.zmodo=t.dataset.v;render();break;
+    case"agVista":S.ag.vista=t.dataset.v;render();break;
+    case"agIdea":{const[,cfg]=AG_IDEAS[Number(t.dataset.v)];S.ag={...S.ag,sep:"ninguno",marca:"todas",formato:"todos",zona:"todas",tipo:"todos",quien:"todos",...cfg};agSanear();render();break}
+    case"agAbrir":{const g=agGuardados()[Number(t.dataset.v)];if(g){const{nombre,...cfg}=g;S.ag={...S.ag,...cfg};agSanear();render();toast("Abriste "+nombre)}break}
+    case"agBorrar":{const l=agGuardados(),g=l[Number(t.dataset.v)];if(!g)return;
+      if(!await confirmar(`¿Borrar "${esc(g.nombre)}"?`,"Se quita de Mis gráficos en este dispositivo.","Sí, borrar","Cancelar"))return;
+      l.splice(Number(t.dataset.v),1);agGuardarLista(l);render();break}
+    case"agCSV":agCSV();break;
     case"newClient":clientForm();break;
     case"editClient":clientForm(id);break;
     case"openClient":navPush();clientDetail(id);break;
@@ -2319,6 +2547,7 @@ document.addEventListener("input",e=>{
   if(e.target.closest("#bNuevoForm")){if(e.target.id==="bnPre")$("#bnDesde").value=bSiguiente(e.target.value);bNuevoPrev()}
   if(e.target.id==="sFecha"&&!$("#saleForm").dataset.id)$("#sVence").value=addDays(e.target.value||today(),S.cfg.plazo[$("#sMarca").value]);
 });
+document.addEventListener("toggle",e=>{if(e.target.id==="agF")S.agF=e.target.open},true);
 document.addEventListener("change",e=>{
   if(e.target.id==="impFile"&&e.target.files[0]){importarRespaldo(e.target.files[0]);e.target.value=""}
   if(e.target.id==="cFoto"&&e.target.files[0]){$("#cFotoQuitar").value="";$("#cFotoNom").textContent="Foto lista: se sube al guardar"}
@@ -2338,6 +2567,11 @@ document.addEventListener("change",e=>{
   if(e.target.dataset.eid)$("#etN").textContent=$("#modal").querySelectorAll("[data-eid]:checked").length;
   if(e.target.id==="etTam")$("#modal .etPrev")?.style.setProperty("--lw",e.target.value+"mm");
   if(e.target.dataset.ix){S.ix[e.target.dataset.ix]=e.target.value;render()}
+  if(e.target.dataset.ag){const k=e.target.dataset.ag,antes=S.ag.por;S.ag[k]=e.target.value;
+    // al pasar a "Tiempo" conviene columnas; al volver a una categoría, barras
+    if(k==="por"&&e.target.value==="tiempo"&&S.ag.vista==="barras")S.ag.vista="columnas";
+    if(k==="por"&&antes==="tiempo"&&e.target.value!=="tiempo"&&S.ag.vista==="columnas")S.ag.vista="barras";
+    agSanear();render()}
   if(e.target.id==="rutaDe"){S.rutaDe=e.target.value;render()}
   if(e.target.id==="fMarca"){S.fMarca=e.target.value;render()}
   if(e.target.id==="fSem"){S.fSem=e.target.value;render()}
@@ -2408,6 +2642,9 @@ document.addEventListener("submit",async e=>{
   }
   const val=id=>document.getElementById(id).value.trim();
   if(f.id==="codigoForm"){const c=val("codigoIn");if(c)abrirCodigo(c);return}
+  if(f.id==="agGuardarForm"){const nombre=val("agNom");if(!nombre){toast("Ponle un nombre al gráfico");return}
+    const l=agGuardados().filter(g=>g.nombre!==nombre);l.push({nombre,...S.ag});
+    if(agGuardarLista(l)){toast("Gráfico guardado");render()}else toast("Este navegador no dejó guardar el gráfico");return}
   if(f.id==="bLoteForm"){
     const acc=f.dataset.acc;
     const ids=f.dataset.ids?[f.dataset.ids]:[...f.querySelectorAll("[data-bid]:checked")].map(x=>x.dataset.bid);
@@ -2720,6 +2957,20 @@ const EN={
   "No hay próxima acción agendada":"No next action scheduled","Nunca lo has visitado":"You've never visited them","· sin día asignado":"· no day assigned",
   "Verde: acción agendada a futuro. Amarillo: es hoy. Rojo: la fecha ya pasó. Se agenda al registrar una visita o en la ficha del cliente.":"Green: action scheduled in the future. Yellow: it's today. Red: the date has passed. Schedule it when logging a visit or in the customer profile.",
   "+ Caja mixta":"+ Mixed box","Caja mixta de 24 latas":"Mixed box of 24 cans","Cantidad de cajas":"Number of boxes","+ Estilo":"+ Style","Latas":"Cans",
+  "✚ Armar gráfico":"✚ Build a chart","Ideas rápidas":"Quick ideas","Toca una para partir, después cámbiala a tu gusto":"Tap one to start, then change it as you like",
+  "⭐ Productos estrella por zona":"⭐ Star products by zone","📈 Ventas por mes y zona":"📈 Sales by month and zone","🏆 Mejores clientes":"🏆 Best customers",
+  "🍺 Mezcla de estilos por tipo de local":"🍺 Style mix by venue type","📍 Visitas por zona":"📍 Visits by zone","🧪 Muestras por variedad":"🧪 Samples by variety",
+  "Mis gráficos":"My charts","Qué quieres ver":"What you want to see","Medir":"Measure","Agrupar por":"Group by","Cada":"Every","Separar colores por":"Split colors by",
+  "Sin separar":"No split","Filtros y cantidad":"Filters and count","Mostrar":"Show","Los 10 mayores":"Top 10","Los 20 mayores":"Top 20","Todos":"All",
+  "Litros vendidos":"Liters sold","Unidades vendidas":"Units sold","Neto vendido $":"Net sold $","N° de ventas":"No. of sales","Clientes que compraron":"Customers who bought",
+  "Visitas":"Visits","Muestras entregadas":"Samples given","Zona":"Zone","Estilo / variedad":"Style / variety","Formato":"Format","Marca":"Brand","Cliente":"Customer",
+  "Tipo de local":"Venue type","Importancia":"Importance","Vendedor":"Seller","Tipo de visita":"Visit type","Resultado de la visita":"Visit result","Tiempo":"Time",
+  "Todas las zonas":"All zones","Todos los tipos":"All types","Sin zona":"No zone","Sin tipo":"No type","Sin resultado":"No result","% del total":"% of total",
+  "▤ Barras":"▤ Bars","▥ Columnas":"▥ Columns","% Participación":"% Share","☰ Tabla":"☰ Table","⬇ CSV":"⬇ CSV","📌 Guardar":"📌 Save",
+  "Toca una barra para ver el detalle.":"Tap a bar to see the detail.","Los gráficos guardados quedan en este dispositivo.":"Saved charts stay on this device.",
+  "Nombre para guardarlo, ej: Estrellas por zona":"Name to save it, e.g. Stars by zone","Gráfico guardado":"Chart saved","Ponle un nombre al gráfico":"Give the chart a name",
+  "No hay datos con estos filtros.":"No data with these filters.","Prueba con otro período, otra zona o menos filtros.":"Try another period, another zone or fewer filters.",
+  "Las muestras se suman tal como se registran (latas y litros juntos).":"Samples are added up as logged (cans and liters together).",
   "1 · Pedido":"1 · Order","Elige estilo y formato. La cantidad va en barriles o en latas.":"Choose style and format. Quantity is in kegs or cans.",
   "Descuento general (opcional)":"Overall discount (optional)","Se aplica sobre el total, después de los descuentos por producto.":"Applied to the total, after per-product discounts.",
   "2 · Empaque":"2 · Packing","Lo que sale físicamente: cajas, barriles o latas sueltas. Tiene que cuadrar con el pedido.":"What physically ships: boxes, kegs or loose cans. It must match the order.",
