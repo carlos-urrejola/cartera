@@ -42,6 +42,7 @@ temaAplicar(BOOT.tema);letraAplicar(BOOT.letra);
 :root{
   --bg:#F1F4F0; --surface:#FFFFFF; --surface-2:#E8EDE7; --ink:#18221D; --muted:#56665D; --line:#D3DBD2;
   --beer:#A85F0A; --kom:#00836B; --focus:#00836B;
+  --f1:#2a78d6; --f2:#eb6834; --f3:#1baf7a;
   --ok:#23703A; --ok-soft:#DCEFDF; --warn:#8A5A00; --warn-soft:#F8EBC8; --bad:#A8321F; --bad-soft:#F7E0DA; --none:#6B7770; --none-soft:#E6EAE6;
   --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
   --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
@@ -49,11 +50,11 @@ temaAplicar(BOOT.tema);letraAplicar(BOOT.letra);
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;
   --bg:#121814; --surface:#1A221D; --surface-2:#243029; --ink:#E6EDE8; --muted:#9AAAA1; --line:#314038;
-  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088;
+  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70;
   --ok:#6CCB86; --ok-soft:#1B3524; --warn:#E8C067; --warn-soft:#3A3016; --bad:#F08A76; --bad-soft:#3D1F1A; --none:#9AAAA1; --none-soft:#26302A;}}
 :root[data-theme="dark"]{color-scheme:dark;
   --bg:#121814; --surface:#1A221D; --surface-2:#243029; --ink:#E6EDE8; --muted:#9AAAA1; --line:#314038;
-  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088;
+  --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70;
   --ok:#6CCB86; --ok-soft:#1B3524; --warn:#E8C067; --warn-soft:#3A3016; --bad:#F08A76; --bad-soft:#3D1F1A; --none:#9AAAA1; --none-soft:#26302A;}
 *{box-sizing:border-box}
 html{padding-top:env(safe-area-inset-top,0px)}
@@ -164,6 +165,32 @@ input[type=checkbox]{width:auto!important;flex:none}
 .prefrow select,.menu input{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);width:100%}
 .lock{font-size:12px;color:var(--muted)}
 .menu form .btn{white-space:nowrap;flex:none}
+/* índices: colores validados (paleta categórica, claro y oscuro) */
+.sw-beer{background:var(--beer)} .sw-kom{background:var(--kom)} .sw-f1{background:var(--f1)} .sw-f2{background:var(--f2)} .sw-f3{background:var(--f3)} .sw-f0{background:var(--none)}
+.hb{display:flex;flex-direction:column;gap:2px}
+.hb-row{display:grid;grid-template-columns:minmax(80px,28%) 1fr;gap:10px;align-items:center;padding:4px 6px;border-radius:6px;outline-offset:0}
+.hb-row:hover,.hb-row:focus-visible{background:var(--surface-2)}
+.hb-lab{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hb-track{display:flex;align-items:center;gap:8px;min-width:0}
+.hb-bar{display:flex;gap:2px;height:18px;border-radius:0 4px 4px 0;overflow:hidden;flex:none;min-width:3px}
+.hb-bar i{display:block;height:100%;min-width:2px}
+.hb-val{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.cc-plot{position:relative;height:190px;margin:10px 0 0 46px;border-bottom:1px solid var(--muted)}
+.cc-grid{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
+.cc-grid span{position:absolute;right:calc(100% + 6px);transform:translateY(-50%);font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.cc-meta{position:absolute;left:0;right:0;border-top:2px solid var(--ink);opacity:.55;z-index:1}
+.cc-key{display:inline-block;width:14px;border-top:2px solid var(--ink);opacity:.55}
+.cc-cols{position:absolute;inset:0;display:flex;z-index:2}
+.cc-slot{flex:1;position:relative;display:flex;justify-content:center;align-items:flex-end;border-radius:4px}
+.cc-slot:hover,.cc-slot:focus-visible{background:color-mix(in srgb,var(--surface-2) 70%,transparent)}
+.cc-col{width:min(22px,60%);height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px}
+.cc-col i{display:block;width:100%}
+.cc-col i:first-child{border-radius:4px 4px 0 0}
+.cc-cap{position:absolute;left:0;right:0;text-align:center;margin-bottom:4px;font-family:var(--mono);font-size:11px;color:var(--ink);white-space:nowrap}
+.cc-x{display:flex;margin-left:46px;padding-top:4px}
+.cc-x span{flex:1;text-align:center;font-size:11px;color:var(--muted)}
+details.card summary{cursor:pointer;font-weight:600}
+.tip{position:fixed;z-index:70;background:var(--ink);color:var(--bg);padding:6px 9px;border-radius:6px;font-size:13px;pointer-events:none;max-width:280px;line-height:1.35}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}}
 </style>
 </head>
@@ -183,6 +210,7 @@ input[type=checkbox]{width:auto!important;flex:none}
   <button data-tab="ruta">Ruta</button>
   <button data-tab="clientes">Clientes</button>
   <button data-tab="ventas">Ventas</button>
+  <button data-tab="indices">Índices</button>
   <button data-tab="ajustes">Ajustes</button>
   <button data-tab="equipo">Equipo</button>
 </nav>
@@ -202,14 +230,14 @@ const DEFAULT_CFG = {
   frecVisita:{A:7,B:14,C:30},
   zonas:["Centro","Isla Teja","Barrios Bajos","Las Ánimas","Collico","Regional","Niebla / Costa"],
   zonasDia:{"1":["Centro"],"2":["Isla Teja","Barrios Bajos"],"3":["Las Ánimas","Collico"],"4":["Centro","Regional"],"5":["Isla Teja","Niebla / Costa"],"6":[],"0":[]},
+  // Un producto por estilo (formato + estilo), para poder ver las ventas por estilo en Índices
   productos:[
-    {id:"b-pil", marca:"cerveza", nombre:"Barril 30 L · Pilsen / Solsation / Ámbar", litros:30, neto:75630},
-    {id:"b-ipa", marca:"cerveza", nombre:"Barril 30 L · Red / IPA", litros:30, neto:88235},
-    {id:"b-bip", marca:"cerveza", nombre:"Barril 30 L · Black IPA", litros:30, neto:96639},
-    {id:"c-pil", marca:"cerveza", nombre:"Caja 24 latas · Pilsen / Solsation", litros:7.92, neto:35294},
-    {id:"c-ipa", marca:"cerveza", nombre:"Caja 24 latas · Red / IPA / Black IPA", litros:7.92, neto:37815},
-    {id:"k-17", marca:"kombucha", nombre:"Caja 24 · Perro Salvaje / Tiger Chai / Ginger Bear", litros:8.52, neto:40800},
-    {id:"k-19", marca:"kombucha", nombre:"Caja 24 · Dos Boas / Estay Loica", litros:8.52, neto:45600}
+    ...[["pil","Pilsen",75630],["sol","Solsation",75630],["amb","Ámbar",75630],["red","Red",88235],["ipa","IPA",88235],["bip","Black IPA",96639]]
+      .map(([k,e,n])=>({id:"b30-"+k,marca:"cerveza",formato:"barril",estilo:e,nombre:"Barril 30 L · "+e,litros:30,neto:n})),
+    ...[["pil","Pilsen",35294],["sol","Solsation",35294],["red","Red",37815],["ipa","IPA",37815],["bip","Black IPA",37815]]
+      .map(([k,e,n])=>({id:"c24-"+k,marca:"cerveza",formato:"caja",estilo:e,nombre:"Caja 24 latas · "+e,litros:7.92,neto:n})),
+    ...[["ps","Perro Salvaje",40800],["tc","Tiger Chai",40800],["gb","Ginger Bear",40800],["db","Dos Boas",45600],["el","Estay Loica",45600]]
+      .map(([k,e,n])=>({id:"k24-"+k,marca:"kombucha",formato:"caja",estilo:e,nombre:"Caja 24 · "+e,litros:8.52,neto:n}))
   ],
   muestras:[
     {id:"m-pil",marca:"cerveza",nombre:"Pilsen",unidad:"lata"},
@@ -228,6 +256,7 @@ const DEFAULT_CFG = {
   // Qué preferencias puede cambiar cada usuario y con qué valor parten (las define el admin)
   prefs:{permitir:{idioma:true,tema:true,letra:true,inicio:true},defecto:{idioma:"es",tema:"oscuro",letra:"normal",inicio:"resumen"}}
 };
+const FORMATOS={barril:"Barril 30 L",caja:"Caja 24",lata:"Lata",otro:"Otro"};
 const TIPOS=["Bar","Restorán","Botillería","Almacén","Minimarket","Cafetería","Hotel","Evento","Otro"];
 const ESTADOS={prospecto:"Prospecto",activo:"Activo",pausado:"Pausado"};
 const IMPORT={A:"A · Clave",B:"B · Importante",C:"C · Ocasional"};
@@ -304,9 +333,18 @@ function semVisita(c){
 }
 
 /* ---------- ingresos y actividad del mes ---------- */
-function resumenMes(mes){
+/* líquido del mes según litros de cerveza vendidos y neto de kombucha cobrado */
+function liquido(litros,cobradoK){
+  const c=S.cfg;
+  const base=c.imm*c.horas/42, com=litros*c.comL;
+  const grat=c.grat?Math.min(.25*(base+com),(4.75*c.imm/12)*(c.horas/42)):0;
+  const liqB=(base+com+grat)*(1-c.desc/100);
+  const comK=cobradoK*c.pctK/100, liqK=comK*(1-c.ret/100);
+  return{com,comK,liqB,liqK,total:liqB+liqK};
+}
+function resumenMes(mes,scope=S.scope){
   const inMes=f=>f&&f.slice(0,7)===mes;
-  const mine=x=>S.scope!=="mias"||x.creado_por===ME.user?.id;
+  const mine=x=>scope!=="mias"||x.creado_por===ME.user?.id;
   const vc=S.ventas.filter(v=>v.marca==="cerveza"&&inMes(v.fecha)&&mine(v));
   const vk=S.ventas.filter(v=>v.marca==="kombucha"&&inMes(v.fecha)&&mine(v));
   const litros=vc.reduce((s,v)=>s+(v.litros||0),0);
@@ -314,11 +352,7 @@ function resumenMes(mes){
   const cajasK=vk.reduce((s,v)=>s+(v.cajas||0),0);
   const netoK=vk.reduce((s,v)=>s+(v.neto||0),0);
   const cobradoK=S.ventas.filter(v=>v.marca==="kombucha"&&v.pagado&&inMes(v.fechaPago)&&mine(v)).reduce((s,v)=>s+(v.neto||0),0);
-  const c=S.cfg;
-  const base=c.imm*c.horas/42, com=litros*c.comL;
-  const grat=c.grat?Math.min(.25*(base+com),(4.75*c.imm/12)*(c.horas/42)):0;
-  const liqB=(base+com+grat)*(1-c.desc/100);
-  const comK=cobradoK*c.pctK/100, liqK=comK*(1-c.ret/100);
+  const{com,comK,liqB,liqK}=liquido(litros,cobradoK);
   const am=S.acts.filter(a=>inMes(a.fecha)&&mine(a));
   const visitas=am.filter(a=>PRESENCIAL.has(a.tipo)).length;
   const activ=am.filter(a=>a.tipo==="Activación / degustación").length;
@@ -369,7 +403,7 @@ function render(){
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
   const v=$("#view");
   if(S.dbState==="loading"){v.innerHTML=`<div class="empty">Cargando tu cartera…</div>`;return}
-  v.innerHTML=({resumen:vResumen,ruta:vRuta,clientes:vClientes,ventas:vVentas,ajustes:vAjustes,equipo:vEquipo}[S.tab]||vResumen)();
+  v.innerHTML=({resumen:vResumen,ruta:vRuta,clientes:vClientes,ventas:vVentas,indices:vIndices,ajustes:vAjustes,equipo:vEquipo}[S.tab]||vResumen)();
 }
 function mesLabel(m){const[y,mm]=m.split("-");return MESES[Number(mm)-1]+" "+y}
 function shiftMes(m,d){const[y,mm]=m.split("-").map(Number);const t=new Date(y,mm-1+d,1);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")}
@@ -489,6 +523,134 @@ function vVentas(){
   <div class="muted small">${vs.length} ventas · total con IVA ${money(tot)}</div>
   <div class="card tbox">${vs.length?`<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Cantidad</th><th class="r">Total c/IVA</th><th>Pago</th><th class="r">Acciones</th></tr></thead><tbody>${vs.map(v=>ventaRow(v)).join("")}</tbody></table>`:`<div class="empty">${S.vFiltro==="pendientes"?"No hay facturas por cobrar.":"No hay ventas en este filtro."}</div>`}</div></div>`;
 }
+/* ---------- índices (dashboards) ---------- */
+S.ix={vista:"productos",periodo:"mes",marca:"todas",formato:"todos",quien:"todos",medida:"litros",modo:"juntos"};
+const MARCA_SW={cerveza:"beer",kombucha:"kom"};
+const FMT_SW={barril:"f1",caja:"f2",lata:"f3",otro:"f0"};
+function ixRango(p){
+  const t=today(),m=t.slice(0,7);
+  if(p==="mes")return[m+"-01",t];
+  if(p==="mesAnt"){const a=shiftMes(m,-1);return[a+"-01",a+"-31"]}
+  if(p==="3m")return[shiftMes(m,-2)+"-01",t];
+  if(p==="anio")return[t.slice(0,4)+"-01-01",t];
+  return["0000-01-01","9999-12-31"];
+}
+function infoItem(it){
+  const p=S.cfg.productos.find(x=>x.id===it.prodId),g=infoDeNombre(it.nombre||p?.nombre||"");
+  return{formato:it.formato||p?.formato||g.formato,estilo:it.estilo||p?.estilo||g.estilo};
+}
+/* una fila por producto vendido, con los filtros de Índices aplicados */
+function ixLineas(){
+  const x=S.ix,[d,h]=ixRango(x.periodo);
+  const out=[];
+  S.ventas.filter(v=>v.fecha>=d&&v.fecha<=h&&(x.marca==="todas"||v.marca===x.marca)&&(x.quien==="todos"||v.creado_por===x.quien)).forEach(v=>
+    (v.items||[]).forEach(it=>{const i=infoItem(it);if(x.formato!=="todos"&&i.formato!==x.formato)return;
+      out.push({marca:v.marca,...i,unidades:it.cant||0,litros:(it.cant||0)*(it.litrosU||0),neto:(it.cant||0)*(it.netoU||0)})}));
+  return out;
+}
+const ixFmt=(n,m)=>m==="neto"?money(n):m==="unidades"?n1(n)+" u.":n1(n)+" L";
+/* barras horizontales apiladas: filas [{lab,segs:[{k,sw,v,nombre}]}] */
+function hbars(filas,medida){
+  const max=Math.max(...filas.map(f=>f.segs.reduce((s,x)=>s+x.v,0)),0)||1;
+  return `<div class="hb">${filas.map(f=>{const tot=f.segs.reduce((s,x)=>s+x.v,0);const segs=f.segs.filter(x=>x.v>0);
+    const tip=`${f.lab}: ${ixFmt(tot,medida)}${segs.length>1?" · "+segs.map(x=>`${x.nombre}: ${ixFmt(x.v,medida)}`).join(" · "):""}`;
+    return `<div class="hb-row" tabindex="0" data-tip="${esc(tip)}"><span class="hb-lab" title="${esc(f.lab)}">${esc(f.lab)}</span><span class="hb-track"><span class="hb-bar" style="width:${tot/max*82}%">${segs.map(x=>`<i class="sw-${x.sw}" style="flex:${x.v}"></i>`).join("")}</span><span class="hb-val">${ixFmt(tot,medida)}</span></span></div>`}).join("")}</div>`;
+}
+const leyenda=items=>items.length>1?`<div class="legend">${items.map(([sw,t])=>`<span><i class="sw sw-${sw}"></i>${esc(t)}</span>`).join("")}</div>`:"";
+function vIndices(){
+  const x=S.ix,sueldo=can("ver_ingresos"),plata=can("ver_cobranza");
+  if(x.vista==="sueldo"&&!sueldo)x.vista="productos";
+  if(x.medida==="neto"&&!plata)x.medida="litros";
+  const opt=(v,t,cur)=>`<option value="${v}"${cur===v?" selected":""}>${esc(t)}</option>`;
+  const equipo=S.equipo.length>1&&can("ver_todos_clientes");
+  return `<div class="stack"><div class="row spread"><h2>Índices</h2>
+    ${sueldo?`<div class="seg" role="group" aria-label="Tablero"><button data-act="ixv" data-v="productos" aria-pressed="${x.vista==="productos"}">Productos</button><button data-act="ixv" data-v="sueldo" aria-pressed="${x.vista==="sueldo"}">Sueldo y meta</button></div>`:""}</div>
+  ${x.vista==="sueldo"?ixSueldo():`
+  <div class="filters">
+    <select data-ix="periodo" aria-label="Período">${opt("mes","Este mes",x.periodo)}${opt("mesAnt","Mes anterior",x.periodo)}${opt("3m","Últimos 3 meses",x.periodo)}${opt("anio","Este año",x.periodo)}${opt("todo","Todo",x.periodo)}</select>
+    <select data-ix="marca" aria-label="Marca">${opt("todas","Todas las marcas",x.marca)}${opt("cerveza","Cerveza",x.marca)}${opt("kombucha","Kombucha",x.marca)}</select>
+    <select data-ix="formato" aria-label="Formato">${opt("todos","Todos los formatos",x.formato)}${Object.entries(FORMATOS).map(([k,l])=>opt(k,l,x.formato)).join("")}</select>
+    ${equipo?`<select data-ix="quien" aria-label="Vendedor">${opt("todos","Todo el equipo",x.quien)}${S.equipo.map(u=>opt(u.id,u.id===ME.user.id?"Solo yo":u.nombre,x.quien)).join("")}</select>`:""}
+    <select data-ix="medida" aria-label="Medida">${opt("litros","Litros",x.medida)}${opt("unidades","Unidades",x.medida)}${plata?opt("neto","Neto $",x.medida):""}</select>
+  </div>${ixProductos()}`}</div>`;
+}
+function ixProductos(){
+  const x=S.ix,L=ixLineas(),m=x.medida,sum=(arr,k)=>arr.reduce((s,r)=>s+r[k],0);
+  if(!L.length)return `<div class="card empty">No hay ventas con estos filtros.<span class="small">Prueba con otro período o registra una venta.</span></div>`;
+  const porF=k=>L.filter(r=>r.formato===k);
+  const tiles=`<section class="kpis">
+    <div class="kpi"><span class="lab">Litros vendidos</span><span class="val">${n1(sum(L,"litros"))} L</span></div>
+    ${Object.keys(FORMATOS).filter(k=>porF(k).length).map(k=>`<div class="kpi"><span class="lab"><i class="sw sw-${FMT_SW[k]}"></i>${FORMATOS[k]}</span><span class="val">${n1(sum(porF(k),"unidades"))}</span><span class="muted small">${n1(sum(porF(k),"litros"))} L</span></div>`).join("")}
+    ${can("ver_cobranza")?`<div class="kpi"><span class="lab">Neto vendido</span><span class="val">${money(sum(L,"neto"))}</span></div>`:""}
+  </section>`;
+  const marcas=[...new Set(L.map(r=>r.marca))];
+  const fmtFilas=Object.keys(FORMATOS).filter(k=>porF(k).length).map(k=>({lab:FORMATOS[k],segs:["cerveza","kombucha"].map(mk=>({k:mk,sw:MARCA_SW[mk],nombre:mk==="cerveza"?"Cerveza":"Kombucha",v:sum(porF(k).filter(r=>r.marca===mk),m)}))}));
+  const estilos=[...new Set(L.map(r=>r.marca+"|"+r.estilo))];
+  const estFilas=estilos.map(ke=>{const[mk,e]=ke.split("|"),rs=L.filter(r=>r.marca===mk&&r.estilo===e);
+    return{lab:e,segs:x.modo==="juntos"?[{k:mk,sw:MARCA_SW[mk],nombre:mk==="cerveza"?"Cerveza":"Kombucha",v:sum(rs,m)}]:Object.keys(FORMATOS).map(k=>({k,sw:FMT_SW[k],nombre:FORMATOS[k],v:sum(rs.filter(r=>r.formato===k),m)}))}})
+    .sort((a,b)=>b.segs.reduce((s,y)=>s+y.v,0)-a.segs.reduce((s,y)=>s+y.v,0));
+  const fmts=Object.keys(FORMATOS).filter(k=>porF(k).length);
+  const tabla=[...new Set(L.map(r=>r.marca+"|"+r.estilo+"|"+r.formato))].map(k=>{const[mk,e,f]=k.split("|"),rs=L.filter(r=>r.marca===mk&&r.estilo===e&&r.formato===f);return{mk,e,f,u:sum(rs,"unidades"),l:sum(rs,"litros"),n:sum(rs,"neto")}}).sort((a,b)=>b.l-a.l);
+  return `${tiles}
+  <section class="card stack"><div><h3>Por formato</h3><div class="muted small">${m==="neto"?"Neto vendido":m==="unidades"?"Unidades vendidas":"Litros vendidos"} en cada formato</div></div>
+    ${leyenda(marcas.map(mk=>[MARCA_SW[mk],mk==="cerveza"?"Cerveza":"Kombucha"]))}${hbars(fmtFilas,m)}</section>
+  <section class="card stack"><div class="row spread"><div><h3>Por estilo</h3><div class="muted small">${x.modo==="juntos"?"Todos los formatos juntos":"Separado por formato"}</div></div>
+    <div class="seg" role="group" aria-label="Vista"><button data-act="ixm" data-v="juntos" aria-pressed="${x.modo==="juntos"}">Juntos</button><button data-act="ixm" data-v="separado" aria-pressed="${x.modo==="separado"}">Por formato</button></div></div>
+    ${x.modo==="juntos"?leyenda(marcas.map(mk=>[MARCA_SW[mk],mk==="cerveza"?"Cerveza":"Kombucha"])):leyenda(fmts.map(k=>[FMT_SW[k],FORMATOS[k]]))}${hbars(estFilas,m)}</section>
+  <details class="card"><summary>Ver tabla</summary><div class="tbox" style="margin-top:10px"><table><thead><tr><th>Estilo</th><th>Formato</th><th class="r">Unidades</th><th class="r">Litros</th>${can("ver_cobranza")?`<th class="r">Neto</th>`:""}</tr></thead><tbody>
+    ${tabla.map(r=>`<tr><td><span class="row" style="gap:6px;flex-wrap:nowrap"><i class="sw ${r.mk==="cerveza"?"beer":"kom"}"></i>${esc(r.e)}</span></td><td>${FORMATOS[r.f]||esc(r.f)}</td><td class="r num">${n1(r.u)}</td><td class="r num">${n1(r.l)}</td>${can("ver_cobranza")?`<td class="r num">${money(r.n)}</td>`:""}</tr>`).join("")}
+  </tbody></table></div></details>`;
+}
+/* compacto para ejes: $850k, $1,2M */
+const moneyK=n=>n>=1e6?"$"+(Math.round(n/1e5)/10).toLocaleString("es-CL")+"M":n>=1e3?"$"+Math.round(n/1e3)+"k":"$"+Math.round(n);
+function pasoLindo(v){const p=10**Math.floor(Math.log10(v||1));return[1,2,2.5,5,10].map(k=>k*p).find(s=>s>=v)}
+function ixSueldo(){
+  const c=S.cfg,mes=today().slice(0,7);
+  const mias=[...S.ventas,...S.acts].filter(x=>x.creado_por===ME.user?.id).map(x=>(x.fecha||"").slice(0,7)).filter(Boolean).sort();
+  let desde=mias[0]&&mias[0]<mes?mias[0]:mes;if(desde<shiftMes(mes,-11))desde=shiftMes(mes,-11);
+  const meses=[];for(let m=desde;m<=mes;m=shiftMes(m,1))meses.push(m);
+  const R=meses.map(m=>({m,...resumenMes(m,"mias")}));
+  const hoy=R[R.length-1];
+  const [y,mm]=mes.split("-").map(Number),diasMes=new Date(y,mm,0).getDate(),dia=Number(today().slice(8));
+  const proy=liquido(hoy.litros*diasMes/dia,hoy.cobradoK*diasMes/dia).total;
+  const falta=Math.max(0,c.meta-hoy.total);
+  let lit=null;if(falta>0&&c.comL>0){let lo=0,hi=1e5;if(liquido(hoy.litros+hi,hoy.cobradoK).total>=c.meta){for(let i=0;i<40;i++){const mid=(lo+hi)/2;liquido(hoy.litros+mid,hoy.cobradoK).total>=c.meta?hi=mid:lo=mid}lit=Math.ceil(hi)}}
+  const kob=falta>0&&c.pctK>0?falta/((c.pctK/100)*(1-c.ret/100)):0;
+  const barrilesF=lit!==null?Math.ceil(lit/30):null;
+  const ok=hoy.total>=c.meta;
+  const top=Math.max(c.meta,...R.map(r=>r.total))*1.05,paso=pasoLindo(top/4),ymax=Math.ceil(top/paso)*paso;
+  const ticks=[];for(let v=0;v<=ymax+1;v+=paso)ticks.push(v);
+  const pct=v=>v/ymax*100;
+  const cols=R.map(r=>{const tip=`${mesLabel(r.m)} · El Growler: ${money(r.liqB)} · Kombucha: ${money(r.liqK)} · Total: ${money(r.total)}`;
+    return `<div class="cc-slot" tabindex="0" data-tip="${esc(tip)}">${r.m===mes?`<span class="cc-cap" style="bottom:${pct(r.total)}%">${moneyK(r.total)}</span>`:""}<div class="cc-col">${r.liqK>0?`<i class="sw-kom" style="height:${pct(r.liqK)}%"></i>`:""}<i class="sw-beer" style="height:${pct(r.liqB)}%"></i></div></div>`}).join("");
+  return `<section class="card hero" aria-label="Meta del mes">
+    <div><div class="muted small" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Llevas este mes</div>
+      <div class="big">${money(hoy.total)}</div>
+      <div style="margin-top:8px">${pill({level:ok?"ok":"warn"},"")} <span class="muted small">${ok?"Meta cumplida: "+money(c.meta):Math.round(hoy.total/c.meta*100)+"% de la meta de "+money(c.meta)}</span></div></div>
+    <div class="stack" style="gap:8px">
+      <div class="meter" role="img" aria-label="${Math.round(Math.min(1,hoy.total/c.meta)*100)}% de la meta"><span class="b" style="width:${Math.min(100,hoy.liqB/Math.max(c.meta,hoy.total)*100)}%"></span><span class="k" style="width:${Math.min(100,hoy.liqK/Math.max(c.meta,hoy.total)*100)}%"></span></div>
+      <div class="legend"><span><i class="sw beer"></i>El Growler <b class="num">${money(hoy.liqB)}</b></span><span><i class="sw kom"></i>Kombucha <b class="num">${money(hoy.liqK)}</b></span></div>
+      <div class="muted small">Solo tus ventas. Kombucha cuenta lo cobrado en el mes.</div>
+    </div></section>
+  <section class="kpis">
+    <div class="kpi"><span class="lab">Proyección fin de mes</span><span class="val">${money(proy)}</span><span class="muted small">A este ritmo (día ${dia} de ${diasMes})</span></div>
+    <div class="kpi"><span class="lab">Te falta</span><span class="val">${ok?"✓ Nada":money(falta)}</span><span class="muted small">${ok?"Meta cumplida":"líquido para la meta"}</span></div>
+    ${!ok&&lit!==null?`<div class="kpi"><span class="lab">Cerveza que falta</span><span class="val">${n1(lit)} L</span><span class="muted small">≈ ${barrilesF} barriles de 30 L</span></div>`:""}
+    ${!ok&&kob>0?`<div class="kpi"><span class="lab">O kombucha por cobrar</span><span class="val">${money(kob)}</span><span class="muted small">neto cobrado</span></div>`:""}
+  </section>
+  <section class="card stack"><div><h3>Sueldo líquido por mes</h3><div class="muted small">Estimado con tus ventas de cada mes, contra la meta de ${money(c.meta)}</div></div>
+    <div class="legend"><span><i class="sw beer"></i>El Growler</span><span><i class="sw kom"></i>Kombucha</span><span><i class="cc-key"></i>Meta</span></div>
+    <div class="cc" role="img" aria-label="Sueldo líquido de los últimos ${R.length} meses">
+      <div class="cc-plot">${ticks.map(v=>`<div class="cc-grid" style="bottom:${pct(v)}%"><span>${moneyK(v)}</span></div>`).join("")}
+        <div class="cc-meta" style="bottom:${pct(c.meta)}%"></div>
+        <div class="cc-cols">${cols}</div></div>
+      <div class="cc-x">${R.map(r=>`<span>${MESES[Number(r.m.slice(5))-1].slice(0,3)}</span>`).join("")}</div>
+    </div></section>
+  <details class="card"><summary>Ver tabla</summary><div class="tbox" style="margin-top:10px"><table><thead><tr><th>Mes</th><th class="r">Litros</th><th class="r">El Growler</th><th class="r">Kombucha</th><th class="r">Total</th><th class="r">% meta</th></tr></thead><tbody>
+    ${[...R].reverse().map(r=>`<tr><td>${mesLabel(r.m)}</td><td class="r num">${n1(r.litros)}</td><td class="r num">${money(r.liqB)}</td><td class="r num">${money(r.liqK)}</td><td class="r num">${money(r.total)}</td><td class="r num">${Math.round(r.total/c.meta*100)}%</td></tr>`).join("")}
+  </tbody></table></div></details>`;
+}
+
 function vAjustes(){
   const c=S.cfg;
   const f=(id,label,val,step="1",hint="")=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" type="number" step="${step}" value="${val}">${hint?`<span class="muted small">${hint}</span>`:""}</div>`;
@@ -516,8 +678,8 @@ function vAjustes(){
     <div class="field" style="justify-content:flex-end"><div class="checks"><label><input type="checkbox" id="grat" ${c.grat?"checked":""}> Incluir gratificación legal</label></div></div>
   </div></section>
   <section class="card stack"><div class="row spread"><h3>Productos y precios netos</h3><button type="button" class="btn sm" data-act="addProd">+ Producto</button></div>
-  <div class="tbox"><table><thead><tr><th>Marca</th><th>Producto</th><th class="r">Litros</th><th class="r">Neto</th><th></th></tr></thead><tbody id="prodBody">
-  ${c.productos.map((p,i)=>`<tr><td><select data-k="marca"><option value="cerveza"${p.marca==="cerveza"?" selected":""}>Cerveza</option><option value="kombucha"${p.marca==="kombucha"?" selected":""}>Kombucha</option></select></td><td><input data-k="nombre" value="${esc(p.nombre)}" style="min-width:220px;width:100%"></td><td class="r"><input data-k="litros" type="number" step="0.01" value="${p.litros}" style="width:80px"></td><td class="r"><input data-k="neto" type="number" step="100" value="${p.neto}" style="width:100px"></td><td><button type="button" class="btn sm" data-act="delProd" data-i="${i}" aria-label="Quitar producto">✕</button></td></tr>`).join("")}
+  <div class="tbox"><table><thead><tr><th>Marca</th><th>Formato</th><th>Estilo / variedad</th><th>Producto</th><th class="r">Litros</th><th class="r">Neto</th><th></th></tr></thead><tbody id="prodBody">
+  ${c.productos.map((p,i)=>`<tr><td><select data-k="marca"><option value="cerveza"${p.marca==="cerveza"?" selected":""}>Cerveza</option><option value="kombucha"${p.marca==="kombucha"?" selected":""}>Kombucha</option></select></td><td><select data-k="formato">${Object.entries(FORMATOS).map(([k,l])=>`<option value="${k}"${(p.formato||"otro")===k?" selected":""}>${l}</option>`).join("")}</select></td><td><input data-k="estilo" value="${esc(p.estilo||"")}" style="min-width:110px;width:100%"></td><td><input data-k="nombre" value="${esc(p.nombre)}" style="min-width:220px;width:100%"></td><td class="r"><input data-k="litros" type="number" step="0.01" value="${p.litros}" style="width:80px"></td><td class="r"><input data-k="neto" type="number" step="100" value="${p.neto}" style="width:100px"></td><td><button type="button" class="btn sm" data-act="delProd" data-i="${i}" aria-label="Quitar producto">✕</button></td></tr>`).join("")}
   </tbody></table></div><span class="muted small">Precios del catálogo El Growler 2024 y de la propuesta Animal Social, sin IVA. Revisa que sigan vigentes.</span></section>
   <section class="card stack"><div class="row spread"><h3>Variedades para muestras</h3><button type="button" class="btn sm" data-act="addMu">+ Variedad</button></div>
   <div class="tbox"><table><thead><tr><th>Marca</th><th>Variedad</th><th>Unidad</th><th></th></tr></thead><tbody id="muBody">
@@ -659,7 +821,7 @@ function addLine(it={prodId:"",cant:1}){
   $("#lines").appendChild(d);
 }
 function readLines(){
-  return [...document.querySelectorAll("#lines .line")].map(l=>{const[s,i]=l.querySelectorAll("select,input");const p=S.cfg.productos.find(x=>x.id===s.value);return p?{prodId:p.id,nombre:p.nombre,cant:Number(i.value)||0,litrosU:p.litros,netoU:p.neto}:null}).filter(x=>x&&x.cant>0);
+  return [...document.querySelectorAll("#lines .line")].map(l=>{const[s,i]=l.querySelectorAll("select,input");const p=S.cfg.productos.find(x=>x.id===s.value);return p?{prodId:p.id,nombre:p.nombre,formato:p.formato||infoDeNombre(p.nombre).formato,estilo:p.estilo||infoDeNombre(p.nombre).estilo,cant:Number(i.value)||0,litrosU:p.litros,netoU:p.neto}:null}).filter(x=>x&&x.cant>0);
 }
 function saleTotals(){
   if(!$("#sTot"))return;
@@ -686,10 +848,24 @@ const can=p=>isAdmin()||!!(ME.perfil?.activo&&ME.perfil?.permisos?.[p]);
 const nombreDe=id=>S.equipo.find(x=>x.id===id)?.nombre||"";
 const ownerOf=c=>c.asignado_a||c.creado_por;
 const KEYCACHE=()=>"cartera-cache-"+(ME.user?.id||"");
+/* Catálogo antiguo: un producto juntaba varios estilos ("Barril 30 L · Red / IPA").
+   Se reemplaza por uno por estilo, conservando el precio que tenía cada grupo. */
+const PROD_ANTIGUO={"b-pil":["b30-pil","b30-sol","b30-amb"],"b-ipa":["b30-red","b30-ipa"],"b-bip":["b30-bip"],"c-pil":["c24-pil","c24-sol"],"c-ipa":["c24-red","c24-ipa","c24-bip"],"k-17":["k24-ps","k24-tc","k24-gb"],"k-19":["k24-db","k24-el"]};
+function infoDeNombre(nombre=""){
+  return{formato:/barril/i.test(nombre)?"barril":/caja/i.test(nombre)?"caja":/lata/i.test(nombre)?"lata":"otro",
+    estilo:nombre.includes(" · ")?nombre.split(" · ").pop():nombre};
+}
+function migrarProductos(ps){
+  if(!ps)return null;
+  if(ps.some(p=>p.formato))return ps;
+  const nuevos=structuredClone(DEFAULT_CFG.productos),otros=[];
+  ps.forEach(p=>{const ids=PROD_ANTIGUO[p.id];if(ids)nuevos.forEach(n=>{if(ids.includes(n.id))n.neto=p.neto});else otros.push({...p,...infoDeNombre(p.nombre)})});
+  return[...nuevos,...otros];
+}
 function mergeCfg(d){
   const D=structuredClone(DEFAULT_CFG);d=d||{};
   return{...D,...structuredClone(d),frec:{...D.frec,...(d.frec||{})},plazo:{...D.plazo,...(d.plazo||{})},frecVisita:{...D.frecVisita,...(d.frecVisita||{})},
-    zonas:d.zonas||D.zonas,zonasDia:{...D.zonasDia,...(d.zonasDia||{})},muestras:d.muestras||D.muestras,productos:d.productos||D.productos,
+    zonas:d.zonas||D.zonas,zonasDia:{...D.zonasDia,...(d.zonasDia||{})},muestras:d.muestras||D.muestras,productos:migrarProductos(d.productos)||D.productos,
     prefs:{permitir:{...D.prefs.permitir,...(d.prefs?.permitir||{})},defecto:{...D.prefs.defecto,...(d.prefs?.defecto||{})}}};
 }
 const strip=o=>{const{id,clienteId,asignado_a,creado_por,actualizado,...rest}=o;return rest};
@@ -820,7 +996,7 @@ async function afterLogin(){
 function visibleTabs(){
   const t=["resumen","ruta","clientes"];
   if(can("ver_cobranza")||can("registrar_ventas"))t.push("ventas");
-  t.push("ajustes");if(isAdmin())t.push("equipo");
+  t.push("indices","ajustes");if(isAdmin())t.push("equipo");
   return t;
 }
 async function initCloud(){
@@ -871,7 +1047,7 @@ const PREF_OPC={
   idioma:["Idioma",[["es","Español"],["en","English"]]],
   tema:["Apariencia",[["oscuro","Oscuro"],["claro","Claro"],["auto","Como el sistema"]]],
   letra:["Tamaño de letra",[["normal","Normal"],["grande","Grande"],["muygrande","Muy grande"]]],
-  inicio:["Pestaña de inicio",[["resumen","Resumen"],["ruta","Ruta"],["clientes","Clientes"],["ventas","Ventas"]]]
+  inicio:["Pestaña de inicio",[["resumen","Resumen"],["ruta","Ruta"],["clientes","Clientes"],["ventas","Ventas"],["indices","Índices"]]]
 };
 const prefPuede=k=>isAdmin()||S.cfg.prefs.permitir[k]!==false;
 const prefDef=k=>S.cfg.prefs.defecto[k]??PREF_BASE[k];
@@ -930,6 +1106,8 @@ document.addEventListener("click",async e=>{
     case"rutaDia":S.rutaFecha=t.dataset.f;render();break;
     case"rutaSem":S.rutaFecha=addDays(S.rutaFecha,Number(t.dataset.d));render();break;
     case"vf":S.vFiltro=t.dataset.v;render();break;
+    case"ixv":S.ix.vista=t.dataset.v;render();break;
+    case"ixm":S.ix.modo=t.dataset.v;render();break;
     case"newClient":clientForm();break;
     case"editClient":clientForm(id);break;
     case"openClient":clientDetail(id);break;
@@ -950,7 +1128,7 @@ document.addEventListener("click",async e=>{
       if(await guard(()=>DB.delete("actividades",id,),"Registro eliminado"))closeSheet();break;
     case"delClient":{const n=ventasDe(id).length+actsDe(id).length;if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent=n?`Eliminar cliente y sus ${n} registros: toca otra vez`:"Toca otra vez para eliminar";return}
       if(await guard(async()=>{for(const v of ventasDe(id))await DB.delete("ventas",v.id,);for(const x of actsDe(id))await DB.delete("actividades",x.id,);await DB.delete("clientes",id,)},"Cliente eliminado"))closeSheet();break}
-    case"addProd":collectCfgForm();S.cfg.productos.push({id:"p"+Date.now().toString(36),marca:"cerveza",nombre:"Nuevo producto",litros:30,neto:0});render();break;
+    case"addProd":collectCfgForm();S.cfg.productos.push({id:"p"+Date.now().toString(36),marca:"cerveza",formato:"lata",estilo:"",nombre:"Nuevo producto",litros:0.33,neto:0});render();break;
     case"delProd":collectCfgForm();S.cfg.productos.splice(Number(t.dataset.i),1);render();break;
     case"addMu":collectCfgForm();S.cfg.muestras.push({id:"m"+Date.now().toString(36),marca:"cerveza",nombre:"Nueva variedad",unidad:"lata"});render();break;
     case"delMu":collectCfgForm();S.cfg.muestras.splice(Number(t.dataset.i),1);render();break;
@@ -971,6 +1149,7 @@ document.addEventListener("change",e=>{
     const ef=aplicarPrefs();
     if(k==="idioma"&&ef.idioma!==LANG)location.reload();
   }
+  if(e.target.dataset.ix){S.ix[e.target.dataset.ix]=e.target.value;render()}
   if(e.target.id==="rutaDe"){S.rutaDe=e.target.value;render()}
   if(e.target.id==="fMarca"){S.fMarca=e.target.value;render()}
   if(e.target.id==="fSem"){S.fSem=e.target.value;render()}
@@ -987,7 +1166,7 @@ function collectCfgForm(){
   S.cfg={...S.cfg,comL:g("comL"),horas:g("horas"),imm:g("imm"),desc:g("desc"),pctK:g("pctK"),ret:g("ret"),meta:g("meta"),grat:$("#grat").checked,tolPago:g("tolPago"),
     frec:{cerveza:g("frecC")||14,kombucha:g("frecK")||14},plazo:{cerveza:g("plazoC")||0,kombucha:g("plazoK")||0},
     frecVisita:{A:g("fvA")||7,B:g("fvB")||14,C:g("fvC")||30},zonas,zonasDia,
-    productos:rows("#prodBody",["marca","nombre","litros","neto"]).map((o,i)=>({id:S.cfg.productos[i]?.id||"p"+i,marca:o.marca,nombre:o.nombre,litros:Number(o.litros)||0,neto:Number(o.neto)||0})),
+    productos:rows("#prodBody",["marca","formato","estilo","nombre","litros","neto"]).map((o,i)=>({id:S.cfg.productos[i]?.id||"p"+i,marca:o.marca,formato:o.formato,estilo:o.estilo.trim(),nombre:o.nombre,litros:Number(o.litros)||0,neto:Number(o.neto)||0})),
     muestras:rows("#muBody",["marca","nombre","unidad"]).map((o,i)=>({id:S.cfg.muestras[i]?.id||"m"+i,marca:o.marca,nombre:o.nombre,unidad:o.unidad||"lata"}))};
 }
 document.addEventListener("submit",async e=>{
@@ -1086,6 +1265,21 @@ document.addEventListener("submit",async e=>{
   if(f.id==="cfgForm"){collectCfgForm();await guard(()=>DB.setCfg(structuredClone(S.cfg)),"Ajustes guardados");render()}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#modal").innerHTML)closeSheet()});
+
+/* globo de los gráficos: aparece al pasar el mouse o al tocar/enfocar una barra */
+const tipEl=document.createElement("div");tipEl.className="tip";tipEl.hidden=true;tipEl.setAttribute("role","status");document.body.appendChild(tipEl);
+function tipShow(el,x,y){
+  if(tipEl._el!==el){tipEl._el=el;tipEl.textContent=el.dataset.tip}
+  tipEl.hidden=false;const r=tipEl.getBoundingClientRect();
+  tipEl.style.left=Math.max(8,Math.min(x+12,innerWidth-r.width-8))+"px";
+  tipEl.style.top=(y-r.height-12<8?y+18:y-r.height-12)+"px";
+}
+function tipHide(){tipEl.hidden=true;tipEl._el=null}
+document.addEventListener("mousemove",e=>{const el=e.target.closest?.("[data-tip]");el?tipShow(el,e.clientX,e.clientY):tipHide()});
+const tipFoco=el=>{const r=el.getBoundingClientRect();tipShow(el,r.left+r.width/2,r.top)};
+document.addEventListener("focusin",e=>{const el=e.target.closest?.("[data-tip]");el?tipFoco(el):tipHide()});
+document.addEventListener("focusout",tipHide);
+document.addEventListener("scroll",()=>{const el=tipEl._el;el&&el===document.activeElement?tipFoco(el):tipHide()},true);
 
 /* ---------- idioma inglés ----------
    La app se escribe en español. Con idioma "en", cada texto que aparece en pantalla
@@ -1203,7 +1397,18 @@ const EN={
   "Casilla marcada: cada persona elige. La lista indica con qué valor parte.":"Checked: each person chooses. The list sets the starting value.",
   "Guardar para todos":"Save for everyone","Guardado para todos":"Saved for everyone","Mi perfil":"My profile","Guardar nombre":"Save name",
   "Cambiar contraseña":"Change password","Cerrar sesión":"Sign out","Preferencias":"Preferences","Se guardan en este dispositivo":"Saved on this device",
-  "Escribe tu nombre":"Enter your name","Nombre guardado":"Name saved"
+  "Escribe tu nombre":"Enter your name","Nombre guardado":"Name saved",
+  "Índices":"Insights","Tablero":"Dashboard","Productos":"Products","Sueldo y meta":"Pay and goal","Período":"Period","Este mes":"This month",
+  "Mes anterior":"Last month","Últimos 3 meses":"Last 3 months","Este año":"This year","Todo":"All time","Formato":"Format",
+  "Todos los formatos":"All formats","Vendedor":"Seller","Solo yo":"Only me","Medida":"Measure","Unidades":"Units","Neto $":"Net $",
+  "Barril 30 L":"30 L keg","Caja 24":"Box of 24","Lata":"Can","No hay ventas con estos filtros.":"No sales with these filters.",
+  "Prueba con otro período o registra una venta.":"Try another period or log a sale.","Litros vendidos":"Liters sold","Neto vendido":"Net sold",
+  "Por formato":"By format","Unidades vendidas":"Units sold","Por estilo":"By style","Todos los formatos juntos":"All formats together",
+  "Separado por formato":"Split by format","Vista":"View","Juntos":"Together","Ver tabla":"Show table","Estilo":"Style","Estilo / variedad":"Style / variety",
+  "Meta del mes":"This month's goal","Llevas este mes":"So far this month","Meta cumplida":"Goal reached","Solo tus ventas. Kombucha cuenta lo cobrado en el mes.":"Only your sales. Kombucha counts what was collected this month.",
+  "Proyección fin de mes":"End-of-month projection","Te falta":"Still needed","✓ Nada":"✓ Nothing","líquido para la meta":"net pay to reach the goal",
+  "Cerveza que falta":"Beer still needed","O kombucha por cobrar":"Or kombucha to collect","neto cobrado":"net collected",
+  "Sueldo líquido por mes":"Net pay by month","El Growler":"El Growler","Meta":"Goal","Mes":"Month","% meta":"% of goal"
 };
 const EN_UNIT={lata:"can",latas:"cans",litro:"liter",litros:"liters"};
 const EN_RX=[
@@ -1234,7 +1439,12 @@ const EN_RX=[
   [/^Respaldo cargado: (\d+) clientes, (\d+) ventas$/,m=>`Backup loaded: ${m[1]} customers, ${m[2]} sales`],
   [/^Eliminar cliente y sus (\d+) registros: toca otra vez$/,m=>`Delete customer and its ${m[1]} records: tap again`],
   [/^(.+) el (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/,m=>`${m[1]} on ${m[2]}`],
-  [/^El Growler (\S+), kombucha (\S+), meta (\S+)$/,m=>`El Growler ${m[1]}, kombucha ${m[2]}, goal ${m[3]}`]
+  [/^El Growler (\S+), kombucha (\S+), meta (\S+)$/,m=>`El Growler ${m[1]}, kombucha ${m[2]}, goal ${m[3]}`],
+  [/^(Litros|Unidades|Neto) vendid[oa]s? en cada formato$/,m=>`${{Litros:"Liters",Unidades:"Units",Neto:"Net"}[m[1]]} sold in each format`],
+  [/^(\d+)% de la meta de (\S+)$/,m=>`${m[1]}% of the ${m[2]} goal`],[/^(\d+)% de la meta$/,m=>`${m[1]}% of the goal`],
+  [/^A este ritmo \(día (\d+) de (\d+)\)$/,m=>`At this pace (day ${m[1]} of ${m[2]})`],[/^≈ (\d+) barriles de 30 L$/,m=>`≈ ${m[1]} kegs of 30 L`],
+  [/^Estimado con tus ventas de cada mes, contra la meta de (\S+)$/,m=>`Estimated from your sales each month, against the ${m[1]} goal`],
+  [/^Sueldo líquido de los últimos (\d+) meses$/,m=>`Net pay for the last ${m[1]} months`],[/^(\S+) u\.$/,m=>`${m[1]} units`]
 ];
 function trTxt(s){
   if(Object.hasOwn(EN,s))return EN[s];
