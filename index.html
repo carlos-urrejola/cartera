@@ -12,6 +12,17 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Cartera Valdivia</title>
+<script>
+// Tema por dispositivo: "oscuro" (por defecto), "claro" o "auto" (sigue al sistema)
+function temaGet(){try{return localStorage.getItem("cartera-tema")||"oscuro"}catch(e){return "oscuro"}}
+function temaAplicar(t){
+  const r=document.documentElement;
+  if(t==="auto")r.removeAttribute("data-theme");else r.setAttribute("data-theme",t==="claro"?"light":"dark");
+  const dark=t==="oscuro"||(t==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content",dark?"#121814":"#18221D");
+}
+temaAplicar(temaGet());
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
@@ -462,6 +473,7 @@ function vAjustes(){
   const f=(id,label,val,step="1",hint="")=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" type="number" step="${step}" value="${val}">${hint?`<span class="muted small">${hint}</span>`:""}</div>`;
   return `<div class="stack"><h2>Ajustes</h2>
   <section class="card row spread"><div><b>${esc(ME.perfil?.nombre||"")}</b><div class="muted small">${esc(ME.user?.email||"")} · ${isAdmin()?"Administrador":"Usuario"}</div></div><button class="btn" data-act="logout">Cerrar sesión</button></section>
+  <section class="card row spread"><div><b>Apariencia</b><div class="muted small">Se guarda en este dispositivo</div></div><select id="tema" aria-label="Apariencia">${[["oscuro","Oscuro"],["claro","Claro"],["auto","Como el sistema"]].map(([v,l])=>`<option value="${v}" ${temaGet()===v?"selected":""}>${l}</option>`).join("")}</select></section>
   <form id="cfgForm" class="stack">
   <section class="card stack"><h3>Zonas y ruta</h3>
     <div class="field"><label for="zonas">Zonas (separadas por coma)</label><input id="zonas" value="${esc(c.zonas.join(", "))}"><span class="muted small">Si cambias las zonas, guarda y luego marca qué días va cada una.</span></div>
@@ -889,6 +901,7 @@ document.addEventListener("input",e=>{
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="impFile"&&e.target.files[0]){importarRespaldo(e.target.files[0]);e.target.value=""}
+  if(e.target.id==="tema"){try{localStorage.setItem("cartera-tema",e.target.value)}catch(err){}temaAplicar(e.target.value)}
   if(e.target.id==="rutaDe"){S.rutaDe=e.target.value;render()}
   if(e.target.id==="fMarca"){S.fMarca=e.target.value;render()}
   if(e.target.id==="fSem"){S.fSem=e.target.value;render()}
