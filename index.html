@@ -375,6 +375,68 @@ function rutLimpio(t){
   if(!/^\d{6,8}$/.test(num)||rutDV(num)!==dv)return null;
   return rutFormato(num);
 }
+/* ---------- ficha del cliente: regiones y comunas, mayúsculas, contactos y datos que faltan ---------- */
+const REGIONES={
+  "Arica y Parinacota":"Arica|Camarones|Putre|General Lagos",
+  "Tarapacá":"Iquique|Alto Hospicio|Pozo Almonte|Camiña|Colchane|Huara|Pica",
+  "Antofagasta":"Antofagasta|Mejillones|Sierra Gorda|Taltal|Calama|Ollagüe|San Pedro de Atacama|Tocopilla|María Elena",
+  "Atacama":"Copiapó|Caldera|Tierra Amarilla|Chañaral|Diego de Almagro|Vallenar|Alto del Carmen|Freirina|Huasco",
+  "Coquimbo":"La Serena|Coquimbo|Andacollo|La Higuera|Paihuano|Vicuña|Illapel|Canela|Los Vilos|Salamanca|Ovalle|Combarbalá|Monte Patria|Punitaqui|Río Hurtado",
+  "Valparaíso":"Valparaíso|Casablanca|Concón|Juan Fernández|Puchuncaví|Quintero|Viña del Mar|Isla de Pascua|Los Andes|Calle Larga|Rinconada|San Esteban|La Ligua|Cabildo|Papudo|Petorca|Zapallar|Quillota|La Calera|Hijuelas|La Cruz|Nogales|San Antonio|Algarrobo|Cartagena|El Quisco|El Tabo|Santo Domingo|San Felipe|Catemu|Llay-Llay|Panquehue|Putaendo|Santa María|Quilpué|Limache|Olmué|Villa Alemana",
+  "Metropolitana de Santiago":"Santiago|Cerrillos|Cerro Navia|Conchalí|El Bosque|Estación Central|Huechuraba|Independencia|La Cisterna|La Florida|La Granja|La Pintana|La Reina|Las Condes|Lo Barnechea|Lo Espejo|Lo Prado|Macul|Maipú|Ñuñoa|Pedro Aguirre Cerda|Peñalolén|Providencia|Pudahuel|Quilicura|Quinta Normal|Recoleta|Renca|San Joaquín|San Miguel|San Ramón|Vitacura|Puente Alto|Pirque|San José de Maipo|Colina|Lampa|Tiltil|San Bernardo|Buin|Calera de Tango|Paine|Melipilla|Alhué|Curacaví|María Pinto|San Pedro|Talagante|El Monte|Isla de Maipo|Padre Hurtado|Peñaflor",
+  "O'Higgins":"Rancagua|Codegua|Coinco|Coltauco|Doñihue|Graneros|Las Cabras|Machalí|Malloa|Mostazal|Olivar|Peumo|Pichidegua|Quinta de Tilcoco|Rengo|Requínoa|San Vicente|Pichilemu|La Estrella|Litueche|Marchigüe|Navidad|Paredones|San Fernando|Chépica|Chimbarongo|Lolol|Nancagua|Palmilla|Peralillo|Placilla|Pumanque|Santa Cruz",
+  "Maule":"Talca|Constitución|Curepto|Empedrado|Maule|Pelarco|Pencahue|Río Claro|San Clemente|San Rafael|Cauquenes|Chanco|Pelluhue|Curicó|Hualañé|Licantén|Molina|Rauco|Romeral|Sagrada Familia|Teno|Vichuquén|Linares|Colbún|Longaví|Parral|Retiro|San Javier|Villa Alegre|Yerbas Buenas",
+  "Ñuble":"Chillán|Bulnes|Chillán Viejo|El Carmen|Pemuco|Pinto|Quillón|San Ignacio|Yungay|Quirihue|Cobquecura|Coelemu|Ninhue|Portezuelo|Ránquil|Treguaco|San Carlos|Coihueco|Ñiquén|San Fabián|San Nicolás",
+  "Biobío":"Concepción|Coronel|Chiguayante|Florida|Hualqui|Lota|Penco|San Pedro de la Paz|Santa Juana|Talcahuano|Tomé|Hualpén|Lebu|Arauco|Cañete|Contulmo|Curanilahue|Los Álamos|Tirúa|Los Ángeles|Antuco|Cabrero|Laja|Mulchén|Nacimiento|Negrete|Quilaco|Quilleco|San Rosendo|Santa Bárbara|Tucapel|Yumbel|Alto Biobío",
+  "La Araucanía":"Temuco|Carahue|Cunco|Curarrehue|Freire|Galvarino|Gorbea|Lautaro|Loncoche|Melipeuco|Nueva Imperial|Padre Las Casas|Perquenco|Pitrufquén|Pucón|Saavedra|Teodoro Schmidt|Toltén|Vilcún|Villarrica|Cholchol|Angol|Collipulli|Curacautín|Ercilla|Lonquimay|Los Sauces|Lumaco|Purén|Renaico|Traiguén|Victoria",
+  "Los Ríos":"Valdivia|Corral|Lanco|Los Lagos|Máfil|Mariquina|Paillaco|Panguipulli|La Unión|Futrono|Lago Ranco|Río Bueno",
+  "Los Lagos":"Puerto Montt|Calbuco|Cochamó|Fresia|Frutillar|Los Muermos|Llanquihue|Maullín|Puerto Varas|Castro|Ancud|Chonchi|Curaco de Vélez|Dalcahue|Puqueldón|Queilén|Quellón|Quemchi|Quinchao|Osorno|Puerto Octay|Purranque|Puyehue|Río Negro|San Juan de la Costa|San Pablo|Chaitén|Futaleufú|Hualaihué|Palena",
+  "Aysén":"Coyhaique|Lago Verde|Aysén|Cisnes|Guaitecas|Cochrane|O'Higgins|Tortel|Chile Chico|Río Ibáñez",
+  "Magallanes":"Punta Arenas|Laguna Blanca|Río Verde|San Gregorio|Cabo de Hornos|Antártica|Porvenir|Primavera|Timaukel|Natales|Torres del Paine"
+};
+const comunasDe=r=>(REGIONES[r]||"").split("|").filter(Boolean).sort((a,b)=>a.localeCompare(b,"es"));
+/* la región y la comuna nunca vienen elegidas de antemano: siempre hay que marcarlas */
+function regionOpts(cur){const rs=Object.keys(REGIONES);if(cur&&!rs.includes(cur))rs.push(cur);
+  return `<option value="">${LANG==="en"?"Choose the region":"Elige la región"}</option>`+rs.map(r=>`<option value="${esc(r)}"${r===cur?" selected":""}>${esc(r)}</option>`).join("")}
+function comunaOpts(region,cur){const cs=comunasDe(region);if(cur&&!cs.includes(cur))cs.push(cur);
+  return `<option value="">${region?(LANG==="en"?"Choose the commune":"Elige la comuna"):(LANG==="en"?"Choose the region first":"Primero elige la región")}</option>`+cs.map(c=>`<option value="${esc(c)}"${c===cur?" selected":""}>${esc(c)}</option>`).join("")}
+/* Mayúscula inicial en cada palabra ("bar el growler" → "Bar El Growler"). Los conectores quedan en minúscula,
+   las siglas de sociedades en su forma habitual y lo que ya viene con mayúsculas a propósito (SpA, IPA) no se toca. */
+const CAP_MIN=new Set(["de","del","y","e","al","en","con","por","para"]);
+const CAP_SIGLA={"spa":"SpA","s.p.a.":"SpA","eirl":"EIRL","e.i.r.l.":"E.I.R.L.","ltda":"Ltda","ltda.":"Ltda.","sa":"SA","s.a.":"S.A.","s.a":"S.A.","ipa":"IPA"};
+function capitalizar(t){
+  let s=String(t||"").replace(/\s+/g," ").trim();if(!s)return"";
+  if(s===s.toUpperCase()&&s.replace(/[^A-ZÁÉÍÓÚÜÑ]/g,"").length>4)s=s.toLowerCase();
+  return s.split(" ").map((w,i,ws)=>{
+    const fin=(w.match(/[,;:]+$/)||[""])[0],base=fin?w.slice(0,-fin.length):w;
+    const sig=CAP_SIGLA[base.toLowerCase()];if(sig)return sig+fin;
+    let b=base;
+    if(b===b.toUpperCase()&&b.replace(/[^A-ZÁÉÍÓÚÜÑ]/g,"").length>4)b=b.toLowerCase();
+    if(b!==b.toLowerCase())return b+fin;
+    if(i>0&&(CAP_MIN.has(b)||(/^(la|las|los)$/.test(b)&&CAP_MIN.has(ws[i-1].toLowerCase()))))return b+fin;
+    return b.replace(/(^|[-\/(¿¡"'.])([a-záéíóúüñ])/g,(m,a,l)=>a+l.toUpperCase())+fin;
+  }).join(" ");
+}
+/* quién paga: puede ser la misma persona que hace los pedidos */
+function pagoDe(c){return c.pagoMismo?{nombre:c.contacto||"",tel:c.telefono||"",email:c.emailPedidos||""}:{nombre:c.contactoPago||"",tel:c.telPago||"",email:c.emailPago||""}}
+/* datos que le faltan a la ficha para facturar, despachar y cobrar */
+function faltantes(c){
+  const p=pagoDe(c),f=[];
+  if(!c.razonSocial)f.push("razón social");
+  if(!c.rutEmpresa)f.push("RUT");
+  if(!c.giro)f.push("giro");
+  if(!c.direccion)f.push("dirección");else if(!/\d|s\/n/i.test(c.direccion))f.push("número en la dirección");
+  if(!c.comuna)f.push("comuna");
+  if(!c.region)f.push("región");
+  if(!c.contacto||!(c.telefono||c.emailPedidos))f.push("contacto de quien hace los pedidos");
+  if(!p.nombre||!(p.tel||p.email))f.push("contacto de quien paga");
+  return f;
+}
+const dirCompleta=c=>[c.direccion,c.comuna,c.region].filter(Boolean).join(", ");
+function contactoBloque(tit,p,nota=""){
+  if(!p.nombre&&!p.tel&&!p.email)return"";
+  return `<div><span class="muted small">${tit}</span><div>${esc(p.nombre)}${nota?` <span class="muted small">${nota}</span>`:""}</div><div class="row small" style="gap:10px">${p.tel?`<span class="num">${esc(p.tel)}</span>`:""}${p.email?`<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>`:""}</div></div>`;
+}
 /* GPS: acepta "lat, lng" o un link de Google Maps; undefined = texto no válido */
 function parseGps(t){
   const s=String(t||"").trim();if(!s)return null;
@@ -386,7 +448,7 @@ function parseGps(t){
 /* mapa del cliente: usa el punto GPS si lo tiene; si no, la dirección */
 function mapsUrl(c,ir=false){
   if(c.gps)return ir?`https://www.google.com/maps/dir/?api=1&destination=${c.gps.lat},${c.gps.lng}`:`https://www.google.com/maps/search/?api=1&query=${c.gps.lat},${c.gps.lng}`;
-  return c.direccion?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion+", Valdivia")}`:"";
+  return c.direccion?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([c.direccion,c.comuna||"Valdivia",c.comuna?c.region:""].filter(Boolean).join(", "))}`:"";
 }
 /* fotos: se achican en el teléfono antes de subirlas (máx. 1280 px, JPEG) y se guardan en Supabase Storage (privado) */
 async function comprimirFoto(file,max=1280){
@@ -631,17 +693,17 @@ function clientRow(cl){
   const marcas=(cl.marcas||[]).map(m=>`<span class="chip"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>${m==="cerveza"?"Cerveza":"Kombucha"}</span>`).join("");
   return `<button class="item" data-act="openClient" data-id="${cl.id}">
     <div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${impBadge(cl)}<span class="name">${esc(cl.nombre)}</span>${cl.demo?`<span class="chip">Ejemplo</span>`:""}</span><span class="chip">${esc(ESTADOS[cl.estado]||"")}</span></div>
-    <div class="chips">${marcas}${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${cl.zona?`<span class="chip">${esc(cl.zona)}</span>`:""}${can("ver_todos_clientes")&&ownerOf(cl)&&S.equipo.length>1?`<span class="chip">A cargo: ${esc(nombreDe(ownerOf(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}</div>
+    <div class="chips">${marcas}${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${cl.zona?`<span class="chip">${esc(cl.zona)}</span>`:""}${can("ver_todos_clientes")&&ownerOf(cl)&&S.equipo.length>1?`<span class="chip">A cargo: ${esc(nombreDe(ownerOf(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.estado==="activo"&&faltantes(cl).length?`<span class="chip strong">! Ficha incompleta</span>`:""}</div>
     <div class="chips">${pill(semVisita(cl),"Visita")}${pill(semRecompra(cl),"Recompra")}${pill(semPago(cl),"Pago")}${pill(semSeg(cl),"Seguimiento")}</div></button>`;
 }
 function vClientes(){
   let cs=[...S.clientes];
   const q=S.q.trim().toLowerCase();
-  if(q)cs=cs.filter(c=>[c.nombre,c.contacto,c.zona,c.tipo,c.direccion,c.razonSocial,c.rutEmpresa,c.dueno,c.rutDueno,c.email].join(" ").toLowerCase().includes(q));
+  if(q)cs=cs.filter(c=>[c.nombre,c.contacto,c.zona,c.tipo,c.direccion,c.comuna,c.razonSocial,c.rutEmpresa,c.dueno,c.rutDueno,c.email,c.contactoPago].join(" ").toLowerCase().includes(q));
   if(S.fMarca!=="todas")cs=cs.filter(c=>(c.marcas||[]).includes(S.fMarca));
   if(S.fZona!=="todas")cs=cs.filter(c=>(c.zona||"")===(S.fZona==="—"?"":S.fZona));
   const allSem=c=>worst([semPago(c),semRecompra(c),semSeg(c),semVisita(c)]);
-  if(S.fSem!=="todos")cs=cs.filter(c=>S.fSem.startsWith("estado:")?S.fSem==="estado:"+c.estado:S.fSem.startsWith("imp:")?S.fSem==="imp:"+impOf(c):allSem(c).level===S.fSem);
+  if(S.fSem!=="todos")cs=cs.filter(c=>S.fSem==="ficha"?faltantes(c).length>0:S.fSem.startsWith("estado:")?S.fSem==="estado:"+c.estado:S.fSem.startsWith("imp:")?S.fSem==="imp:"+impOf(c):allSem(c).level===S.fSem);
   cs.sort((a,b)=>impOf(a).localeCompare(impOf(b))||rank[allSem(b).level]-rank[allSem(a).level]||a.nombre.localeCompare(b.nombre));
   const opt=(v,t,cur)=>`<option value="${esc(v)}"${cur===v?" selected":""}>${esc(t)}</option>`;
   return `<div class="stack"><div class="row spread"><h2>Clientes (${cs.length})</h2>${can("editar_clientes")?`<button class="btn" data-act="newClient">+ Nuevo cliente</button>`:""}</div>
@@ -649,7 +711,7 @@ function vClientes(){
     <input id="q" type="search" placeholder="Buscar por nombre, RUT, dueño, zona o dirección" value="${esc(S.q)}" aria-label="Buscar">
     <select id="fMarca" aria-label="Marca">${opt("todas","Todas las marcas",S.fMarca)}${opt("cerveza","Cerveza",S.fMarca)}${opt("kombucha","Kombucha",S.fMarca)}</select>
     <select id="fZona" aria-label="Zona">${opt("todas","Todas las zonas",S.fZona)}${S.cfg.zonas.map(z=>opt(z,z,S.fZona)).join("")}${opt("—","Sin zona",S.fZona)}</select>
-    <select id="fSem" aria-label="Estado">${opt("todos","Todos",S.fSem)}${opt("bad","✕ Con algo atrasado",S.fSem)}${opt("warn","! Con algo por atender",S.fSem)}${opt("ok","✓ Al día",S.fSem)}${opt("imp:A","Importancia A",S.fSem)}${opt("imp:B","Importancia B",S.fSem)}${opt("imp:C","Importancia C",S.fSem)}${opt("estado:prospecto","Prospectos",S.fSem)}${opt("estado:pausado","Pausados",S.fSem)}</select>
+    <select id="fSem" aria-label="Estado">${opt("todos","Todos",S.fSem)}${opt("bad","✕ Con algo atrasado",S.fSem)}${opt("warn","! Con algo por atender",S.fSem)}${opt("ok","✓ Al día",S.fSem)}${opt("imp:A","Importancia A",S.fSem)}${opt("imp:B","Importancia B",S.fSem)}${opt("imp:C","Importancia C",S.fSem)}${opt("estado:prospecto","Prospectos",S.fSem)}${opt("estado:pausado","Pausados",S.fSem)}${opt("ficha","! Ficha incompleta",S.fSem)}</select>
   </div>
   <div class="list">${cs.length?cs.map(clientRow).join(""):`<div class="empty">${S.clientes.length?"Ningún cliente coincide con el filtro.":"Aún no tienes clientes. Parte agregando bares, botillerías o almacenes que quieras visitar como prospectos."}${can("editar_clientes")?`<button class="btn primary" data-act="newClient">+ Agregar cliente</button>`:""}</div>`}</div></div>`;
 }
@@ -988,7 +1050,7 @@ const AG_MED={litros:["Litros vendidos","ventas"],unidades:["Unidades vendidas",
 // cómo se muestra cada medida: litros, unidades, plata o conteo
 const AG_FMT={litros:"litros",unidades:"unidades",neto:"neto",ventas:"cuenta",clientes:"cuenta",visitas:"cuenta",muestras:"cuenta"};
 // dimensiones: nombre y de qué datos salen (v = ventas, a = visitas, m = muestras)
-const AG_DIM={zona:["Zona","vam"],estilo:["Estilo / variedad","vm"],formato:["Formato","v"],marca:["Marca","vm"],cliente:["Cliente","vam"],tipo:["Tipo de local","vam"],imp:["Importancia","vam"],quien:["Vendedor","vam"],tipoAct:["Tipo de visita","a"],resultado:["Resultado de la visita","a"],tiempo:["Tiempo","vam"]};
+const AG_DIM={zona:["Zona","vam"],comuna:["Comuna","vam"],estilo:["Estilo / variedad","vm"],formato:["Formato","v"],marca:["Marca","vm"],cliente:["Cliente","vam"],tipo:["Tipo de local","vam"],imp:["Importancia","vam"],quien:["Vendedor","vam"],tipoAct:["Tipo de visita","a"],resultado:["Resultado de la visita","a"],tiempo:["Tiempo","vam"]};
 const AG_SW=["f1","f2","f3","f4","f5"];
 const AG_IDEAS=[
   ["⭐ Productos estrella por zona",{med:"litros",por:"zona",sep:"estilo",periodo:"3m",vista:"barras"}],
@@ -1024,7 +1086,7 @@ function agFilas(){
   const add=(r,cid)=>{const cl=S.clientes.find(c=>c.id===cid);
     const z=cl?.zona||"Sin zona",t=cl?.tipo||"Sin tipo";
     if(a.zona!=="todas"&&z!==a.zona)return;if(a.tipo!=="todos"&&t!==a.tipo)return;
-    out.push({...r,clienteId:cid,zona:z,tipo:t,imp:cl?impOf(cl):"B"})};
+    out.push({...r,clienteId:cid,zona:z,comuna:cl?.comuna||"Sin comuna",tipo:t,imp:cl?impOf(cl):"B"})};
   if(f==="ventas")S.ventas.filter(v=>dentro(v)&&(a.marca==="todas"||v.marca===a.marca)).forEach(v=>(v.items||[]).forEach(it=>{
     const i=infoItem(it);if(a.formato!=="todos"&&i.formato!==a.formato)return;
     add({fecha:v.fecha,marca:v.marca,estilo:i.estilo,formato:i.formato,venta:v.id,quien:v.creado_por,litros:(it.cant||0)*(it.litrosU||0),unidades:it.cant||0,neto:netoIt(it)},v.clienteId)}));
@@ -1218,7 +1280,7 @@ function generarTareas(){
     const pend=ventasDe(c.id).filter(v=>!v.pagado);
     if(pend.length&&can("ver_cobranza")||pend.some(v=>v.creado_por===ME.user?.id)){
       const primero=pend.map(v=>v.vence||v.fecha).sort()[0],monto=pend.reduce((s,v)=>s+(v.neto||0)*1.19,0),atr=days(primero,t);
-      if(primero)add(primero,"cobrar",c,`Cobrar ${money(monto)}`,`${pend.length} ${pend.length===1?"factura":"facturas"}${atr>0?` · la más antigua vencida hace ${atr} días`:atr===0?" · vence hoy":""}${c.telDueno||c.telefono?"":" · sin teléfono"}`,atr>S.cfg.tolPago?3:2);
+      if(primero)add(primero,"cobrar",c,`Cobrar ${money(monto)}`,`${pend.length} ${pend.length===1?"factura":"facturas"}${atr>0?` · la más antigua vencida hace ${atr} días`:atr===0?" · vence hoy":""}${pagoDe(c).tel||c.telDueno||c.telefono?"":" · sin teléfono"}`,atr>S.cfg.tolPago?3:2);
     }
     // recompra según la frecuencia real (o la configurada si aún no hay suficientes compras)
     (c.marcas||[]).forEach(mk=>{
@@ -1347,10 +1409,12 @@ function dSem(tipo,cid){
     const s=semPago(c),pend=ventasDe(cid).filter(v=>!v.pagado).sort((a,b)=>(a.vence||a.fecha||"").localeCompare(b.vence||b.fecha||""));
     const tot=pend.reduce((x,v)=>x+(v.neto||0)*1.19,0);
     const pagadas=ventasDe(cid).filter(v=>v.pagado&&v.fechaPago),dp=pagadas.length?pagadas.reduce((x,v)=>x+Math.max(0,days(v.fecha,v.fechaPago)),0)/pagadas.length:null;
-    const msg=`Hola ${c.contacto||""}, te escribo por ${pend.length===1?"la factura pendiente":"las facturas pendientes"} por ${money(tot)}. ¿Me confirmas cuándo puedes pagar? Gracias.`;
+    const pg=pagoDe(c),telP=(pg.tel||c.telefono||"").replace(/\D/g,""),wa=m=>telP?`https://wa.me/${telP.length===9?"56"+telP:telP}?text=${encodeURIComponent(m)}`:"";
+    const msg=`Hola ${pg.nombre||c.contacto||""}, te escribo por ${pend.length===1?"la factura pendiente":"las facturas pendientes"} por ${money(tot)}. ¿Me confirmas cuándo puedes pagar? Gracias.`;
     h=dHdr(`Pago · ${esc(c.nombre)}`)+SEMBOX(s,pend.length?`${pend.length} ${pend.length===1?"factura pendiente":"facturas pendientes"} · ${money(tot)} con IVA`:"Está al día")+
       (pend.length?`<section class="card">${pend.map(v=>{const d=days(t,v.vence||v.fecha),lv=d<0&&-d>S.cfg.tolPago?"bad":d<=0?"warn":"ok";
         return `<div class="drow" style="cursor:default"><span>${pill({level:lv,short:d>0?"Vence "+enDias(d):d===0?"Vence hoy":"Vencida "+enDias(d)})}</span><span><b style="font-weight:600">${v.factura?"Factura "+esc(v.factura):"Venta del "+fdate(v.fecha)}</b><div class="sub">Vence el ${fdate(v.vence||v.fecha)} · ${itemsTexto(v.items,v.marca,false)}</div></span><span style="text-align:right"><span class="num small">${money((v.neto||0)*1.19)}</span>${can("ver_cobranza")||v.creado_por===ME.user?.id?`<br><button class="btn sm" data-act="pay" data-id="${v.id}">Marcar pagada</button>`:""}</span></div>`}).join("")}</section>`:"")+
+      (pg.nombre||pg.tel||pg.email?`<section class="card">${contactoBloque("Quién paga",pg)}</section>`:"")+
       (dp!==null?`<div class="small">Este cliente suele pagar <b>${n1(dp)} días</b> después de la compra.</div>`:"")+
       regla(`Verde: sin deuda o dentro del plazo. Amarillo: vence hoy o lleva hasta ${S.cfg.tolPago} días de atraso. Rojo: más de ${S.cfg.tolPago} días de atraso. Plazos: cerveza ${S.cfg.plazo.cerveza} días, kombucha ${S.cfg.plazo.kombucha||"contra entrega"}${S.cfg.plazo.kombucha?" días":""}.`)+
       (pend.length&&wa(msg)?acciones(`<a class="btn primary" href="${wa(msg)}" target="_blank" rel="noopener">Recordar por WhatsApp</a>`):"");
@@ -1863,16 +1927,17 @@ function clientDetail(id){
   const muTot={};as.forEach(a=>(a.muestras||[]).forEach(m=>{muTot[m.nombre]=(muTot[m.nombre]||0)+m.cant}));
   openSheet(`<div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${btnVolver()}${impBadge(cl)}<h2>${esc(cl.nombre)}</h2></span><button class="btn sm" data-act="close">Cerrar</button></div>
   <div class="chips"><span class="chip">${esc(ESTADOS[cl.estado]||"")}</span><span class="chip">${esc(IMPORT[impOf(cl)])}</span>${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${lnkZona(cl.zona)}${cl.demo?`<span class="chip">Ejemplo</span>`:""}${can("ver_todos_clientes")&&ownerOf(cl)&&S.equipo.length>1?`<span class="chip">A cargo: ${esc(nombreDe(ownerOf(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.horario?`<span class="chip">🕑 ${esc(cl.horario)}</span>`:""}</div>
+  ${cl.estado==="activo"&&faltantes(cl).length?`<div class="banner row spread"><span>Ficha incompleta. Falta: ${esc(faltantes(cl).join(", "))}.</span>${can("editar_clientes")?`<button class="btn sm" data-act="editClient" data-id="${id}">Completar</button>`:""}</div>`:""}
   <div class="stack" style="gap:6px">
    <div class="row spread"><span>Visita</span>${pill(semVisita(cl))}</div>
    ${(cl.marcas||[]).map(m=>`<div class="row spread"><span class="row" style="gap:6px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>Recompra ${m}</span>${pill(semCompra(cl,m))}</div>`).join("")}
    <div class="row spread"><span>Pago</span>${pill(semPago(cl))}</div><div class="row spread"><span>Seguimiento</span>${pill(semSeg(cl))}</div></div>
   <div class="row"><button class="btn primary" data-act="newAct" data-id="${id}">+ Visita / activación</button>${can("registrar_ventas")?`<button class="btn" data-act="newSale" data-id="${id}">+ Venta</button>`:""}${can("editar_clientes")?`<button class="btn" data-act="editClient" data-id="${id}">Editar</button>`:""}${wa?`<a class="btn" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`:""}</div>
   <div class="card stack" style="gap:6px">
-   ${cl.contacto?`<div><span class="muted small">Contacto</span><div>${esc(cl.contacto)}</div></div>`:""}
-   ${cl.telefono?`<div><span class="muted small">Teléfono</span><div class="num">${esc(cl.telefono)}</div></div>`:""}
+   ${contactoBloque("Quién hace los pedidos",{nombre:cl.contacto||"",tel:cl.telefono||"",email:cl.emailPedidos||""})}
+   ${cl.pagoMismo?(cl.contacto||cl.telefono?`<div><span class="muted small">Quién paga</span><div>La misma persona que hace los pedidos</div></div>`:""):contactoBloque("Quién paga",pagoDe(cl))}
    ${cl.foto?`<img class="fotoloc" data-foto="${esc(cl.foto)}" alt="Foto del local">`:""}
-   ${cl.direccion||cl.gps?`<div><span class="muted small">Dirección del local</span><div class="row"><span>${esc(cl.direccion||"")}</span><a class="btn sm" href="${mapsUrl(cl)}" target="_blank" rel="noopener">Mapa</a>${cl.gps?`<a class="btn sm" href="${mapsUrl(cl,true)}" target="_blank" rel="noopener">Cómo llegar</a><span class="chip">📍 GPS</span>`:""}</div></div>`:""}
+   ${cl.direccion||cl.gps||cl.comuna?`<div><span class="muted small">Dirección del local</span><div class="row"><span data-notr>${esc(dirCompleta(cl))}</span>${mapsUrl(cl)?`<a class="btn sm" href="${mapsUrl(cl)}" target="_blank" rel="noopener">Mapa</a>`:""}${cl.gps?`<a class="btn sm" href="${mapsUrl(cl,true)}" target="_blank" rel="noopener">Cómo llegar</a><span class="chip">📍 GPS</span>`:""}</div></div>`:""}
    ${cl.recepcion?`<div><span class="muted small">Horario de recepción</span><div>📦 ${esc(cl.recepcion)}</div></div>`:""}
    ${cl.razonSocial||cl.rutEmpresa||cl.giro||cl.email||cl.dirFacturacion?`<div><span class="muted small">Datos del negocio</span><div>${[cl.razonSocial,cl.rutEmpresa&&"RUT "+cl.rutEmpresa,cl.giro].filter(Boolean).map(esc).join(" · ")}</div>${cl.dirFacturacion?`<div class="small">Facturación: ${esc(cl.dirFacturacion)}</div>`:""}${cl.email?`<a class="small" href="mailto:${esc(cl.email)}">${esc(cl.email)}</a>`:""}</div>`:""}
    ${cl.dueno||cl.rutDueno||cl.telDueno||cl.emailDueno?`<div><span class="muted small">Dueño</span><div>${[cl.dueno,cl.rutDueno&&"RUT "+cl.rutDueno].filter(Boolean).map(esc).join(" · ")}</div><div class="row small" style="gap:10px">${cl.telDueno?`<span class="num">${esc(cl.telDueno)}</span>`:""}${cl.emailDueno?`<a href="mailto:${esc(cl.emailDueno)}">${esc(cl.emailDueno)}</a>`:""}</div></div>`:""}
@@ -1895,7 +1960,7 @@ function clientForm(id){
   const zonas=[...S.cfg.zonas];if(cl.zona&&!zonas.includes(cl.zona))zonas.push(cl.zona);
   openSheet(`<div class="row spread"><h2>${id?"Editar cliente":"Nuevo cliente"}</h2><button class="btn sm" data-act="close">Cerrar</button></div>
   <form id="clientForm" class="form" data-id="${id||""}">
-   <div class="field full"><label for="cNombre">Nombre del local *</label><input id="cNombre" required value="${esc(cl.nombre)}"></div>
+   <div class="field full"><label for="cNombre">Nombre del local *</label><input id="cNombre" required data-cap autocapitalize="words" value="${esc(cl.nombre)}"><span class="muted small">Los nombres y direcciones se guardan con mayúscula inicial en cada palabra.</span></div>
    <div class="field"><label for="cTipo">Tipo de local</label><select id="cTipo"><option value="">—</option>${TIPOS.map(t=>`<option value="${t}"${sel(cl.tipo,t)}>${t}</option>`).join("")}</select></div>
    <div class="field"><label for="cEstado">Estado</label><select id="cEstado">${Object.entries(ESTADOS).map(([k,v])=>`<option value="${k}"${sel(cl.estado,k)}>${v}</option>`).join("")}</select></div>
    <div class="field"><label for="cImp">Importancia</label><select id="cImp">${Object.entries(IMPORT).map(([k,v])=>`<option value="${k}"${sel(impOf(cl),k)}>${v}</option>`).join("")}</select></div>
@@ -1905,9 +1970,11 @@ function clientForm(id){
    <div class="field full"><span class="lbl">Días fijos de visita (opcional)</span><div class="checks">${WEEK_ORDER.map(w=>`<label><input type="checkbox" data-dv="${w}" ${(cl.diasVisita||[]).map(String).includes(String(w))?"checked":""}> ${DIAS[w]}</label>`).join("")}</div></div>
    <div class="field"><label for="cHorario">Mejor horario</label><input id="cHorario" value="${esc(cl.horario)}" placeholder="Ej: 11 a 13 h, abre 18:00"></div>
    <div class="field"><label for="cFrecV">Visitar cada (días)</label><input id="cFrecV" type="number" min="1" value="${cl.frecVisita||""}" placeholder="Según importancia"></div>
-   <div class="field"><label for="cContacto">Contacto</label><input id="cContacto" value="${esc(cl.contacto)}" placeholder="Nombre y cargo"></div>
-   <div class="field"><label for="cTel">Teléfono</label><input id="cTel" type="tel" value="${esc(cl.telefono)}" placeholder="9 1234 5678"></div>
-   <div class="field full"><label for="cDir">Dirección del local</label><input id="cDir" value="${esc(cl.direccion)}"></div>
+   <h3 class="full" style="margin-top:6px">Dirección y despacho</h3>
+   <div class="field full"><label for="cDir">Dirección completa del local</label><input id="cDir" data-cap autocapitalize="words" value="${esc(cl.direccion)}" placeholder="Calle, número y local u oficina"></div>
+   <div class="field"><label for="cRegion">Región *</label><select id="cRegion" required data-notr>${regionOpts(cl.region||"")}</select></div>
+   <div class="field"><label for="cComuna">Comuna *</label><select id="cComuna" required data-notr${cl.region?"":" disabled"}>${comunaOpts(cl.region||"",cl.comuna||"")}</select></div>
+   <div class="full muted small">La región y la comuna no vienen elegidas: márcalas tú y revísalas antes de guardar.</div>
    <div class="field full"><label for="cRecep">Horario de recepción (reparto)</label><input id="cRecep" value="${esc(cl.recepcion)}" placeholder="Ej: lun a vie de 10 a 13 h"></div>
    <div class="field full"><label for="cGps">Ubicación GPS</label>
      <div class="row" style="flex-wrap:nowrap"><input id="cGps" value="${cl.gps?cl.gps.lat+", "+cl.gps.lng:""}" placeholder="-39.8142, -73.2459" autocomplete="off"><button type="button" class="btn sm" data-act="gpsAqui" style="white-space:nowrap">📍 Estoy aquí</button></div>
@@ -1917,16 +1984,25 @@ function clientForm(id){
      <div class="row"><label class="btn sm" for="cFoto">📷 ${cl.foto?"Cambiar foto":"Sacar o elegir foto"}</label><input type="file" id="cFoto" accept="image/*" capture="environment" hidden>${cl.foto?`<button type="button" class="btn sm" data-act="quitarFoto">Quitar foto</button>`:""}<span id="cFotoNom" class="muted small"></span></div>
      <input type="hidden" id="cFotoQuitar" value=""></div>
    <h3 class="full" style="margin-top:6px">Datos del negocio</h3>
-   <div class="field full"><label for="cRazon">Razón social</label><input id="cRazon" value="${esc(cl.razonSocial)}" placeholder="Ej: Comercial El Faro SpA"></div>
+   <div class="field full"><label for="cRazon">Razón social</label><input id="cRazon" data-cap autocapitalize="words" value="${esc(cl.razonSocial)}" placeholder="Ej: Comercial El Faro SpA"></div>
    <div class="field"><label for="cRutEmp">RUT empresa</label><input id="cRutEmp" value="${esc(cl.rutEmpresa)}" placeholder="76.123.456-7" inputmode="text" autocomplete="off"></div>
-   <div class="field"><label for="cGiro">Giro</label><input id="cGiro" value="${esc(cl.giro)}" placeholder="Ej: Restaurante, venta de bebidas"></div>
-   <div class="field full"><label for="cDirFact">Dirección de facturación</label><input id="cDirFact" value="${esc(cl.dirFacturacion)}" placeholder="Si es distinta a la del local"></div>
-   <div class="field full"><label for="cEmail">Email del local</label><input id="cEmail" type="email" value="${esc(cl.email)}" placeholder="facturacion@local.cl" autocomplete="off"></div>
+   <div class="field"><label for="cGiro">Giro</label><input id="cGiro" data-cap value="${esc(cl.giro)}" placeholder="Ej: Restaurante, venta de bebidas"></div>
+   <div class="field full"><label for="cDirFact">Dirección de facturación</label><input id="cDirFact" data-cap autocapitalize="words" value="${esc(cl.dirFacturacion)}" placeholder="Si es distinta a la del local"></div>
+   <div class="field full"><label for="cEmail">Email del local</label><input id="cEmail" type="email" data-cap="min" value="${esc(cl.email)}" placeholder="facturacion@local.cl" autocomplete="off"></div>
+   <h3 class="full" style="margin-top:6px">Quién hace los pedidos</h3>
+   <div class="field"><label for="cContacto">Nombre y cargo</label><input id="cContacto" data-cap autocapitalize="words" value="${esc(cl.contacto)}" placeholder="Ej: Ana Soto, Encargada de Compras" autocomplete="off"></div>
+   <div class="field"><label for="cTel">Teléfono</label><input id="cTel" type="tel" value="${esc(cl.telefono)}" placeholder="9 1234 5678" autocomplete="off"></div>
+   <div class="field full"><label for="cEmailPed">Email</label><input id="cEmailPed" type="email" data-cap="min" value="${esc(cl.emailPedidos)}" autocomplete="off"></div>
+   <h3 class="full" style="margin-top:6px">Quién paga</h3>
+   <div class="field full"><div class="checks"><label><input type="checkbox" id="cPagoMismo" ${cl.pagoMismo?"checked":""}> Es la misma persona que hace los pedidos</label></div></div>
+   <div class="field pagoCampo"${cl.pagoMismo?" hidden":""}><label for="cContactoPago">Nombre y cargo</label><input id="cContactoPago" data-cap autocapitalize="words" value="${esc(cl.contactoPago)}" placeholder="Ej: Luis Pérez, Administración" autocomplete="off"></div>
+   <div class="field pagoCampo"${cl.pagoMismo?" hidden":""}><label for="cTelPago">Teléfono</label><input id="cTelPago" type="tel" value="${esc(cl.telPago)}" placeholder="9 1234 5678" autocomplete="off"></div>
+   <div class="field full pagoCampo"${cl.pagoMismo?" hidden":""}><label for="cEmailPago">Email</label><input id="cEmailPago" type="email" data-cap="min" value="${esc(cl.emailPago)}" placeholder="pagos@local.cl" autocomplete="off"></div>
    <h3 class="full" style="margin-top:6px">Dueño</h3>
-   <div class="field"><label for="cDueno">Nombre del dueño</label><input id="cDueno" value="${esc(cl.dueno)}" autocomplete="off"></div>
+   <div class="field"><label for="cDueno">Nombre del dueño</label><input id="cDueno" data-cap autocapitalize="words" value="${esc(cl.dueno)}" autocomplete="off"></div>
    <div class="field"><label for="cRutDueno">RUT del dueño</label><input id="cRutDueno" value="${esc(cl.rutDueno)}" placeholder="12.345.678-9" autocomplete="off"></div>
    <div class="field"><label for="cTelDueno">Teléfono del dueño</label><input id="cTelDueno" type="tel" value="${esc(cl.telDueno)}" placeholder="9 1234 5678" autocomplete="off"></div>
-   <div class="field"><label for="cEmailDueno">Email del dueño</label><input id="cEmailDueno" type="email" value="${esc(cl.emailDueno)}" autocomplete="off"></div>
+   <div class="field"><label for="cEmailDueno">Email del dueño</label><input id="cEmailDueno" type="email" data-cap="min" value="${esc(cl.emailDueno)}" autocomplete="off"></div>
    <h3 class="full" style="margin-top:6px">Seguimiento</h3>
    <div class="field"><label for="cFrecC">Recompra cerveza cada (días)</label><input id="cFrecC" type="number" min="1" value="${cl.frec?.cerveza||""}" placeholder="${S.cfg.frec.cerveza} (general)"></div>
    <div class="field"><label for="cFrecK">Recompra kombucha cada (días)</label><input id="cFrecK" type="number" min="1" value="${cl.frec?.kombucha||""}" placeholder="${S.cfg.frec.kombucha} (general)"></div>
@@ -2288,8 +2364,8 @@ function exportarCSV(){
     ...[...S.ventas].sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")).map(v=>{const sub=v.subtotal??(v.items||[]).reduce((s,it)=>s+(it.cant||0)*(it.netoU||0),0);
       return[v.fecha,cn(v.clienteId),v.marca,sinHtml(itemsTexto(v.items,v.marca,false)),v.litros,v.cajas,Math.round(sub),Math.round(sub-(v.neto||0)),sinHtml(descTexto(v)),Math.round(v.neto),Math.round(v.neto*1.19),sinHtml(empaqueTexto(v)),v.vence,v.pagado?"sí":"no",v.fechaPago,v.factura,nombreDe(v.creado_por)]})];
   descargar(`ventas-${today()}.csv`,"﻿"+csv(ventas),"text/csv");
-  const cl=[["Nombre","Estado","Importancia","Tipo","Zona","Marcas","Asignado a","Contacto","Teléfono","Dirección","Horario","Próxima acción","Qué hacer","Notas","Razón social","RUT empresa","Giro","Email","Dueño","RUT dueño","Teléfono dueño","Email dueño"],
-    ...S.clientes.map(c=>[c.nombre,c.estado,impOf(c),c.tipo,c.zona,(c.marcas||[]).join(" + "),nombreDe(ownerOf(c)),c.contacto,c.telefono,c.direccion,c.horario,c.proxFecha,c.proxTexto,c.notas,c.razonSocial,c.rutEmpresa,c.giro,c.email,c.dueno,c.rutDueno,c.telDueno,c.emailDueno])];
+  const cl=[["Nombre","Estado","Importancia","Tipo","Zona","Marcas","Asignado a","Contacto pedidos","Teléfono pedidos","Email pedidos","Contacto pagos","Teléfono pagos","Email pagos","Dirección","Comuna","Región","Horario","Próxima acción","Qué hacer","Notas","Razón social","RUT empresa","Giro","Dirección de facturación","Email","Dueño","RUT dueño","Teléfono dueño","Email dueño"],
+    ...S.clientes.map(c=>[c.nombre,c.estado,impOf(c),c.tipo,c.zona,(c.marcas||[]).join(" + "),nombreDe(ownerOf(c)),c.contacto,c.telefono,c.emailPedidos,pagoDe(c).nombre,pagoDe(c).tel,pagoDe(c).email,c.direccion,c.comuna,c.region,c.horario,c.proxFecha,c.proxTexto,c.notas,c.razonSocial,c.rutEmpresa,c.giro,c.dirFacturacion,c.email,c.dueno,c.rutDueno,c.telDueno,c.emailDueno])];
   setTimeout(()=>descargar(`clientes-${today()}.csv`,"﻿"+csv(cl),"text/csv"),400);
   if(S.barriles.length){const br=[["Código","Estado","Estilo","Lote","Embarrilado","Cliente","Factura","Entregado","Días en cliente","Litros","Notas"],
     ...[...S.barriles].sort(bOrden).map(b=>[b.codigo,B_EST[b.estado]||b.estado,b.estilo,b.lote,b.fechaEmbarrilado,b.clienteNombre,b.factura,b.fechaEntrega,b.estado==="en_cliente"&&b.fechaEntrega?days(b.fechaEntrega,today()):"",b.litros,b.notas])];
@@ -2551,6 +2627,12 @@ document.addEventListener("toggle",e=>{if(e.target.id==="agF")S.agF=e.target.ope
 document.addEventListener("change",e=>{
   if(e.target.id==="impFile"&&e.target.files[0]){importarRespaldo(e.target.files[0]);e.target.value=""}
   if(e.target.id==="cFoto"&&e.target.files[0]){$("#cFotoQuitar").value="";$("#cFotoNom").textContent="Foto lista: se sube al guardar"}
+  if(e.target.closest?.("#clientForm")){const el=e.target;
+    if(el.id==="cRegion"){const c=$("#cComuna");c.innerHTML=comunaOpts(el.value,"");c.disabled=!el.value}
+    if(el.id==="cPagoMismo")document.querySelectorAll("#clientForm .pagoCampo").forEach(x=>x.hidden=el.checked);
+    if(el.dataset.cap!==undefined)el.value=el.dataset.cap==="min"?el.value.trim().toLowerCase():capitalizar(el.value);
+    if(el.id==="cRutEmp"||el.id==="cRutDueno"){const r=rutLimpio(el.value);if(r)el.value=r}
+  }
   if(e.target.dataset.pref){
     const k=e.target.dataset.pref,p=prefsLocal();p[k]=e.target.value;
     try{localStorage.setItem("cartera-prefs",JSON.stringify(p))}catch(err){}
@@ -2688,8 +2770,10 @@ document.addEventListener("submit",async e=>{
   if(f.id==="clientForm"){
     const marcas=[$("#mC").checked&&"cerveza",$("#mK").checked&&"kombucha"].filter(Boolean);
     const diasVisita=[...document.querySelectorAll("[data-dv]")].filter(x=>x.checked).map(x=>Number(x.dataset.dv));
-    const data={nombre:val("cNombre"),tipo:val("cTipo"),estado:val("cEstado"),importancia:val("cImp"),zona:val("cZona"),marcas,diasVisita,horario:val("cHorario"),frecVisita:Number(val("cFrecV"))||null,
-      contacto:val("cContacto"),telefono:val("cTel"),direccion:val("cDir"),
+    const cap=k=>capitalizar(val(k)),min=k=>val(k).toLowerCase(),mismo=$("#cPagoMismo").checked;
+    const data={nombre:cap("cNombre"),tipo:val("cTipo"),estado:val("cEstado"),importancia:val("cImp"),zona:val("cZona"),marcas,diasVisita,horario:val("cHorario"),frecVisita:Number(val("cFrecV"))||null,
+      contacto:cap("cContacto"),telefono:val("cTel"),emailPedidos:min("cEmailPed"),pagoMismo:mismo,contactoPago:mismo?"":cap("cContactoPago"),telPago:mismo?"":val("cTelPago"),emailPago:mismo?"":min("cEmailPago"),
+      direccion:cap("cDir"),region:val("cRegion"),comuna:val("cComuna"),
       frec:{cerveza:Number(val("cFrecC"))||null,kombucha:Number(val("cFrecK"))||null},proxFecha:val("cProxF"),proxTexto:val("cProxT"),notas:val("cNotas")};
     if($("#cAsig"))data.asignado_a=$("#cAsig").value;
     if(!data.nombre){toast("Falta el nombre del local");return}
@@ -2697,14 +2781,23 @@ document.addEventListener("submit",async e=>{
     if(rutEmp===null){toast("El RUT de la empresa no es válido");$("#cRutEmp").focus();return}
     if(rutDueno===null){toast("El RUT del dueño no es válido");$("#cRutDueno").focus();return}
     const mailOk=s=>!s||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
-    if(!mailOk(val("cEmail"))||!mailOk(val("cEmailDueno"))){toast("Revisa el email: no parece válido");return}
+    if(!["cEmail","cEmailDueno","cEmailPed","cEmailPago"].every(k=>mailOk(val(k)))){toast("Revisa el email: no parece válido");return}
+    if(!data.region){toast("Elige la región");$("#cRegion").focus();return}
+    if(!data.comuna){toast("Elige la comuna");$("#cComuna").focus();return}
     const gps=parseGps(val("cGps"));
     if(gps===undefined){toast("La ubicación GPS no es válida. Usa \"Estoy aquí\" o pega coordenadas");$("#cGps").focus();return}
-    Object.assign(data,{razonSocial:val("cRazon"),rutEmpresa:rutEmp,giro:val("cGiro"),dirFacturacion:val("cDirFact"),email:val("cEmail"),dueno:val("cDueno"),rutDueno,telDueno:val("cTelDueno"),emailDueno:val("cEmailDueno"),
+    Object.assign(data,{razonSocial:cap("cRazon"),rutEmpresa:rutEmp,giro:cap("cGiro"),dirFacturacion:cap("cDirFact"),email:min("cEmail"),dueno:cap("cDueno"),rutDueno,telDueno:val("cTelDueno"),emailDueno:min("cEmailDueno"),
       recepcion:val("cRecep"),gps});
     if(!marcas.length){toast("Marca al menos una: cerveza o kombucha");return}
     const id=f.dataset.id;
     const prev=id?{...S.clientes.find(c=>c.id===id)}:{};delete prev.id;
+    // antes de guardar: revisar comuna y región (y lo que falte) cuando el cliente es nuevo, cambia de dirección o pasa a activo
+    const falta=faltantes(data);
+    if(!id||(prev.comuna||"")!==data.comuna||(prev.region||"")!==data.region||(prev.direccion||"")!==data.direccion||(falta.length&&data.estado==="activo"&&prev.estado!=="activo")){
+      const linea=(t,v)=>`<div>${t}: <b data-notr>${esc(v||"—")}</b></div>`;
+      const si=await confirmar("Revisa antes de guardar",`<div class="stack" style="gap:6px"><div><b data-notr>${esc(data.nombre)}</b></div>${linea("Dirección",data.direccion)}${linea("Comuna",data.comuna)}${linea("Región",data.region)}${falta.length?`<div class="banner">Falta: ${esc(falta.join(", "))}.</div>`:""}<div class="muted">¿La comuna y la región son las correctas?</div></div>`,"Sí, guardar","Corregir");
+      if(!si)return;
+    }
     data.foto=$("#cFotoQuitar").value==="1"?"":(prev.foto||"");
     const archivo=$("#cFoto").files[0];
     if(archivo){
@@ -2921,6 +3014,14 @@ const EN={
   "Foto del local":"Business photo","📷 Cambiar foto":"📷 Change photo","📷 Sacar o elegir foto":"📷 Take or choose photo","Quitar foto":"Remove photo",
   "Se quitará al guardar":"Will be removed when you save","Foto lista: se sube al guardar":"Photo ready: uploads when you save","Subiendo foto…":"Uploading photo…",
   "No se pudo cargar la foto":"Could not load the photo","Datos del negocio":"Business details","Razón social":"Legal name","Ej: Comercial El Faro SpA":"E.g.: Comercial El Faro SpA",
+  "Dirección y despacho":"Address and delivery","Dirección completa del local":"Full business address","Calle, número y local u oficina":"Street, number and unit or office",
+  "Región *":"Region *","Comuna *":"Commune *","Región":"Region","Comuna":"Commune","Sin comuna":"No commune",
+  "La región y la comuna no vienen elegidas: márcalas tú y revísalas antes de guardar.":"Region and commune are never pre-selected: choose them yourself and check them before saving.",
+  "Los nombres y direcciones se guardan con mayúscula inicial en cada palabra.":"Names and addresses are saved with a capital letter on each word.",
+  "Quién hace los pedidos":"Who places the orders","Quién paga":"Who pays","Es la misma persona que hace los pedidos":"Same person who places the orders","La misma persona que hace los pedidos":"The same person who places the orders",
+  "Ej: Ana Soto, Encargada de Compras":"E.g.: Ana Soto, Purchasing","Ej: Luis Pérez, Administración":"E.g.: Luis Pérez, Administration",
+  "Elige la región":"Choose the region","Elige la comuna":"Choose the commune","Revisa antes de guardar":"Check before saving","Sí, guardar":"Yes, save","Corregir":"Fix it",
+  "¿La comuna y la región son las correctas?":"Are the commune and region correct?","! Ficha incompleta":"! Incomplete record","Completar":"Complete",
   "RUT empresa":"Company RUT","Giro":"Line of business","Ej: Restaurante, venta de bebidas":"E.g.: Restaurant, beverage sales","Dirección de facturación":"Billing address",
   "Si es distinta a la del local":"If different from the business address","Email del local":"Business email","Dueño":"Owner","Nombre del dueño":"Owner's name",
   "RUT del dueño":"Owner's RUT","Teléfono del dueño":"Owner's phone","Email del dueño":"Owner's email","Buscar por nombre, RUT, dueño, zona o dirección":"Search by name, RUT, owner, zone or address",
@@ -3018,6 +3119,7 @@ const EN={
 const EN_UNIT={lata:"can",latas:"cans",litro:"liter",litros:"liters"};
 const EN_U2={barril:"keg",barriles:"kegs",lata:"can",latas:"cans",unidad:"unit",unidades:"units"};
 const EN_RX=[
+  [/^Ficha incompleta\. Falta: (.+)\.$/,m=>`Incomplete record. Missing: ${m[1]}.`],[/^Falta: (.+)\.$/,m=>`Missing: ${m[1]}.`],
   [/^Sin conexión\. Estás viendo los datos guardados (?:el (\S+) a las (\S+))?; no puedes hacer cambios hasta recuperar señal\.$/,m=>`Offline. You're viewing data saved${m[1]?` on ${m[1]} at ${m[2]}`:""}; you can't make changes until you have signal again.`],
   [/^Última compra hace (\S+) días \(esperado cada (\S+)\)$/,m=>`Last purchase ${m[1]} days ago (expected every ${m[2]})`],
   [/^Última visita hace (\S+) días \(cada (\S+) por importancia (\S+)\)$/,m=>`Last visit ${m[1]} days ago (every ${m[2]} for importance ${m[3]})`],
