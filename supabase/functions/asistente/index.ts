@@ -1,15 +1,5 @@
-// Cartera Valdivia · asistente con IA (Supabase Edge Function "asistente")
-//
-// Qué hace:
-//  1. Revisa que quien pregunta tenga sesión iniciada y el permiso "usar_ia".
-//  2. Lee su ficha de memoria y sus últimas consultas (cada uno solo ve lo suyo, por RLS).
-//  3. Le manda a Gemini: la ficha, las últimas consultas, los datos de la cartera que
-//     la app ya tiene a la vista (sin teléfonos, RUT, correos ni direcciones) y la pregunta.
-//  4. Guarda la pregunta y la respuesta en el cuaderno (ia_consultas) y la ficha
-//     actualizada (ia_memoria).
-//
+// Cartera Valdivia · asistente con IA (Supabase Edge Function "clever-api")
 // La clave de Gemini vive en los secretos de Supabase (GEMINI_API_KEY), nunca en la app.
-// Opcional: GEMINI_MODEL para cambiar de modelo sin tocar este código.
 // No usa la clave service_role: todo pasa con la sesión de la persona y sus permisos.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -56,16 +46,55 @@ Además devuelves "ficha": la ficha de memoria actualizada para futuras conversa
 - Es un resumen breve en viñetas "- " (máximo 1500 caracteres) de lo DURABLE: cómo quiere las respuestas, cómo trabaja (días, zonas, prioridades), decisiones que tomó y cosas sobre clientes que la persona te contó o confirmó.
 - Parte de la ficha anterior: conserva lo vigente, agrega lo nuevo, corrige lo que cambió y junta lo repetido.
 - No guardes números del día que cambian solos (ventas del mes, deudas, días de atraso), ni teléfonos, RUT, correos, direcciones, montos de sueldo, ni datos de salud o personales.
-- Si no hay nada nuevo que recordar, devuelve la ficha anterior tal cual.`;
+- Si no hay nada nuevo que recordar, devuelve la ficha anterior tal cual.
+
+Navegación ("navegar"): puedes mover la app cuando la persona pide ir, abrir o mostrar algo ("abre la ruta de mañana", "muéstrame la ficha del Bar X", "llévame a cobranza").
+- tipo "pestana" con pestana: resumen, tareas, ruta, clientes, ventas (cobranza y ventas), indices, barriles o ajustes.
+- tipo "ruta" con fecha AAAA-MM-DD (calcula "mañana", "el jueves", etc. a partir de la fecha de hoy).
+- tipo "cliente" con ref del cliente (por ejemplo "c12"), para abrir su ficha.
+- tipo "clientes" con zona (opcional), para ver la lista de clientes de esa zona.
+- Si no pidió moverse, usa tipo "ninguno". Cuando navegues, en "respuesta" di en una frase qué abriste y lo más útil que hay ahí.
+
+Atajos ("botones"): hasta 3 atajos útiles para lo que respondiste. Tipos: "cliente" (abrir ficha), "como_llegar", "llamar", "whatsapp" (todos con ref) y "ruta" (con fecha). Usa SOLO refs que aparecen en los datos entre corchetes, como [c12]. Nunca inventes refs. Si no hay atajos útiles, devuelve una lista vacía. En "respuesta" no escribas las refs: nombra el local.
+
+Modo voz: si MODO VOZ es "sí", la persona va manejando y la respuesta se va a escuchar, no a leer. Responde en 2 a 4 frases cortas, lo más importante primero, sin listas, sin negritas ni símbolos, con números dichos de forma simple.`;
 }
+
+const PESTANAS = ["resumen", "tareas", "ruta", "clientes", "ventas", "indices", "barriles", "ajustes"];
+const TIPOS_NAV = ["ninguno", "pestana", "ruta", "cliente", "clientes"];
+const TIPOS_BOTON = ["cliente", "como_llegar", "llamar", "whatsapp", "ruta"];
+const corto = (v: unknown, n: number) => String(v ?? "").slice(0, n);
 
 const ESQUEMA = {
   type: "object",
   properties: {
     respuesta: { type: "string", description: "Lo que se le muestra a la persona" },
     ficha: { type: "string", description: "Ficha de memoria actualizada" },
+    navegar: {
+      type: "object",
+      properties: {
+        tipo: { type: "string", enum: TIPOS_NAV },
+        pestana: { type: "string", enum: PESTANAS },
+        fecha: { type: "string", description: "AAAA-MM-DD" },
+        ref: { type: "string", description: "Ref del cliente, ej. c12" },
+        zona: { type: "string" },
+      },
+      required: ["tipo"],
+    },
+    botones: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          tipo: { type: "string", enum: TIPOS_BOTON },
+          ref: { type: "string" },
+          fecha: { type: "string" },
+        },
+        required: ["tipo"],
+      },
+    },
   },
-  required: ["respuesta", "ficha"],
+  required: ["respuesta", "ficha", "navegar", "botones"],
 };
 
 // Si un modelo está saturado (503) reintenta una vez y después prueba el siguiente.
@@ -118,7 +147,7 @@ Deno.serve(async (req) => {
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) return json({ error: "Falta guardar la clave de Gemini en Supabase (secreto GEMINI_API_KEY)." }, 500);
 
-  let body: { pregunta?: string; contexto?: string; fecha?: string } = {};
+  let body: { pregunta?: string; contexto?: string; fecha?: string; hoy?: string; voz?: boolean } = {};
   try { body = await req.json(); } catch { return json({ error: "Pedido inválido" }, 400); }
   const pregunta = String(body.pregunta || "").trim().slice(0, MAX_PREGUNTA);
   if (!pregunta) return json({ error: "Escribe una pregunta" }, 400);
@@ -143,12 +172,15 @@ Deno.serve(async (req) => {
     role: "user",
     parts: [{
       text: `FICHA (lo que ya sabes de esta persona):\n${ficha || "(vacía todavía)"}\n\n` +
-        `DATOS DE LA CARTERA (hoy es ${String(body.fecha || "").slice(0, 40) || "hoy"}):\n${contexto || "(sin datos)"}\n\n` +
+        `FECHA DE HOY: ${corto(body.fecha, 40) || "hoy"} (${/^\d{4}-\d{2}-\d{2}$/.test(String(body.hoy)) ? body.hoy : "sin fecha"})\n` +
+        `MODO VOZ: ${body.voz ? "sí" : "no"}\n\n` +
+        `DATOS DE LA CARTERA:\n${contexto || "(sin datos)"}\n\n` +
         `PREGUNTA:\n${pregunta}`,
     }],
   });
 
-  let salida: { respuesta: string; ficha: string }, modelo = "";
+  // deno-lint-ignore no-explicit-any
+  let salida: { respuesta: string; ficha: string; navegar?: any; botones?: any[] }, modelo = "";
   try {
     const { d, modelo: m } = await gemini(key, {
       systemInstruction: { parts: [{ text: instrucciones(perfil?.nombre || "") }] },
@@ -172,13 +204,21 @@ Deno.serve(async (req) => {
 
   const respuesta = String(salida?.respuesta || "").trim().slice(0, 12000) || "No tengo una respuesta para eso.";
   const fichaNueva = limpiar(String(salida?.ficha ?? ficha)).trim().slice(0, MAX_FICHA);
+  // Navegación y atajos: solo valores conocidos (la app vuelve a revisarlos antes de usarlos)
+  const n = salida?.navegar;
+  const navegar = n && TIPOS_NAV.includes(n.tipo) && n.tipo !== "ninguno"
+    ? { tipo: n.tipo, pestana: PESTANAS.includes(n.pestana) ? n.pestana : "", fecha: corto(n.fecha, 10), ref: corto(n.ref, 10), zona: corto(n.zona, 60) }
+    : null;
+  const botones = (Array.isArray(salida?.botones) ? salida.botones : [])
+    .filter((b) => b && TIPOS_BOTON.includes(b.tipo)).slice(0, 3)
+    .map((b) => ({ tipo: b.tipo, ref: corto(b.ref, 10), fecha: corto(b.fecha, 10) }));
 
   // Guardar en el cuaderno y actualizar la ficha (si falla, igual se entrega la respuesta)
   const [g1, g2] = await Promise.all([
-    sb.from("ia_consultas").insert({ data: { pregunta, respuesta, modelo } }),
+    sb.from("ia_consultas").insert({ data: { pregunta, respuesta, modelo, voz: !!body.voz } }),
     sb.from("ia_memoria").upsert({ usuario: user.id, ficha: fichaNueva }, { onConflict: "usuario" }),
   ]);
   const guardado = !g1.error && !g2.error;
 
-  return json({ respuesta, ficha: fichaNueva, guardado, modelo });
+  return json({ respuesta, ficha: fichaNueva, navegar, botones, guardado, modelo });
 });

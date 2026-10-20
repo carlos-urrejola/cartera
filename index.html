@@ -273,6 +273,17 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 .ia-form .btn{min-height:44px}
 .ia-ficha{white-space:pre-wrap;margin-top:8px}
 @media (max-width:480px){.hide-sm{display:none}}
+.ia-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+/* micrófono: botón grande para usar con una mano o con el teléfono en el soporte */
+.fab-mic{position:fixed;left:16px;bottom:calc(66px + env(safe-area-inset-bottom,0px));z-index:30;width:58px;height:58px;border-radius:50%;border:0;background:var(--kom);color:#fff;font-size:26px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);display:grid;place-items:center}
+.fab-mic.on{background:var(--bad)}
+.fab-mic.on::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:3px solid var(--bad);opacity:.6}
+@media (prefers-reduced-motion:no-preference){.fab-mic.on::after{animation:pulso 1.2s ease-out infinite}@keyframes pulso{from{transform:scale(.9);opacity:.7}to{transform:scale(1.25);opacity:0}}}
+.voz-card{position:fixed;left:12px;right:12px;bottom:calc(66px + env(safe-area-inset-bottom,0px));z-index:45;max-width:640px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.voz-card .voz-txt{max-height:34vh;overflow:auto;font-size:16px;line-height:1.45}
+.voz-card .voz-txt p{margin:0 0 6px}.voz-card .voz-txt ul{margin:2px 0 6px;padding-left:18px}
+.voz-card .btn.big{min-height:48px;padding:10px 16px;font-size:16px}
+.voz-estado{font-weight:600;display:flex;align-items:center;gap:8px}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}}
 </style>
 </head>
@@ -287,6 +298,8 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
   <main id="view"></main>
 </div>
 <button class="btn primary fab" data-act="chooser">+ Registrar</button>
+<button class="fab-mic" data-act="voz" aria-label="Hablarle al asistente" title="Hablarle al asistente" hidden>🎙️</button>
+<div id="vozCard" class="voz-card" role="status" aria-live="polite" hidden></div>
 <nav class="tabs" aria-label="Secciones">
   <button data-tab="resumen">Resumen</button>
   <button data-tab="tareas">Tareas</button>
@@ -621,6 +634,7 @@ function weekStart(fecha){const w=wday(fecha);return addDays(fecha,w===0?-6:1-w)
 function render(){
   const vt=ME.perfil?visibleTabs():[];document.querySelectorAll("nav.tabs button").forEach(b=>{b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false");b.hidden=!vt.includes(b.dataset.tab)});
   const tabOn=document.querySelector('nav.tabs [aria-current="page"]'),nav=tabOn?.parentElement;if(tabOn&&nav.scrollWidth>nav.clientWidth)nav.scrollLeft=tabOn.offsetLeft-(nav.clientWidth-tabOn.offsetWidth)/2;
+  $(".fab-mic").hidden=!(ME.perfil&&iaOn()&&SR_VOZ);
   $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn" data-act="newClient">+ Cliente</button>`:""}${iaOn()?`<button class="btn" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨<span class="hide-sm"> Asistente</span></button>`:""}<button class="btn" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
   const v=$("#view");
@@ -2401,7 +2415,7 @@ async function importarRespaldo(file){
 }
 
 /* ---------- pantalla de ingreso ---------- */
-function showApp(on){document.querySelector(".app").hidden=!on;document.querySelector("nav.tabs").hidden=!on;$(".fab").hidden=!on;$("#auth").hidden=on}
+function showApp(on){document.querySelector(".app").hidden=!on;document.querySelector("nav.tabs").hidden=!on;$(".fab").hidden=!on;$("#auth").hidden=on;if(!on){$(".fab-mic").hidden=true;$("#vozCard").hidden=true}}
 function authScreen(mode="login",msg=""){
   showApp(false);
   const cfgFalta=!SB;
@@ -2449,7 +2463,7 @@ async function initCloud(){
   if(!SB){authScreen();return}
   SB.auth.onAuthStateChange((ev,session)=>{
     if(ev==="PASSWORD_RECOVERY"){ME.user=session?.user||null;authScreen("nueva-clave");return}
-    if(ev==="SIGNED_OUT"){ME.user=null;ME.perfil=null;authScreen()}
+    if(ev==="SIGNED_OUT"){ME.user=null;ME.perfil=null;vozParar();S.ia=IA_VACIO();authScreen()}
   });
   const{data}=await SB.auth.getSession();
   if(data?.session&&!location.hash.includes("type=recovery")){ME.user=data.session.user;afterLogin()}
@@ -2532,7 +2546,7 @@ function menuSheet(){
    La app arma un resumen de lo que esta persona ya ve (sin teléfonos, RUT, correos ni direcciones)
    y se lo manda a la función "asistente" de Supabase, que guarda la clave de Gemini.
    Memoria: ia_consultas (cada pregunta y respuesta) e ia_memoria (ficha consolidada), solo del usuario. */
-const IA_VACIO=()=>({log:[],ficha:"",cargado:false,ocupado:false,err:""});
+const IA_VACIO=()=>({log:[],ficha:"",cargado:false,ocupado:false,err:"",refs:{},card:false,escuchando:false,parcial:""});
 S.ia=IA_VACIO();
 // nombre de la función del asistente en Supabase (Edge Functions)
 const IA_FUNCION="clever-api";
@@ -2544,7 +2558,12 @@ const iaLimpio=t=>String(t||"").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g,"[correo]")
 /* resumen de la cartera para la IA: solo lo que esta cuenta puede ver, sin datos de contacto */
 function ctxIA(){
   const t=today(),man=addDays(t,1),plata=can("ver_cobranza"),L=[],desde=hace6m();
-  L.push(`Hoy: ${DIAS_L[wday(t)]} ${fdate(t)}. Mañana: ${DIAS_L[wday(man)]} ${fdate(man)}.`);
+  // cada cliente lleva una ref corta ([c1], [c2]…) para que la IA pueda pedir abrir su ficha o un atajo
+  S.ia.refs={};const ids={};let n=0;
+  const refDe=c=>{if(!ids[c.id]){ids[c.id]="c"+(++n);S.ia.refs[ids[c.id]]=c.id}return ids[c.id]};
+  [...S.clientes].sort((a,b)=>impOf(a).localeCompare(impOf(b))||a.nombre.localeCompare(b.nombre)).forEach(refDe);
+  L.push(`Hoy: ${DIAS_L[wday(t)]} ${fdate(t)} (${t}). Mañana: ${DIAS_L[wday(man)]} ${fdate(man)} (${man}).`);
+  L.push(`Pestañas que esta persona puede abrir: ${visibleTabs().filter(x=>x!=="equipo").join(", ")}. Zonas: ${S.cfg.zonas.join(", ")}.`);
   L.push("Zonas que se visitan cada día: "+WEEK_ORDER.map(w=>`${DIAS_L[w]}: ${(S.cfg.zonasDia[String(w)]||[]).join(", ")||"—"}`).join(" · "));
   L.push(`Frecuencia de visita por importancia: A cada ${S.cfg.frecVisita.A} días, B cada ${S.cfg.frecVisita.B}, C cada ${S.cfg.frecVisita.C}. Recompra esperada: cerveza cada ${S.cfg.frec.cerveza} días, kombucha cada ${S.cfg.frec.kombucha}.`);
   const est=mk=>[...new Set(S.cfg.productos.filter(p=>p.marca===mk).map(estiloDe))].join(", ");
@@ -2556,18 +2575,18 @@ function ctxIA(){
     L.push(`Por cobrar: ${money(p.reduce((s,v)=>s+(v.neto||0)*1.19,0))} con IVA en ${p.length} facturas; vencido ${money(venc.reduce((s,v)=>s+(v.neto||0)*1.19,0))}.`)}
   [[t,"HOY"],[man,"MAÑANA"]].forEach(([f,lab])=>{const p=planDia(f);
     L.push(`\nRUTA SUGERIDA ${lab} (zonas del día: ${p.zonasHoy.join(", ")||"ninguna"}):`);
-    p.items.slice(0,40).forEach(it=>L.push(`- ${it.c.nombre} [importancia ${impOf(it.c)}, ${it.zona}]${it.done?" (ya visitado)":""}: ${it.why.map(w=>w.t).join("; ")}${it.c.horario?` · horario: ${it.c.horario}`:""}`));
+    p.items.slice(0,40).forEach(it=>L.push(`- [${refDe(it.c)}] ${it.c.nombre} [importancia ${impOf(it.c)}, ${it.zona}]${it.done?" (ya visitado)":""}: ${it.why.map(w=>w.t).join("; ")}${it.c.horario?` · horario: ${it.c.horario}`:""}`));
     if(!p.items.length)L.push("- (nada sugerido)")});
   const T=tareasAbiertas().filter(x=>x.fecha<=addDays(t,7)).sort((a,b)=>a.fecha.localeCompare(b.fecha)||b.prio-a.prio).slice(0,60);
   L.push("\nTAREAS ABIERTAS (próximos 7 días, incluye atrasadas):");
-  T.forEach(x=>L.push(`- ${fdate(x.fecha)}${x.fecha<t?" (atrasada)":""} · ${x.c.nombre}: ${x.titulo} — ${iaLimpio(x.detalle)}`));
+  T.forEach(x=>L.push(`- ${fdate(x.fecha)}${x.fecha<t?" (atrasada)":""} · [${refDe(x.c)}] ${x.c.nombre}: ${x.titulo} — ${iaLimpio(x.detalle)}`));
   if(!T.length)L.push("- (ninguna)");
   const Lz=lineasDesde(desde),zonas=[...new Set(Lz.map(x=>x.zona))];
   if(zonas.length){L.push("\nLO QUE MÁS SE VENDE POR ZONA (últimos 6 meses, litros):");
     zonas.forEach(z=>{const rs=Lz.filter(x=>x.zona===z),top=[...new Set(rs.map(x=>x.estilo))].map(e=>[e,sumM(rs.filter(x=>x.estilo===e),"litros")]).sort((a,b)=>b[1]-a[1]).slice(0,4);
       L.push(`- ${z}: ${top.map(([e,l])=>`${e} ${n1(l)} L`).join(", ")}`)})}
   const cs=[...S.clientes].sort((a,b)=>impOf(a).localeCompare(impOf(b))||a.nombre.localeCompare(b.nombre)).slice(0,250);
-  L.push(`\nCLIENTES (${S.clientes.length}${S.clientes.length>cs.length?`; se muestran ${cs.length}`:""}). Formato: nombre | tipo | zona/comuna | estado | importancia | marcas | visita | recompra | ${plata?"pago | ":""}seguimiento | compras por marca | lo que más compra (6 meses) | notas`);
+  L.push(`\nCLIENTES (${S.clientes.length}${S.clientes.length>cs.length?`; se muestran ${cs.length}`:""}). Formato: [ref] nombre | tipo | zona/comuna | estado | importancia | marcas | visita | recompra | ${plata?"pago | ":""}seguimiento | compras por marca | lo que más compra (6 meses) | notas`);
   cs.forEach(c=>{
     const vs=ventasDe(c.id);
     const comp=(c.marcas||[]).map(m=>{const vm=vs.filter(v=>v.marca===m);if(!vm.length)return `${m}: sin compras`;
@@ -2576,7 +2595,7 @@ function ctxIA(){
     const top=[...new Set(it.map(x=>x.estilo))].map(e=>[e,it.filter(x=>x.estilo===e).reduce((s,x)=>s+x.l,0)]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([e,l])=>`${e} ${n1(l)} L`).join(", ");
     const ua=actsDe(c.id).filter(a=>!esTarea(a)&&a.nota).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")).pop();
     const notas=iaLimpio([c.notas,ua?`última visita ${fdate(ua.fecha)}: ${ua.nota}`:""].filter(Boolean).join(" · ")).slice(0,220);
-    L.push(`- ${c.nombre} | ${c.tipo||"—"} | ${c.zona||"sin zona"}${c.comuna?"/"+c.comuna:""} | ${ESTADOS[c.estado]||c.estado||"—"} | ${impOf(c)} | ${(c.marcas||[]).join("+")||"—"} | visita: ${semVisita(c).text} | recompra: ${semRecompra(c).text||"—"} | ${plata?`pago: ${semPago(c).text} | `:""}seguimiento: ${semSeg(c).text} | ${comp} | ${top||"—"}${notas?` | notas: ${notas}`:""}`);
+    L.push(`- [${refDe(c)}] ${c.nombre} | ${c.tipo||"—"} | ${c.zona||"sin zona"}${c.comuna?"/"+c.comuna:""} | ${ESTADOS[c.estado]||c.estado||"—"} | ${impOf(c)} | ${(c.marcas||[]).join("+")||"—"} | visita: ${semVisita(c).text} | recompra: ${semRecompra(c).text||"—"} | ${plata?`pago: ${semPago(c).text} | `:""}seguimiento: ${semSeg(c).text} | ${comp} | ${top||"—"}${notas?` | notas: ${notas}`:""}`);
   });
   const txt=L.join("\n");
   return txt.length>58000?txt.slice(0,58000)+"\n(…lista recortada por tamaño)":txt;
@@ -2592,53 +2611,89 @@ function iaFormato(txt){
     if(s)html+=`<p>${neg(s.replace(/^#+\s*/,""))}</p>`});
   return html+(ul?"</ul>":"");
 }
+/* atajos que propone la IA: solo para clientes que existen en esta cuenta */
+function iaBotones(bs){
+  return (bs||[]).slice(0,3).map(b=>{
+    if(b.tipo==="ruta"&&/^\d{4}-\d{2}-\d{2}$/.test(b.fecha||"")&&visibleTabs().includes("ruta"))return `<button type="button" class="btn sm" data-act="iaRuta" data-f="${b.fecha}">🗺️ Ruta del ${fdate(b.fecha)}</button>`;
+    const id=S.ia.refs?.[b.ref],c=id&&S.clientes.find(x=>x.id===id);if(!c)return"";
+    const tel=(c.telefono||"").replace(/\D/g,""),num=tel.length===9?"56"+tel:tel;
+    if(b.tipo==="cliente")return `<button type="button" class="btn sm" data-act="iaFicha" data-id="${c.id}">📇 ${esc(c.nombre)}</button>`;
+    if(b.tipo==="como_llegar"&&mapsUrl(c))return `<a class="btn sm" href="${mapsUrl(c,!!c.gps)}" target="_blank" rel="noopener">🧭 Cómo llegar · ${esc(c.nombre)}</a>`;
+    if(b.tipo==="llamar"&&tel)return `<a class="btn sm" href="tel:+${num}">📞 Llamar · ${esc(c.nombre)}</a>`;
+    if(b.tipo==="whatsapp"&&tel)return `<a class="btn sm" href="https://wa.me/${num}" target="_blank" rel="noopener">WhatsApp · ${esc(c.nombre)}</a>`;
+    return"";
+  }).join("");
+}
+const iaBotonesHtml=bs=>{const h=iaBotones(bs);return h?`<div class="ia-btns">${h}</div>`:""};
+/* mueve la app según lo que pidió la persona (solo navegar: nunca cambia datos) */
+function iaIr(n){
+  if(!n||!n.tipo||n.tipo==="ninguno")return false;
+  const vt=visibleTabs(),ir=tab=>{closeSheet();S.tab=tab;render();window.scrollTo(0,0)};
+  if(n.tipo==="pestana"&&vt.includes(n.pestana)&&n.pestana!=="equipo"){ir(n.pestana);return true}
+  if(n.tipo==="ruta"&&vt.includes("ruta")){if(/^\d{4}-\d{2}-\d{2}$/.test(n.fecha||""))S.rutaFecha=n.fecha;ir("ruta");return true}
+  if(n.tipo==="clientes"){S.q="";S.fSem="todos";S.fMarca="todas";S.fZona=n.zona&&S.cfg.zonas.includes(n.zona)?n.zona:"todas";ir("clientes");return true}
+  if(n.tipo==="cliente"){const id=S.ia.refs?.[n.ref];if(id&&S.clientes.some(c=>c.id===id)){closeSheet();clientDetail(id);return true}}
+  return false;
+}
 function iaPintar(){
+  vozPintar();
   const log=$("#iaLog");if(!log)return;const I=S.ia;
   const aviso={falta_sql:"Falta activar el asistente en la base de datos: hay que pegar una vez el bloque SQL del asistente en Supabase (SQL Editor).",offline:"Sin conexión: el asistente necesita internet.",carga:"No se pudo cargar la memoria del asistente. Igual puedes preguntar."}[I.err];
   log.innerHTML=(aviso?`<div class="banner">${aviso}</div>`:"")+
     (I.log.length?I.log.map(m=>m.rol==="yo"?`<div class="ia-msg yo" data-notr>${esc(m.txt)}</div>`
       :m.cargando?`<div class="ia-msg ia pensando">Pensando…</div>`
-      :`<div class="ia-msg ia${m.error?" err":""}" data-notr>${m.error?esc(m.txt):iaFormato(m.txt)}</div>`).join("")
-    :(I.cargado||I.err?`<div class="muted small">Aún no le has preguntado nada. Prueba con una de las preguntas de abajo.</div>`:`<div class="muted small">Cargando…</div>`));
+      :`<div class="ia-msg ia${m.error?" err":""}" data-notr>${m.error?esc(m.txt):iaFormato(m.txt)}${m.error?"":iaBotonesHtml(m.botones)}</div>`).join("")
+    :(I.cargado||I.err?`<div class="muted small">Aún no le has preguntado nada. Prueba con una de las preguntas de abajo${SR_VOZ?" o toca 🎙️ y habla":""}.</div>`:`<div class="muted small">Cargando…</div>`));
   const fi=$("#iaFicha");if(fi)fi.innerHTML=I.ficha?`<div class="ia-ficha" data-notr>${esc(I.ficha)}</div>`:`<div class="muted">Todavía nada. Se va armando sola con tus preguntas.</div>`;
   const b=$("#iaEnviar");if(b){b.disabled=I.ocupado;b.textContent=I.ocupado?"…":"Preguntar"}
+  const mic=$("#iaMic");if(mic){mic.classList.toggle("on",!!I.escuchando);mic.textContent=I.escuchando?"⏹":"🎙️";mic.disabled=I.ocupado}
+  const q=$("#iaQ");if(q&&I.escuchando)q.value=I.parcial||"";
   document.querySelectorAll("#iaRapidas button").forEach(x=>x.disabled=I.ocupado);
-  const sh=$("#modal .sheet");if(sh)sh.scrollTop=sh.scrollHeight;
+  const sh=$("#modal .sheet");if(sh&&$("#modal .ia"))sh.scrollTop=sh.scrollHeight;
 }
 async function iaCargar(){
   try{
     const[m,c]=await Promise.all([SB.from("ia_memoria").select("ficha").maybeSingle(),SB.from("ia_consultas").select("data,creado").order("creado",{ascending:false}).limit(20)]);
     if(m.error||c.error)throw m.error||c.error;
     S.ia.ficha=m.data?.ficha||"";
-    S.ia.log=[...(c.data||[])].reverse().flatMap(x=>[{rol:"yo",txt:x.data?.pregunta||""},{rol:"ia",txt:x.data?.respuesta||""}]).filter(x=>x.txt);
+    const viejos=[...(c.data||[])].reverse().flatMap(x=>[{rol:"yo",txt:x.data?.pregunta||""},{rol:"ia",txt:x.data?.respuesta||""}]).filter(x=>x.txt);
+    S.ia.log=[...viejos,...S.ia.log.filter(x=>x.nuevo)];
     S.ia.cargado=true;S.ia.err="";
   }catch(e){const m=e?.message||"";S.ia.err=S.offline||/Failed to fetch|NetworkError/i.test(m)?"offline":/ia_(consultas|memoria)|does not exist|schema cache/i.test(m)?"falta_sql":"carga"}
   iaPintar();
 }
 function iaSheet(){
   if(!iaOn()){toast("No tienes permiso para usar el asistente");return}
+  S.ia.card=false;
   openSheet(`<div class="ia stack">
     <div class="row spread" style="flex-wrap:nowrap"><h2>✨ Asistente</h2><button class="btn sm" data-act="close">Cerrar</button></div>
-    <div class="muted small">Pregúntale sobre tu cartera. Responde con los datos que ves en la app y no cambia nada por su cuenta.</div>
-    <details class="card"><summary>🧠 Lo que recuerda de ti</summary><div id="iaFicha" class="small"></div>
+    <div class="muted small">Pregúntale sobre tu cartera o pídele que te lleve a una pantalla. Responde con los datos que ves en la app y no cambia nada por su cuenta.</div>
+    <details class="card"><summary>⚙️ Voz y memoria</summary>
+      ${SR_VOZ||window.speechSynthesis?`<div class="checks" style="margin-top:8px;flex-direction:column;gap:8px">
+        ${window.speechSynthesis?`<label><input type="checkbox" id="vozLeer" ${vozPref("leer")?"checked":""}> 🔊 Leer en voz alta las respuestas a lo que dicto</label>`:""}
+        ${SR_VOZ?`<label><input type="checkbox" id="vozSeguir" ${vozPref("seguir")?"checked":""}> 🎙️ Seguir escuchando después de responder (manos libres)</label>`:""}
+      </div>`:""}
+      <div class="lbl small" style="font-weight:600;margin-top:10px">🧠 Lo que recuerda de ti</div><div id="iaFicha" class="small"></div>
       <div class="muted small" style="margin-top:8px">Se guarda en tu cuenta y solo tú la ves. Al preguntar, se envía a Gemini (Google) un resumen de tu cartera sin teléfonos, RUT, correos ni direcciones. En el plan gratis, Google puede usar lo enviado para mejorar sus productos.</div>
       <div class="row" style="margin-top:8px"><button class="btn sm danger" type="button" data-act="iaBorrar">Borrar memoria e historial</button></div></details>
     <div id="iaLog" class="ia-log" aria-live="polite"></div>
     <div class="chips" id="iaRapidas">${IA_RAPIDAS().map((q,i)=>`<button type="button" class="chip strong lnk" data-act="iaRapida" data-v="${i}">${esc(q)}</button>`).join("")}</div>
-    <form id="iaForm" class="ia-form"><textarea id="iaQ" rows="2" maxlength="1500" placeholder="Escribe tu pregunta…" aria-label="Tu pregunta"></textarea><button class="btn primary" type="submit" id="iaEnviar">Preguntar</button></form>
+    <form id="iaForm" class="ia-form"><textarea id="iaQ" rows="2" maxlength="1500" placeholder="${SR_VOZ?"Escribe o toca 🎙️ y habla…":"Escribe tu pregunta…"}" aria-label="Tu pregunta"></textarea>${SR_VOZ?`<button class="btn" type="button" id="iaMic" data-act="voz" aria-label="Hablar">🎙️</button>`:""}<button class="btn primary" type="submit" id="iaEnviar">Preguntar</button></form>
   </div>`);
   iaPintar();
   if(window.innerWidth>700)$("#iaQ")?.focus();
   if(!S.ia.cargado)iaCargar();
 }
-async function iaEnviar(q){
+async function iaEnviar(q,opt={}){
   q=String(q||"").trim();if(!q||S.ia.ocupado)return;
-  if(S.offline){toast("Sin conexión: el asistente necesita internet");return}
-  S.ia.ocupado=true;S.ia.log.push({rol:"yo",txt:q},{rol:"ia",cargando:true});
+  if(S.offline){toast("Sin conexión: el asistente necesita internet");if(opt.voz)hablar("Sin conexión. El asistente necesita internet.");return}
+  const voz=!!opt.voz;
+  S.ia.ocupado=true;S.ia.porVoz=voz;S.ia.log.push({rol:"yo",txt:q,nuevo:true},{rol:"ia",cargando:true});
+  if(!$("#iaLog"))S.ia.card=true;
   const qi=$("#iaQ");if(qi)qi.value="";iaPintar();
   let res=null,err="";
   try{
-    const{data,error}=await SB.functions.invoke(IA_FUNCION,{body:{pregunta:q,contexto:ctxIA(),fecha:`${DIAS_L[wday(today())]} ${fdate(today())}`}});
+    const{data,error}=await SB.functions.invoke(IA_FUNCION,{body:{pregunta:q,contexto:ctxIA(),fecha:`${DIAS_L[wday(today())]} ${fdate(today())}`,hoy:today(),voz}});
     if(error){
       let m="";try{m=(await error.context?.json?.())?.error||""}catch(_){}
       const st=error.context?.status;
@@ -2648,11 +2703,17 @@ async function iaEnviar(q){
     }else res=data;
   }catch(e){err="No se pudo consultar al asistente. Intenta de nuevo."}
   S.ia.log=S.ia.log.filter(m=>!m.cargando);
-  if(res?.respuesta){S.ia.log.push({rol:"ia",txt:res.respuesta});if(typeof res.ficha==="string")S.ia.ficha=res.ficha;S.ia.err="";
-    if(res.guardado===false)toast("Respondió, pero no pudo guardarlo en la memoria")}
-  else S.ia.log.push({rol:"ia",txt:err||"No llegó respuesta. Intenta de nuevo.",error:true});
+  let dicho="";
+  if(res?.respuesta){
+    S.ia.log.push({rol:"ia",txt:res.respuesta,botones:res.botones||[],nuevo:true});
+    if(typeof res.ficha==="string")S.ia.ficha=res.ficha;S.ia.err="";dicho=res.respuesta;
+    if(res.guardado===false)toast("Respondió, pero no pudo guardarlo en la memoria");
+    // si pidió ir a una pantalla, la app se mueve y la respuesta queda en la tarjeta de abajo
+    if(iaIr(res.navegar))S.ia.card=true;
+  }else{S.ia.log.push({rol:"ia",txt:err||"No llegó respuesta. Intenta de nuevo.",error:true,nuevo:true});dicho=err||"No llegó respuesta."}
   S.ia.ocupado=false;iaPintar();
-  if(window.innerWidth>700)$("#iaQ")?.focus();
+  if(voz)hablar(dicho,()=>{if(vozPref("seguir")&&res?.respuesta&&(S.ia.card||$("#iaLog")))setTimeout(escuchar,350)});
+  else if(window.innerWidth>700)$("#iaQ")?.focus();
 }
 async function iaBorrar(){
   if(!await confirmar("¿Borrar la memoria del asistente?","Se borran tus preguntas, sus respuestas y lo que recuerda de ti. Tus clientes y ventas no se tocan.","Sí, borrar","Cancelar"))return;
@@ -2661,6 +2722,62 @@ async function iaBorrar(){
     if(a.error||b.error)throw a.error||b.error;
     S.ia={...IA_VACIO(),cargado:true};iaPintar();toast("Memoria borrada");
   }catch(e){toast(errMsg(e))}
+}
+
+/* ---------- voz: dictar con el micrófono y escuchar las respuestas ----------
+   Usa el reconocimiento de voz del propio navegador (Chrome en Android; Safari en iPhone con Siri activado). */
+const SR_VOZ=window.SpeechRecognition||window.webkitSpeechRecognition||null;
+function vozPrefs(){try{return JSON.parse(localStorage.getItem("cartera-voz")||"{}")||{}}catch(e){return{}}}
+const vozPref=k=>({leer:true,seguir:false,...vozPrefs()})[k];
+function vozGuardar(k,v){const p=vozPrefs();p[k]=v;try{localStorage.setItem("cartera-voz",JSON.stringify(p))}catch(e){}}
+let ESCUCHA=null;
+function vozParar(){try{ESCUCHA?.abort()}catch(e){}ESCUCHA=null;S.ia.escuchando=false;try{window.speechSynthesis?.cancel()}catch(e){}}
+function escuchar(){
+  if(!SR_VOZ){toast("Este navegador no permite dictar. Usa Chrome en el celular.");return}
+  if(!iaOn()||S.ia.ocupado)return;
+  if(S.offline){toast("Sin conexión: el asistente necesita internet");return}
+  if(ESCUCHA){try{ESCUCHA.stop()}catch(e){}return}   // tocar de nuevo = terminé de hablar
+  try{window.speechSynthesis?.cancel()}catch(e){}
+  const r=new SR_VOZ();r.lang="es-CL";r.interimResults=true;r.continuous=false;r.maxAlternatives=1;
+  let final="",fallo="";ESCUCHA=r;S.ia.escuchando=true;S.ia.parcial="";
+  if(!$("#iaLog"))S.ia.card=true;
+  r.onresult=e=>{let t="",f="";for(const x of e.results){t+=x[0].transcript;if(x.isFinal)f+=x[0].transcript}S.ia.parcial=t;if(f)final=f;iaPintar()};
+  r.onerror=e=>{fallo=e.error};
+  r.onend=()=>{
+    ESCUCHA=null;S.ia.escuchando=false;const q=(final||S.ia.parcial||"").trim();S.ia.parcial="";
+    if(fallo==="not-allowed"||fallo==="service-not-allowed")toast("Falta dar permiso de micrófono al navegador");
+    else if(!q&&fallo!=="aborted")toast("No te escuché. Toca 🎙️ y habla.");
+    if(!q&&!S.ia.log.length&&!$("#iaLog"))S.ia.card=false;
+    iaPintar();if(q)iaEnviar(q,{voz:true});
+  };
+  try{r.start();navigator.vibrate?.(30)}catch(e){ESCUCHA=null;S.ia.escuchando=false}
+  iaPintar();
+}
+function hablar(txt,alTerminar){
+  const sy=window.speechSynthesis;
+  if(!sy||!vozPref("leer")||!txt){alTerminar?.();return}
+  const limpio=String(txt).replace(/\*\*/g,"").replace(/^\s*(?:[-•*]|\d+[.)])\s+/gm,"").replace(/[#_`>]/g,"").replace(/\$\s?([\d.]+)/g,"$1 pesos");
+  try{
+    sy.cancel();const u=new SpeechSynthesisUtterance(limpio);u.lang="es-CL";u.rate=1.05;
+    const vs=sy.getVoices(),v=vs.find(x=>/^es[-_]CL/i.test(x.lang))||vs.find(x=>/^es[-_](419|US|MX)/i.test(x.lang))||vs.find(x=>/^es/i.test(x.lang));if(v)u.voice=v;
+    let listo=false;const fin=()=>{if(!listo){listo=true;alTerminar?.()}};
+    u.onend=fin;u.onerror=fin;sy.speak(u);
+  }catch(e){alTerminar?.()}
+}
+/* tarjeta de voz: se ve sobre cualquier pantalla cuando el chat está cerrado */
+function vozPintar(){
+  const card=$("#vozCard"),fab=$(".fab-mic");if(!card)return;const I=S.ia;
+  if(fab){fab.classList.toggle("on",!!I.escuchando);fab.textContent=I.escuchando?"⏹":"🎙️";fab.setAttribute("aria-label",I.escuchando?"Terminar de hablar":"Hablarle al asistente")}
+  const ver=!!I.card&&!$("#iaLog");card.hidden=!ver;if(!ver)return;
+  const ult=[...I.log].reverse().find(m=>m.rol==="ia"&&!m.cargando);
+  const estado=I.escuchando?`<div class="voz-estado">🎙️ Escuchando…</div><div class="voz-txt" data-notr>${esc(I.parcial||"Habla ahora")}</div>`
+    :I.ocupado?`<div class="voz-estado">⏳ Pensando…</div><div class="voz-txt muted" data-notr>${esc([...I.log].reverse().find(m=>m.rol==="yo")?.txt||"")}</div>`
+    :ult?`<div class="voz-txt${ult.error?" ":""}" data-notr${ult.error?' style="color:var(--bad)"':""}>${ult.error?esc(ult.txt):iaFormato(ult.txt)}</div>${ult.error?"":iaBotonesHtml(ult.botones)}`:"";
+  card.innerHTML=`${estado}<div class="row" style="gap:8px;flex-wrap:nowrap">
+    ${SR_VOZ?`<button type="button" class="btn primary big" style="flex:1" data-act="voz"${I.ocupado?" disabled":""}>${I.escuchando?"⏹ Listo, terminé":"🎙️ Hablar"}</button>`:""}
+    ${window.speechSynthesis&&ult&&!I.escuchando&&!I.ocupado?`<button type="button" class="btn big" data-act="vozRepetir" aria-label="Repetir en voz alta">🔊</button>`:""}
+    <button type="button" class="btn big" data-act="ia" aria-label="Abrir el chat">💬</button>
+    <button type="button" class="btn big" data-act="vozCerrar" aria-label="Cerrar">✕</button></div>`;
 }
 
 /* ---------- events ---------- */
@@ -2681,6 +2798,11 @@ document.addEventListener("click",async e=>{
     case"ia":iaSheet();break;
     case"iaRapida":iaEnviar(IA_RAPIDAS()[Number(t.dataset.v)]);break;
     case"iaBorrar":iaBorrar();break;
+    case"voz":escuchar();break;
+    case"vozCerrar":vozParar();S.ia.card=false;iaPintar();break;
+    case"vozRepetir":{const u=[...S.ia.log].reverse().find(m=>m.rol==="ia"&&!m.cargando);if(u)hablar(u.txt);break}
+    case"iaRuta":if(iaIr({tipo:"ruta",fecha:t.dataset.f}))S.ia.card=true;iaPintar();break;
+    case"iaFicha":if(S.clientes.some(c=>c.id===id)){if($("#iaLog"))S.ia.card=false;clientDetail(id);iaPintar()}break;
     case"lang":{const p=prefsLocal();p.idioma=t.dataset.v;try{localStorage.setItem("cartera-prefs",JSON.stringify(p));localStorage.setItem("cartera-ef",JSON.stringify({...prefsEf(),idioma:t.dataset.v}))}catch(err){}location.reload();break}
     case"authMode":authScreen(t.dataset.m);break;
     case"recheck":afterLogin();break;
@@ -2801,6 +2923,8 @@ document.addEventListener("change",e=>{
   if(e.target.id==="sCli"){const cl=S.clientes.find(c=>c.id===e.target.value),mk=cl?.marcas?.length===1?cl.marcas[0]:null;
     if(mk&&mk!==$("#sMarca").value)document.querySelector(`#saleForm [data-act="sMarca"][data-v="${mk}"]`)?.click()}
   if(e.target.id==="tareasDe"){S.tareasDe=e.target.value;render()}
+  if(e.target.id==="vozLeer"){vozGuardar("leer",e.target.checked);if(!e.target.checked)try{speechSynthesis.cancel()}catch(err){}}
+  if(e.target.id==="vozSeguir")vozGuardar("seguir",e.target.checked);
   if(e.target.id==="bxCli")bVentasCli();
   if(e.target.id==="bxVenta"){const v=S.ventas.find(x=>x.id===e.target.value);if(v?.factura)$("#bxFact").value=v.factura}
   if(e.target.dataset.bid&&$("#bxN"))$("#bxN").textContent=$("#modal").querySelectorAll("[data-bid]:checked").length;
