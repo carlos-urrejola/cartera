@@ -68,22 +68,32 @@ const ESQUEMA = {
   required: ["respuesta", "ficha"],
 };
 
+// Si un modelo está saturado (503) reintenta una vez y después prueba el siguiente.
+// Si un modelo no existe (404) o se acabó su cuota (429), pasa directo al siguiente.
 async function gemini(key: string, cuerpo: unknown) {
-  const modelos = [Deno.env.get("GEMINI_MODEL") || "gemini-3.7-flash", "gemini-flash-latest"];
-  let ultimo = "";
+  const modelos = [Deno.env.get("GEMINI_MODEL") || "gemini-3.7-flash", "gemini-flash-latest", "gemini-flash-lite-latest"];
+  const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  let ultimo = "", saturado = false, cuota = false;
   for (const m of [...new Set(modelos)]) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify(cuerpo),
-    });
-    const d = await r.json().catch(() => ({}));
-    if (r.ok) return { d, modelo: m };
-    ultimo = d?.error?.message || `error ${r.status}`;
-    if (r.status === 429) throw Object.assign(new Error("cuota"), { status: 429 });
-    if (r.status === 400 && /api key/i.test(ultimo)) throw Object.assign(new Error("clave"), { status: 401 });
-    if (r.status !== 404) break; // si el modelo no existe, prueba el siguiente
+    for (let intento = 0; intento < 2; intento++) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify(cuerpo),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) return { d, modelo: m };
+      ultimo = d?.error?.message || `error ${r.status}`;
+      if (r.status === 400 && /api key/i.test(ultimo)) throw Object.assign(new Error("clave"), { status: 401 });
+      if ((r.status === 503 || r.status === 500) && intento === 0) { saturado = true; await espera(1500); continue; }
+      if (r.status === 503 || r.status === 500) saturado = true;
+      if (r.status === 429) cuota = true;
+      if (r.status === 400) throw Object.assign(new Error(ultimo), { status: 502 });
+      break; // pasa al siguiente modelo
+    }
   }
+  if (saturado) throw Object.assign(new Error("saturado"), { status: 503 });
+  if (cuota) throw Object.assign(new Error("cuota"), { status: 429 });
   throw Object.assign(new Error(ultimo), { status: 502 });
 }
 
@@ -154,6 +164,7 @@ Deno.serve(async (req) => {
     salida = JSON.parse(texto);
   } catch (e) {
     const s = (e as { status?: number }).status;
+    if (s === 503) return json({ error: "Gemini está saturado en este momento (le pasa a Google en horas de mucho uso). Prueba de nuevo en un par de minutos." }, 503);
     if (s === 429) return json({ error: "Se acabó la cuota gratis de Gemini por ahora. Prueba en un rato o mañana." }, 429);
     if (s === 401) return json({ error: "La clave de Gemini no es válida. Revisa el secreto GEMINI_API_KEY en Supabase." }, 500);
     return json({ error: "No se pudo hablar con Gemini: " + (e as Error).message }, 502);
