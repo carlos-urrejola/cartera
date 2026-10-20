@@ -73,27 +73,13 @@ h3{font-family:var(--display);font-weight:600;font-size:16px;margin:0}
 .btn.navbtn{display:none}
 nav.tabs{position:fixed;top:0;bottom:0;left:0;width:248px;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px;padding:calc(14px + env(safe-area-inset-top,0px)) 10px calc(14px + env(safe-area-inset-bottom,0px));z-index:35;overflow-y:auto;overscroll-behavior:contain}
 nav.tabs .nav-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 8px 12px}
-nav.tabs .nav-hd b{font-family:var(--display);font-weight:800;font-size:16px;line-height:1.1;white-space:nowrap}
-nav.tabs .nav-marca{display:flex;align-items:center;gap:9px;min-width:0}
-nav.tabs .nav-marca img{width:28px;height:28px;border-radius:7px;flex:none}
-.btn.nav-tog{background:none;border-color:transparent;padding:6px;color:var(--muted);flex:none}
-.btn.nav-tog:hover{background:var(--surface-2);color:var(--ink)}
-@media (min-width:900px){
-  body,nav.tabs{transition:padding-left .18s ease,width .18s ease}
-  body.nav-mini{padding-left:64px}
-  body.nav-mini nav.tabs{width:64px;padding-inline:8px}
-  body.nav-mini nav.tabs .nav-hd{flex-direction:column;gap:10px;padding:2px 0 10px}
-  body.nav-mini nav.tabs .nav-marca b,body.nav-mini nav.tabs .subnav,body.nav-mini nav.tabs > button > span:not(.ico):not(.nav-badge){display:none}
-  body.nav-mini nav.tabs > button[data-tab],body.nav-mini nav.tabs > .nav-accion{justify-content:center;padding:10px 0;position:relative}
-  body.nav-mini nav.tabs > button .nav-badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;font-size:10px;padding:0 4px}
-}
-nav.tabs button[data-tab],nav.tabs .nav-accion{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:10px 12px;font-weight:600;font-size:15px;color:var(--muted);cursor:pointer}
-nav.tabs button[data-tab] .ico,nav.tabs .nav-accion .ico{width:22px;height:20px;display:inline-flex;align-items:center;justify-content:center;flex:none}
-nav.tabs .ico svg{display:block}
-nav.tabs button[data-tab]:hover,nav.tabs .nav-accion:hover{background:var(--surface-2);color:var(--ink)}
+nav.tabs .nav-hd b{font-family:var(--display);font-weight:800;font-size:18px;line-height:1.1}
+nav.tabs .nav-x{display:none}
+nav.tabs button[data-tab]{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:10px 12px;font-weight:600;font-size:15px;color:var(--muted);cursor:pointer}
+nav.tabs button[data-tab] .ico{width:22px;text-align:center;flex:none}
+nav.tabs button[data-tab]:hover{background:var(--surface-2);color:var(--ink)}
 nav.tabs button[aria-current="page"]{background:var(--surface-2);color:var(--ink);box-shadow:inset 3px 0 0 var(--ink)}
 .nav-fondo{display:none}
-nav.tabs .nav-accion{color:var(--ink);margin-bottom:6px;border:1px solid var(--line)}
 nav.tabs .subnav{display:flex;flex-direction:column;gap:1px;margin:2px 0 8px 22px;padding-left:12px;border-left:1px solid var(--line)}
 nav.tabs .subnav button[data-tab]{font-size:14px;font-weight:500;padding:7px 10px;box-shadow:none}
 nav.tabs .subnav button[aria-current="true"]{background:var(--surface-2);color:var(--ink);font-weight:600}
@@ -106,9 +92,10 @@ nav.tabs .subnav .nav-badge{min-width:18px;height:18px;font-size:11px;padding:0 
 .navbtn .nav-badge{position:absolute;top:-7px;right:-7px;box-shadow:0 0 0 2px var(--bg)}
 @media (min-width:900px){body{padding-left:248px}}
 @media (max-width:899px){
-  .btn.navbtn{display:inline-flex;line-height:1;padding:8px 9px}
+  .btn.navbtn{display:inline-flex;font-size:20px;line-height:1;padding:7px 11px}
   nav.tabs{width:min(280px,84vw);z-index:55;transform:translateX(-105%);visibility:hidden;transition:transform .2s ease,visibility .2s}
   body.menu-abierto nav.tabs{transform:none;visibility:visible;box-shadow:0 0 40px rgba(0,0,0,.35)}
+  nav.tabs .nav-x{display:inline-flex}
   body.menu-abierto .nav-fondo{display:block;position:fixed;inset:0;background:rgba(10,14,12,.45);z-index:54}
 }
 @media (prefers-reduced-motion:reduce){nav.tabs{transition:none}}
@@ -317,6 +304,9 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 .voz-card .voz-txt p{margin:0 0 6px}.voz-card .voz-txt ul{margin:2px 0 6px;padding-left:18px}
 .voz-card .btn.big{min-height:48px;padding:10px 16px;font-size:16px}
 .voz-estado{font-weight:600;display:flex;align-items:center;gap:8px}
+/* cuentas de marca: solo mirar (los botones que cambian datos no se muestran) */
+body.solo-mira .fab,body.solo-mira [data-act="newAct"],body.solo-mira [data-act="quickVisit"],body.solo-mira [data-act="newSale"],body.solo-mira [data-act="pay"],body.solo-mira [data-act="unpay"],body.solo-mira [data-act="editSale"],body.solo-mira [data-act="editAct"],body.solo-mira [data-act="tareaEstado"],body.solo-mira [data-act="editClient"],body.solo-mira [data-act="newClient"]{display:none!important}
+.alta-txt{white-space:pre-wrap;font-family:var(--mono);font-size:13px;background:var(--surface-2);border-radius:8px;padding:10px 12px;overflow-wrap:anywhere}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}}
 </style>
 </head>
@@ -324,7 +314,7 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 
 <div class="app">
   <header class="top">
-    <div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn navbtn" data-act="menuNav" aria-label="Abrir menú" aria-expanded="false" aria-controls="navLateral"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9.5 4v16"/></svg><span class="nav-badge" hidden></span></button><div><h1>Cartera Valdivia</h1><div class="muted small">Clientes de cerveza El Growler y kombucha Animal Social</div></div></div>
+    <div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn navbtn" data-act="menuNav" aria-label="Abrir menú" aria-expanded="false" aria-controls="navLateral">☰<span class="nav-badge" hidden></span></button><div><h1>Cartera Valdivia</h1><div class="muted small" id="subtit">Clientes de cerveza El Growler y kombucha Animal Social</div></div></div>
     <div class="row" id="hdr"></div>
   </header>
   <div id="status"></div>
@@ -334,17 +324,16 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 <div id="vozCard" class="voz-card" role="status" aria-live="polite" hidden></div>
 <div class="nav-fondo" data-act="cerrarNav"></div>
 <nav class="tabs" id="navLateral" aria-label="Secciones">
-  <div class="nav-hd"><span class="nav-marca"><img src="icon-192.png" alt=""><b>Cartera Valdivia</b></span><button class="btn nav-tog" data-act="navTog" aria-label="Cerrar barra lateral" title="Cerrar barra lateral"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9.5 4v16"/></svg></button></div>
-  <button class="nav-accion" data-act="nuevoPedido" title="Nuevo pedido"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a2 2 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></span><span>Nuevo pedido</span></button>
-  <button data-tab="resumen" title="Resumen"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span>Resumen</span></button>
-  <button data-tab="tareas" title="Tareas"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h10M10 12h10M10 18h10"/><path d="m3.5 6 1.5 1.5L7.5 5"/><path d="m3.5 12 1.5 1.5L7.5 11"/><path d="m3.5 18 1.5 1.5L7.5 17"/></svg></span><span>Tareas</span><span class="nav-badge" hidden></span></button>
-  <button data-tab="ruta" title="Ruta"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5z"/><path d="M9 4v13M15 6.5v13"/></svg></span><span>Ruta</span></button>
-  <button data-tab="clientes" title="Clientes"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg></span><span>Clientes</span></button>
-  <button data-tab="ventas" title="Ventas"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></span><span>Ventas</span></button>
-  <button data-tab="barriles" title="Barriles"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="7" ry="2.5"/><path d="M5 5v14c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5"/><path d="M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></svg></span><span>Barriles</span></button>
-  <button data-tab="indices" title="Índices"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M8 16v-4M13 16V8M18 16V9"/></svg></span><span>Índices</span></button>
-  <button data-tab="ajustes" title="Ajustes"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></span><span>Ajustes</span></button>
-  <button data-tab="equipo" title="Equipo"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4"/><path d="m10.5 12.5 9-9M17 6l2.5 2.5M14.5 8.5 17 11"/></svg></span><span>Equipo</span></button>
+  <div class="nav-hd"><b>Cartera Valdivia</b><button class="btn sm nav-x" data-act="cerrarNav" aria-label="Cerrar menú">✕</button></div>
+  <button data-tab="resumen"><span class="ico" aria-hidden="true">📊</span><span>Resumen</span></button>
+  <button data-tab="tareas"><span class="ico" aria-hidden="true">📋</span><span>Tareas</span><span class="nav-badge" hidden></span></button>
+  <button data-tab="ruta"><span class="ico" aria-hidden="true">🗺️</span><span>Ruta</span></button>
+  <button data-tab="clientes"><span class="ico" aria-hidden="true">👥</span><span>Clientes</span></button>
+  <button data-tab="ventas"><span class="ico" aria-hidden="true">💰</span><span>Ventas</span></button>
+  <button data-tab="barriles"><span class="ico" aria-hidden="true">🛢️</span><span>Barriles</span></button>
+  <button data-tab="indices"><span class="ico" aria-hidden="true">📈</span><span>Índices</span></button>
+  <button data-tab="ajustes"><span class="ico" aria-hidden="true">⚙️</span><span>Ajustes</span></button>
+  <button data-tab="equipo"><span class="ico" aria-hidden="true">🔑</span><span>Equipo</span></button>
 </nav>
 <div id="modal"></div>
 <div id="toast" class="toast" hidden></div>
@@ -669,14 +658,14 @@ function weekStart(fecha){const w=wday(fecha);return addDays(fecha,w===0?-6:1-w)
 /* submenús del menú lateral: se despliegan bajo la sección abierta */
 S.tFiltro="todas";
 const TGRUPO={visita:["visita"],pedido:["recompra","dormido"],cobrar:["cobrar"],seg:["seg","prospecto"],barril:["barril"]};
-const TGRUPO_TXT={visita:"Visitas",pedido:"Llamar / ofrecer pedido",cobrar:"Cobros",seg:"Seguimientos",barril:"Barriles"};
+const TGRUPO_TXT={visita:"📍 Visitas",pedido:"📞 Llamar / ofrecer pedido",cobrar:"💰 Cobros",seg:"📅 Seguimientos",barril:"🛢️ Barriles"};
 function subItems(tab){
-  if(tab==="clientes")return[["lista","Listado de clientes"],...(can("editar_clientes")?[["nuevo","Crear cliente"]]:[]),["prospectos","Prospectos"],["atrasados","Atrasados"],["incompleta","Ficha incompleta"]];
+  if(tab==="clientes")return[["lista","Listado de clientes"],...(can("editar_clientes")?[["nuevo","+ Crear cliente"]]:[]),["prospectos","Prospectos"],["atrasados","✕ Con algo atrasado"],["incompleta","! Ficha incompleta"]];
   if(tab==="tareas")return[["todas","Todas"],...Object.keys(TGRUPO).filter(k=>k!=="barril"||verBarriles()).map(k=>[k,TGRUPO_TXT[k]])];
   if(tab==="ruta")return[["hoy","Hoy"],["manana","Mañana"]];
-  if(tab==="ventas")return[...(can("registrar_ventas")?[["nueva","Registrar venta"]]:[]),["pendientes","Por cobrar"],["mes","Del mes"],["todas","Todas"]];
-  if(tab==="barriles")return[["scan","Escanear"],["en_cliente","En clientes"],["lleno","Llenos"],["limpio","Limpios"],["vacio","Por lavar"],["todos","Todos"]];
-  if(tab==="indices")return[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","Armar gráfico"],...(can("ver_cobranza")?[["cobranza","Cobranza"]]:[]),...(can("ver_ingresos")?[["sueldo","Sueldo y meta"]]:[])];
+  if(tab==="ventas")return[...(can("registrar_ventas")?[["nueva","+ Registrar venta"]]:[]),["pendientes","Por cobrar"],["mes","Del mes"],["todas","Todas"]];
+  if(tab==="barriles")return[["scan","📷 Escanear"],["en_cliente","En clientes"],["lleno","Llenos"],["limpio","Limpios"],["vacio","Por lavar"],["todos","Todos"]];
+  if(tab==="indices")return[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","✚ Armar gráfico"],...(can("ver_cobranza")?[["cobranza","Cobranza"]]:[]),...(can("ver_ingresos")?[["sueldo","Sueldo y meta"]]:[])];
   return[];
 }
 function subActual(tab){
@@ -711,7 +700,6 @@ const esNueva=(x,v)=>x.fecha<=addDays(today(),1)&&!v.has(x.key);
 function sinVer(){try{if(!(ME.perfil?.activo&&S.dbState==="on"))return[];const v=vistos();return tareasAbiertas().filter(x=>esNueva(x,v))}catch(e){return[]}}
 function pendientesNav(){return sinVer().length}
 function navExtras(){
-  const np=document.querySelector('nav.tabs [data-act="nuevoPedido"]');if(np)np.hidden=!(ME.perfil&&can("registrar_ventas"));
   document.querySelectorAll("nav.tabs .subnav").forEach(x=>x.remove());
   const on=document.querySelector(`nav.tabs button[data-tab="${S.tab}"]:not([data-sub])`),subs=ME.perfil?subItems(S.tab):[];
   if(on&&subs.length){const cur=subActual(S.tab);const sv=S.tab==="tareas"?sinVer():[],cuenta=k=>k==="todas"?sv.length:TGRUPO[k]?sv.filter(x=>TGRUPO[k].includes(x.tipo)).length:0;
@@ -725,9 +713,6 @@ document.addEventListener("click",e=>{const tj=e.target.closest?.(".tarea[data-t
 
 /* menú lateral en el celular: abrir, cerrar y Escape */
 function navMenu(abrir){document.body.classList.toggle("menu-abierto",!!abrir);document.querySelector(".navbtn")?.setAttribute("aria-expanded",abrir?"true":"false");if(abrir)document.querySelector('nav.tabs [aria-current="page"]')?.focus()}
-/* barra lateral del PC: abierta o angosta (solo íconos); se recuerda en este dispositivo */
-function navMini(on){document.body.classList.toggle("nav-mini",!!on);const b=document.querySelector(".nav-tog");if(b){const t=on?"Abrir barra lateral":"Cerrar barra lateral";b.setAttribute("aria-label",t);b.title=t}try{localStorage.setItem("cartera-nav-mini",on?"1":"0")}catch(e){}}
-try{if(localStorage.getItem("cartera-nav-mini")==="1")navMini(true)}catch(e){}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("menu-abierto")){e.stopPropagation();navMenu(false)}},true);
 
 /* ---------- views ---------- */
@@ -735,6 +720,8 @@ function render(){
   document.querySelectorAll("nav.tabs .subnav").forEach(x=>x.remove());
   const vt=ME.perfil?visibleTabs():[];document.querySelectorAll("nav.tabs button[data-tab]").forEach(b=>{b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false");b.hidden=!vt.includes(b.dataset.tab)});
   navExtras();
+  document.body.classList.toggle("solo-mira",soloMira());
+  const st=$("#subtit");if(st)st.textContent=({kombucha:"Clientes de kombucha Animal Social",cerveza:"Clientes de cerveza El Growler"})[miMarca()]||"Clientes de cerveza El Growler y kombucha Animal Social";
   $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn redondo mas" data-act="newClient" aria-label="Nuevo cliente" title="Nuevo cliente">+</button>`:""}${iaOn()?`<button class="btn ia-boton" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨</button>`:""}<button class="btn redondo" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
   const v=$("#view");
@@ -760,7 +747,7 @@ function vResumen(){
   const muRows=Object.entries(r.mu).sort((a,b)=>b[1]-a[1]);
   const tHoy=tareasAbiertas().filter(x=>x.fecha<=today()),cHoy=new Set(tHoy.map(x=>x.c.id)).size;
   return `<div class="stack">
-  ${tHoy.length?`<button class="tbanner" data-tab="tareas"><span><b>📋 Hoy tienes ${tHoy.length} ${tHoy.length===1?"tarea":"tareas"}</b> <span class="muted small">en ${cHoy} ${cHoy===1?"cliente":"clientes"} · ${[...new Set(tHoy.map(x=>x.tipo))].map(k=>TAREA_ICO[k]).join(" ")}</span></span><span class="muted">Ver ›</span></button>`:""}
+  ${tHoy.length&&!soloMira()?`<button class="tbanner" data-tab="tareas"><span><b>📋 Hoy tienes ${tHoy.length} ${tHoy.length===1?"tarea":"tareas"}</b> <span class="muted small">en ${cHoy} ${cHoy===1?"cliente":"clientes"} · ${[...new Set(tHoy.map(x=>x.tipo))].map(k=>TAREA_ICO[k]).join(" ")}</span></span><span class="muted">Ver ›</span></button>`:""}
   <div class="row spread"><h2>Resumen de ${mesLabel(S.mes)}</h2>${S.equipo.length>1&&can("ver_todos_clientes")?`<div class="seg" role="group" aria-label="Ver"><button data-act="scope" data-v="todas" aria-pressed="${S.scope!=="mias"}">Todo el equipo</button><button data-act="scope" data-v="mias" aria-pressed="${S.scope==="mias"}">Solo lo mío</button></div>`:""}
     <div class="mnav"><button class="btn sm" data-act="mes" data-d="-1" aria-label="Mes anterior">‹</button><button class="btn sm" data-act="mes" data-d="0">Hoy</button><button class="btn sm" data-act="mes" data-d="1" aria-label="Mes siguiente">›</button></div></div>
   ${can("ver_ingresos")?`  <section class="card hero" aria-label="Ingreso estimado">
@@ -775,13 +762,13 @@ function vResumen(){
     </div>
   </section>`:""}
   <section class="kpis">
-    <button class="kpi kpi-btn" data-act="drill" data-k="cerveza"><span class="lab"><i class="sw beer"></i>Litros cerveza</span><span class="val">${n1(r.litros)} L</span><span class="muted small">${r.nC} ventas · ${money(r.netoC)} neto</span></button>
-    <button class="kpi kpi-btn" data-act="drill" data-k="kombucha"><span class="lab"><i class="sw kom"></i>Cajas kombucha</span><span class="val">${n1(r.cajasK)}</span><span class="muted small">${r.nK} ventas · ${money(r.netoK)} neto</span></button>
+    ${miMarca()==="kombucha"?"":`<button class="kpi kpi-btn" data-act="drill" data-k="cerveza"><span class="lab"><i class="sw beer"></i>Litros cerveza</span><span class="val">${n1(r.litros)} L</span><span class="muted small">${r.nC} ventas · ${money(r.netoC)} neto</span></button>`}
+    ${miMarca()==="cerveza"?"":`<button class="kpi kpi-btn" data-act="drill" data-k="kombucha"><span class="lab"><i class="sw kom"></i>Cajas kombucha</span><span class="val">${n1(r.cajasK)}</span><span class="muted small">${r.nK} ventas · ${money(r.netoK)} neto</span></button>`}
     ${can("ver_cobranza")?`<button class="kpi kpi-btn" data-act="drill" data-k="cobrar"><span class="lab">Por cobrar (con IVA)</span><span class="val">${money(porCobrar)}</span><span class="muted small">Vencido: ${money(vencido)}</span></button>`:""}
     <button class="kpi kpi-btn" data-act="drill" data-k="clientes"><span class="lab">Clientes</span><span class="val">${activos} activos</span><span class="muted small">${prosp} prospectos</span></button>
   </section>
   <section class="kpis">
-    <button class="kpi kpi-btn" data-act="drill" data-k="ruta"><span class="lab">Ruta de hoy</span><span class="val">${pend} por visitar</span><span class="muted small">Ver ruta de ${DIAS_L[wday(today())]} ›</span></button>
+    ${soloMira()?"":`<button class="kpi kpi-btn" data-act="drill" data-k="ruta"><span class="lab">Ruta de hoy</span><span class="val">${pend} por visitar</span><span class="muted small">Ver ruta de ${DIAS_L[wday(today())]} ›</span></button>`}
     <button class="kpi kpi-btn" data-act="drill" data-k="visitas"><span class="lab">Visitas del mes</span><span class="val">${r.visitas}</span><span class="muted small">${r.activ} activaciones</span></button>
     <button class="kpi kpi-btn" data-act="drill" data-k="muestras"><span class="lab">Muestras del mes</span><span class="val">${n1(r.muC+r.muK)}</span><span class="muted small"><i class="sw beer"></i> ${n1(r.muC)} cerveza · <i class="sw kom"></i> ${n1(r.muK)} kombucha</span></button>
     <button class="kpi kpi-btn" data-act="drill" data-k="conversion"><span class="lab">Conversión 60 días</span><span class="val">${cv.total?Math.round(cv.conv/cv.total*100)+"%":"—"}</span><span class="muted small">${cv.conv} de ${cv.total} activados compraron</span></button>
@@ -839,7 +826,7 @@ function vClientes(){
     <input id="q" type="search" placeholder="Buscar por nombre, RUT, dueño, zona o dirección" value="${esc(S.q)}" aria-label="Buscar">
     <select id="fMarca" aria-label="Marca">${opt("todas","Todas las marcas",S.fMarca)}${opt("cerveza","Cerveza",S.fMarca)}${opt("kombucha","Kombucha",S.fMarca)}</select>
     <select id="fZona" aria-label="Zona">${opt("todas","Todas las zonas",S.fZona)}${S.cfg.zonas.map(z=>opt(z,z,S.fZona)).join("")}${opt("—","Sin zona",S.fZona)}</select>
-    <select id="fSem" aria-label="Estado">${opt("todos","Todos",S.fSem)}${opt("bad","Atrasados",S.fSem)}${opt("warn","! Con algo por atender",S.fSem)}${opt("ok","✓ Al día",S.fSem)}${opt("imp:A","Importancia A",S.fSem)}${opt("imp:B","Importancia B",S.fSem)}${opt("imp:C","Importancia C",S.fSem)}${opt("estado:prospecto","Prospectos",S.fSem)}${opt("estado:pausado","Pausados",S.fSem)}${opt("ficha","Ficha incompleta",S.fSem)}</select>
+    <select id="fSem" aria-label="Estado">${opt("todos","Todos",S.fSem)}${opt("bad","✕ Con algo atrasado",S.fSem)}${opt("warn","! Con algo por atender",S.fSem)}${opt("ok","✓ Al día",S.fSem)}${opt("imp:A","Importancia A",S.fSem)}${opt("imp:B","Importancia B",S.fSem)}${opt("imp:C","Importancia C",S.fSem)}${opt("estado:prospecto","Prospectos",S.fSem)}${opt("estado:pausado","Pausados",S.fSem)}${opt("ficha","! Ficha incompleta",S.fSem)}</select>
   </div>
   <div class="list">${cs.length?cs.map(clientRow).join(""):`<div class="empty">${S.clientes.length?"Ningún cliente coincide con el filtro.":"Aún no tienes clientes. Parte agregando bares, botillerías o almacenes que quieras visitar como prospectos."}${can("editar_clientes")?`<button class="btn primary" data-act="newClient">+ Agregar cliente</button>`:""}</div>`}</div></div>`;
 }
@@ -2156,6 +2143,7 @@ function actForm(clienteId,actId){
    <div class="field full"><label for="aCli">Cliente</label><select id="aCli" required><option value="">Elige un cliente</option>${clientOptions(cid)}</select></div>
    <div class="field"><label for="aFecha">Fecha</label><input id="aFecha" type="date" value="${a?.fecha||today()}"></div>
    <div class="field"><label for="aTipo">Tipo</label><select id="aTipo">${TIPOS_ACT.map(t=>`<option value="${t}"${(a?.tipo||"Visita")===t?" selected":""}>${t}</option>`).join("")}</select></div>
+   ${(()=>{const mk=a?.marcas||((cl?.marcas||[]).length===1?cl.marcas:[]);return `<div class="field full"><span class="lbl">Esta visita fue por</span><div class="checks"><label><input type="checkbox" id="aMkC" ${mk.includes("cerveza")?"checked":""}> Cerveza El Growler</label><label><input type="checkbox" id="aMkK" ${mk.includes("kombucha")?"checked":""}> Kombucha Animal Social</label></div><span class="muted small">Si algún día una marca tiene cuenta, solo ve las visitas que hiciste por ella.</span></div>`})()}
    <div class="field full"><span class="lbl">Muestras entregadas</span><div id="muLines" class="stack" style="gap:8px"></div><button type="button" class="btn sm" data-act="addMuLine" style="align-self:flex-start">+ Muestra</button><span class="muted small">Déjalo vacío si no entregaste muestras.</span></div>
    <div class="field"><label for="aRes">Resultado</label><select id="aRes">${RESULTADOS.map(r=>`<option value="${r}"${(a?.resultado||"")===r?" selected":""}>${r||"—"}</option>`).join("")}</select></div>
    <div class="field"><label for="aProxF">Próxima acción</label><input id="aProxF" type="date" value="${esc(a?"":(cl?.proxFecha&&cl.proxFecha>today()?cl.proxFecha:""))}"></div>
@@ -2371,7 +2359,14 @@ const PERMISOS=[
 const SB=(window.CARTERA_CONFIG&&window.supabase&&!/PEGA_AQUI/.test(window.CARTERA_CONFIG.url))?window.supabase.createClient(window.CARTERA_CONFIG.url,window.CARTERA_CONFIG.anonKey):null;
 const ME={user:null,perfil:null};
 const isAdmin=()=>ME.perfil?.rol==="admin"&&ME.perfil?.activo;
-const can=p=>isAdmin()||!!(ME.perfil?.activo&&ME.perfil?.permisos?.[p]);
+/* Cuenta de marca (ej. Animal Social): ve solo lo de su marca y solo mira. Igual que tiene() en la base de datos:
+   no conserva permisos, salvo ver montos de su marca y, si es de cerveza, los de barriles. */
+const MARCA_TXT={kombucha:"Kombucha Animal Social",cerveza:"Cerveza El Growler"};
+const miMarca=()=>(ME.perfil&&ME.perfil.rol!=="admin"&&ME.perfil.marca)||null;
+const soloMira=()=>!!miMarca();
+const can=p=>isAdmin()||!!(ME.perfil?.activo&&(miMarca()
+  ?(p==="ver_cobranza"||(miMarca()==="cerveza"&&(p==="ver_barriles"||p==="gestionar_barriles")&&ME.perfil.permisos?.[p]))
+  :ME.perfil?.permisos?.[p]));
 const nombreDe=id=>S.equipo.find(x=>x.id===id)?.nombre||"";
 const ownerOf=c=>c.asignado_a||c.creado_por;
 const KEYCACHE=()=>"cartera-cache-"+(ME.user?.id||"");
@@ -2433,6 +2428,14 @@ async function loadAll(){
   ME.perfil=perfil;
   S.clientes=cl.map(fromCliente);S.ventas=ve.map(r=>normVenta(fromHijo(r)));S.acts=ac.map(fromHijo);
   S.cfg=mergeCfg(cfg?.data);S.equipo=eq||[];S.barriles=bs.map(fromBarril);S.barrilErr=bErr;
+  // cuenta de marca: no lee las tablas; recibe sus datos ya filtrados desde el servidor
+  const mk=miMarca();
+  if(mk&&perfil?.activo){
+    const{data:dm,error:de}=await SB.rpc("datos_marca");if(de)throw de;
+    S.clientes=(dm?.clientes||[]).map(fromCliente);S.ventas=(dm?.ventas||[]).map(r=>normVenta(fromHijo(r)));S.acts=(dm?.actividades||[]).map(fromHijo);
+    S.cfg=mergeCfg(dm?.config);S.cfg.productos=S.cfg.productos.filter(p=>p.marca===mk);S.cfg.muestras=S.cfg.muestras.filter(m=>m.marca===mk);
+    if(mk!=="cerveza"){S.barriles=[];S.barrilErr=null}
+  }
   S.perfiles=isAdmin()?((await SB.from("perfiles").select("*").order("creado")).data||[]):[];
   S.offline=false;
   try{localStorage.setItem(KEYCACHE(),JSON.stringify({perfil,clientes:S.clientes,ventas:S.ventas,acts:S.acts,cfg:S.cfg,equipo:S.equipo,barriles:S.barriles,t:new Date().toISOString()}))}catch(e){}
@@ -2554,6 +2557,7 @@ async function afterLogin(){
   bAbrirPendiente();
 }
 function visibleTabs(){
+  if(soloMira())return["resumen","clientes","ventas",...(verBarriles()?["barriles"]:[]),"indices"];
   const t=["resumen","tareas","ruta","clientes"];
   if(can("ver_cobranza")||can("registrar_ventas"))t.push("ventas");
   if(verBarriles())t.push("barriles");
@@ -2576,33 +2580,121 @@ async function initCloud(){
 }
 
 /* ---------- equipo (solo admin) ---------- */
+/* equipo: cada cuenta con lo que puede VER y lo que puede MODIFICAR; cada casilla se guarda al tocarla */
+const PERM_GRUPOS=[["👀 Puede ver",["ver_todos_clientes","ver_cobranza","ver_ingresos","ver_barriles"]],["✏️ Puede modificar",["editar_clientes","registrar_ventas","eliminar","editar_ajustes","gestionar_barriles"]],["✨ Otros",["usar_ia"]]];
+const PERM_CORTO={ver_todos_clientes:"toda la cartera",ver_cobranza:"cobranza y montos",ver_ingresos:"ingresos y metas",ver_barriles:"barriles",editar_clientes:"clientes",registrar_ventas:"ventas",eliminar:"borrar",editar_ajustes:"ajustes",gestionar_barriles:"barriles",usar_ia:"asistente IA"};
+S.eqAbierto=new Set();
+function eqResumen(p){
+  if(p.rol==="admin")return `<span class="chip strong">Administrador · ve y modifica todo</span>`;
+  if(p.marca)return `<span class="chip strong">👀 ${esc(MARCA_TXT[p.marca]||p.marca)} · solo mirar</span>`;
+  const [ver,mod,otro]=PERM_GRUPOS.map(([,ks])=>ks.filter(k=>p.permisos?.[k]).map(k=>PERM_CORTO[k]));
+  return `<span class="chip">👀 Ve: ${esc(ver.length?ver.join(", "):"solo sus clientes")}</span><span class="chip">✏️ Modifica: ${esc(mod.length?mod.join(", "):"nada")}</span>${otro.length?`<span class="chip">✨ ${esc(otro.join(", "))}</span>`:""}`;
+}
 function vEquipo(){
   if(!isAdmin())return`<div class="empty">Solo el administrador ve esta sección.</div>`;
   const ps=S.perfiles;
-  const pend=ps.filter(p=>!p.activo).length;
-  const card=p=>{const yo=p.id===ME.user.id;const nCl=S.clientes.filter(c=>ownerOf(c)===p.id).length;
-    const est=p.activo?{level:"ok",short:"Activo"}:{level:"warn",short:"Pendiente o desactivado"};
+  const pend=ps.filter(p=>!p.activo).length,act=ps.filter(p=>p.activo).length;
+  const conMarca=ps.some(p=>"marca" in p);
+  const card=p=>{const yo=p.id===ME.user.id,adm=p.rol==="admin",nCl=S.clientes.filter(c=>ownerOf(c)===p.id).length;
+    const est=p.activo?{level:"ok",short:"Activo"}:{level:"warn",short:"Sin acceso"};
+    const abierto=S.eqAbierto.has(p.id)||(!p.activo&&!yo);
+    const permOff=adm||!!p.marca||yo;
+    const perm=k=>{const x=PERMISOS.find(y=>y[0]===k);if(!x)return"";const[,t,h]=x;
+      return `<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-perm="${k}" ${adm||p.permisos?.[k]?"checked":""} ${permOff?"disabled":""} style="margin-top:3px"><span><b style="font-weight:600">${t}</b>${h?`<br><span class="muted small">${h}</span>`:""}</span></label>`};
     return `<form class="card stack userCard" data-uid="${p.id}">
-      <div class="row spread"><div><b>${esc(p.nombre||"(sin nombre)")}</b>${yo?` <span class="chip">tú</span>`:""}<div class="muted small">${esc(p.email||"")} · ${nCl} clientes a cargo</div></div>${pill(est)}</div>
-      <div class="form">
-        <div class="field"><label for="rol-${p.id}">Rol</label><select id="rol-${p.id}" data-k="rol" ${yo?"disabled":""}><option value="usuario"${p.rol==="usuario"?" selected":""}>Usuario</option><option value="admin"${p.rol==="admin"?" selected":""}>Administrador (todo)</option></select></div>
-        <div class="field" style="justify-content:flex-end"><div class="checks"><label><input type="checkbox" data-k="activo" ${p.activo?"checked":""} ${yo?"disabled":""}> Acceso aprobado</label></div></div>
-        <div class="field full"><span class="lbl">Permisos${p.rol==="admin"?" (el administrador los tiene todos)":""}</span>
-          <div class="stack" style="gap:6px">${PERMISOS.map(([k,t,h])=>`<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-perm="${k}" ${p.permisos?.[k]?"checked":""} ${p.rol==="admin"?"disabled checked":""} style="margin-top:3px"><span><b style="font-weight:600">${t}</b>${h?`<br><span class="muted small">${h}</span>`:""}</span></label>`).join("")}</div></div>
-      </div>
-      ${yo?"":`<div class="row"><button class="btn primary sm" type="submit">Guardar cambios</button></div>`}
+      <div class="row spread" style="flex-wrap:nowrap;align-items:flex-start"><div style="min-width:0"><b>${esc(p.nombre||"(sin nombre)")}</b>${yo?` <span class="chip">tú</span>`:""}<div class="muted small" style="overflow-wrap:anywhere">${esc(p.email||"")}${!p.marca||adm?` · ${nCl} ${nCl===1?"cliente":"clientes"} a cargo`:""}</div></div>${pill(est)}</div>
+      <div class="chips">${eqResumen(p)}</div>
+      ${yo?`<div class="muted small">Tu cuenta es la de administrador: ve y modifica todo, y no se puede quitar ese rol a sí misma.</div>`:`
+      <details class="eqDet" data-uid="${p.id}"${abierto?" open":""}><summary class="small" style="cursor:pointer;font-weight:600">Cambiar lo que puede ver y modificar</summary>
+      <div class="stack" style="gap:12px;margin-top:10px">
+        <div class="form">
+          <div class="field"><span class="lbl">Acceso a la app</span><div class="checks"><label><input type="checkbox" data-k="activo" ${p.activo?"checked":""}> ${p.activo?"Puede entrar":"Bloqueado · tócalo para habilitar"}</label></div></div>
+          <div class="field"><label for="rol-${p.id}">Rol</label><select id="rol-${p.id}" data-k="rol"><option value="usuario"${!adm?" selected":""}>Usuario</option><option value="admin"${adm?" selected":""}>Administrador (todo)</option></select></div>
+          ${conMarca?`<div class="field full"><label for="mk-${p.id}">Qué parte de la cartera ve</label><select id="mk-${p.id}" data-k="marca" ${adm?"disabled":""}><option value="">Toda la cartera (según permisos)</option><option value="kombucha"${p.marca==="kombucha"?" selected":""}>Solo kombucha Animal Social · solo mirar</option><option value="cerveza"${p.marca==="cerveza"?" selected":""}>Solo cerveza El Growler · solo mirar</option></select></div>`:""}
+        </div>
+        ${adm?`<div class="muted small">Un administrador tiene todos los permisos.</div>`:p.marca?`<div class="muted small">Una cuenta de marca ve los clientes, ventas, cobranza e índices de su marca y no puede modificar nada. Para darle permisos, cambia "Qué parte de la cartera ve" a toda la cartera.</div>`:""}
+        <div class="stack" style="gap:14px">${PERM_GRUPOS.map(([tit,ks])=>`<div class="stack" style="gap:6px"><b class="small">${tit}</b>${ks.map(perm).join("")}</div>`).join("")}</div>
+        <div class="muted small">Cada cambio se guarda al tocarlo. La persona lo ve la próxima vez que abra o recargue la app.</div>
+      </div></details>`}
     </form>`};
-  return `<div class="stack"><h2>Equipo</h2>
-    <div class="card small stack" style="gap:6px"><b>Cómo sumar a alguien</b><span>Compártele la dirección de la app. La persona toca "Crear cuenta" y aparece aquí como pendiente. Tú la apruebas y eliges qué puede ver y hacer. Nadie puede cambiarse sus propios permisos.</span></div>
-    ${pend?`<div class="banner">${pend} ${pend===1?"cuenta espera":"cuentas esperan"} aprobación.</div>`:""}
-    ${[...ps].sort((a,b)=>(a.activo-b.activo)||(a.nombre||"").localeCompare(b.nombre||"")).map(card).join("")}
+  return `<div class="stack"><div class="row spread"><div><h2>Equipo</h2><div class="muted small">${act} ${act===1?"cuenta activa":"cuentas activas"}${pend?` · ${pend} sin acceso`:""}</div></div><button class="btn primary sm" type="button" data-act="altaPerfil">+ Crear perfil</button></div>
+    ${conMarca?"":`<div class="banner">Para crear perfiles que vean solo una marca, primero hay que pegar una vez el bloque SQL de marcas en Supabase (SQL Editor).</div>`}
+    ${pend?`<div class="banner">${pend} ${pend===1?"cuenta no tiene":"cuentas no tienen"} acceso. Ábrela y marca "Acceso a la app" para habilitarla.</div>`:""}
+    ${[...ps].sort((a,b)=>(b.id===ME.user.id)-(a.id===ME.user.id)||(a.activo-b.activo)||(a.nombre||"").localeCompare(b.nombre||"")).map(card).join("")}
+    ${ps.length<2?`<div class="card empty small">Aún no hay otras cuentas. Toca <b>+ Crear perfil</b> para sumar a alguien, o pídele que toque "Crear cuenta" en la app: aparecerá aquí sin acceso hasta que lo habilites.</div>`:""}
+    <div class="muted small">Nadie puede cambiarse sus propios permisos: solo tú, desde aquí. Los permisos también se aplican en la base de datos, no solo en la pantalla.</div>
   </div>`;
 }
-async function guardarUsuario(f){
-  const id=f.dataset.uid;
-  const permisos={};f.querySelectorAll("[data-perm]").forEach(x=>{if(x.checked&&!x.disabled)permisos[x.dataset.perm]=true});
-  const rol=f.querySelector('[data-k="rol"]').value, activo=f.querySelector('[data-k="activo"]').checked;
-  await guard(()=>chk(SB.from("perfiles").update({rol,activo,permisos}).eq("id",id)),"Permisos guardados");
+async function guardarUsuario(f,el){
+  const id=f.dataset.uid,p=S.perfiles.find(x=>x.id===id);if(!p)return;
+  const rol=f.querySelector('[data-k="rol"]').value,activo=f.querySelector('[data-k="activo"]').checked;
+  // confirmaciones para lo delicado
+  if(el?.dataset.k==="activo"&&!activo&&!await confirmar(`¿Quitarle el acceso a ${esc(p.nombre||p.email)}?`,"No podrá entrar a la app hasta que vuelvas a habilitarlo. No se borra nada.","Sí, quitar acceso","Cancelar")){el.checked=true;return}
+  if(el?.dataset.k==="rol"&&rol==="admin"&&!await confirmar(`¿Hacer administrador a ${esc(p.nombre||p.email)}?`,"Va a poder ver y modificar todo, incluido el equipo y los permisos de los demás.","Sí, hacer administrador","Cancelar")){el.value=p.rol;return}
+  const permisos={};
+  if(rol!=="admin")f.querySelectorAll("[data-perm]").forEach(x=>{if(x.checked)permisos[x.dataset.perm]=true});
+  const upd={rol,activo,permisos},mk=f.querySelector('[data-k="marca"]');
+  if(mk)upd.marca=rol==="admin"?null:(mk.value||null);
+  if(upd.marca)upd.permisos={};
+  S.eqAbierto.add(id);
+  const ok=await guard(()=>chk(SB.from("perfiles").update(upd).eq("id",id)),"Guardado");
+  if(ok||el?.dataset.k)render();
+}
+/* crear un perfil desde Equipo: se registra la cuenta con una clave inicial (sin cerrar tu sesión)
+   y luego se aprueba con lo que puede ver. Nunca se usa la clave service_role. */
+function claveAzar(){const c="abcdefghjkmnpqrstuvwxyz23456789",a=crypto.getRandomValues(new Uint32Array(10));return[...a].map(x=>c[x%c.length]).join("")}
+function altaForm(){
+  if(!isAdmin())return;
+  const conMarca=S.perfiles.some(p=>"marca" in p);
+  openSheet(`<div class="row spread"><h2>Crear perfil</h2><button class="btn sm" data-act="close">Cerrar</button></div>
+  <form id="altaForm" class="form">
+    <div class="field"><label for="alNom">Nombre</label><input id="alNom" required data-cap autocapitalize="words" autocomplete="off" placeholder="Ej: Raimundo"></div>
+    <div class="field"><label for="alMail">Correo con el que va a entrar</label><input id="alMail" type="email" required inputmode="email" autocomplete="off" placeholder="nombre@empresa.cl"></div>
+    <div class="field full"><label for="alTipo">Qué puede ver</label><select id="alTipo">
+      <option value="kombucha"${conMarca?"":" disabled"}>Solo kombucha Animal Social · solo mirar</option>
+      <option value="cerveza"${conMarca?"":" disabled"}>Solo cerveza El Growler · solo mirar</option>
+      <option value="equipo"${conMarca?"":" selected"}>Equipo · después eliges sus permisos</option></select>
+      <span class="muted small">Solo kombucha: ve los clientes, ventas, cobranza e índices de la kombucha. No ve nada de la cerveza, ni notas, comisiones, sueldo, ruta ni tu clasificación de los locales. No puede cambiar nada.</span>
+      ${conMarca?"":`<span class="small" style="color:var(--warn)">! Para las opciones por marca falta pegar el bloque SQL de marcas en Supabase.</span>`}</div>
+    <div class="field full"><label for="alClave">Clave inicial (mínimo 8)</label><div class="row" style="flex-wrap:nowrap"><input id="alClave" required minlength="8" autocomplete="off" value="${claveAzar()}" class="num"><button type="button" class="btn sm" data-act="alClaveNueva" style="white-space:nowrap">Otra</button></div>
+      <span class="muted small">Se la mandas y la persona la cambia en ⚙️ › Mi perfil.</span></div>
+    <div class="full"><button class="btn primary" type="submit">Crear perfil</button></div>
+  </form>`);
+}
+async function crearPerfil(f){
+  const nombre=capitalizar($("#alNom").value),email=$("#alMail").value.trim().toLowerCase(),clave=$("#alClave").value,tipo=$("#alTipo").value;
+  if(clave.length<8){toast("La clave debe tener al menos 8 caracteres");return}
+  if(S.offline){toast("Sin conexión: no se puede crear el perfil");return}
+  const btn=f.querySelector("button[type=submit]");btn.disabled=true;btn.textContent="Creando…";
+  try{
+    let p=S.perfiles.find(x=>(x.email||"").toLowerCase()===email),nueva=false,confirmar=false;
+    if(!p){
+      // cliente aparte que no guarda sesión: así tu sesión de administrador no se toca
+      const tmp=window.supabase.createClient(window.CARTERA_CONFIG.url,window.CARTERA_CONFIG.anonKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:"cartera-alta"}});
+      const{data,error}=await tmp.auth.signUp({email,password:clave,options:{data:{nombre},emailRedirectTo:location.origin+location.pathname}});
+      if(error)throw new Error(/registered|already/i.test(error.message)?"Ese correo ya tiene cuenta. Búscalo en la lista de Equipo.":error.message);
+      if(!data.user||(data.user.identities&&!data.user.identities.length))throw new Error("Ese correo ya tiene cuenta. Búscalo en la lista de Equipo.");
+      nueva=true;confirmar=!data.session;p={id:data.user.id};
+      try{await tmp.auth.signOut({scope:"local"})}catch(e){}
+    }
+    const upd={nombre,activo:true};
+    if(tipo==="equipo"){if(nueva)upd.permisos={editar_clientes:true,registrar_ventas:true};if("marca" in (S.perfiles[0]||{}))upd.marca=null}
+    else{upd.marca=tipo;upd.permisos={};upd.rol="usuario"}
+    await chk(SB.from("perfiles").update(upd).eq("id",p.id));
+    try{await loadAll()}catch(e){}render();
+    const url=location.origin+location.pathname;
+    const msg=`Hola ${nombre}, te creé una cuenta en Cartera Valdivia${tipo!=="equipo"?` para que veas cómo va la ${tipo==="kombucha"?"kombucha Animal Social":"cerveza El Growler"}`:""}.\n\nEntra en: ${url}\nCorreo: ${email}\n${nueva?`Clave: ${clave}\n`:""}${confirmar?"\nAntes de entrar, revisa tu correo y confirma la cuenta con el enlace que te llegó.\n":""}\nCuando entres, cambia la clave en ⚙️ › Mi perfil.`;
+    openSheet(`<div class="row spread"><h2>Perfil listo</h2><button class="btn sm" data-act="close">Cerrar</button></div>
+      <div class="row">${pill({level:"ok",short:nueva?"Cuenta creada y aprobada":"Cuenta existente actualizada"})}</div>
+      ${confirmar?`<div class="banner">Supabase le mandó a ${esc(email)} un correo para confirmar la cuenta. Tiene que tocar ese enlace antes de poder entrar.</div>`:""}
+      ${nueva?"":`<div class="small">Ese correo ya tenía cuenta: se aprobó y se le asignó lo que puede ver. Su clave sigue siendo la que él eligió.</div>`}
+      <div class="small">Mándale este mensaje:</div><div class="alta-txt" id="altaMsg">${esc(msg)}</div>
+      <div class="row"><a class="btn primary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Enviar por WhatsApp</a><a class="btn" href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent("Tu cuenta en Cartera Valdivia")}&body=${encodeURIComponent(msg)}">Enviar por correo</a><button class="btn" data-act="altaCopiar">Copiar</button></div>`);
+  }catch(e){
+    btn.disabled=false;btn.textContent="Crear perfil";
+    const m=e?.message||"";
+    toast(/marca/i.test(m)&&/column|columna/i.test(m)?"Falta pegar el bloque SQL de marcas en Supabase":/rate|seconds/i.test(m)?"Supabase pide esperar un momento antes de crear otra cuenta":"No se pudo crear el perfil: "+m);
+  }
 }
 
 /* ---------- menú ⚙️: perfil, preferencias y plataforma ---------- */
@@ -2636,7 +2728,7 @@ function menuSheet(){
   </section>`:"";
   openSheet(`<div class="menu stack"><div class="row spread"><h2>Configuración</h2><button class="btn sm" data-act="close">Cerrar</button></div>
   <section class="card stack"><h3>Mi perfil</h3>
-    <div class="muted small">${esc(ME.user?.email||"")} · ${admin?"Administrador":"Usuario"}</div>
+    <div class="muted small">${esc(ME.user?.email||"")} · ${admin?"Administrador":miMarca()?esc(MARCA_TXT[miMarca()])+" · solo mirar":"Usuario"}</div>
     <form id="perfilForm" class="row" style="flex-wrap:nowrap"><input id="pfNombre" aria-label="Tu nombre" value="${esc(ME.perfil?.nombre||"")}" required><button class="btn sm" type="submit">Guardar nombre</button></form>
     <form id="claveForm" class="row" style="flex-wrap:nowrap"><input id="pfClave" type="password" minlength="8" required autocomplete="new-password" placeholder="Contraseña nueva (mínimo 8)" aria-label="Contraseña nueva (mínimo 8)"><button class="btn sm" type="submit">Cambiar contraseña</button></form>
     <div><button class="btn" data-act="logout">Cerrar sesión</button></div>
@@ -2888,12 +2980,13 @@ document.addEventListener("keydown",e=>{
   // en el computador, Enter envía la pregunta (Shift+Enter hace un salto de línea)
   if(e.target.id==="iaQ"&&e.key==="Enter"&&!e.shiftKey&&window.innerWidth>700){e.preventDefault();iaEnviar(e.target.value)}
 });
+const ACC_ESCRITURA=new Set(["chooser","newAct","quickVisit","newSale","pay","unpay","editSale","editAct","tareaEstado","editClient","newClient","delClient","delSale","delAct"]);
+document.addEventListener("click",e=>{if(!soloMira())return;const t=e.target.closest?.("[data-act]");
+  if(t&&ACC_ESCRITURA.has(t.dataset.act)){e.preventDefault();e.stopImmediatePropagation();toast("Tu cuenta es solo para mirar")}},true);
 document.addEventListener("click",async e=>{
   const t=e.target.closest("[data-act],[data-tab]");if(!t)return;
   if(t.dataset.act==="menuNav"){navMenu(!document.body.classList.contains("menu-abierto"));return}
   if(t.dataset.act==="cerrarNav"){navMenu(false);return}
-  if(t.dataset.act==="nuevoPedido"){navMenu(false);saleForm();return}
-  if(t.dataset.act==="navTog"){if(matchMedia("(max-width:899px)").matches)navMenu(false);else navMini(!document.body.classList.contains("nav-mini"));return}
   if(t.dataset.tab){navMenu(false);closeSheet();S.tab=t.dataset.tab;const post=t.dataset.sub?aplicarSub(S.tab,t.dataset.sub):null;render();window.scrollTo(0,0);post?.();return}
   const a=t.dataset.act,id=t.dataset.id;
   if(a==="closeBg"&&e.target!==t)return;
@@ -2901,6 +2994,9 @@ document.addEventListener("click",async e=>{
     case"close":case"closeBg":closeSheet();break;
     case"chooser":openSheet(`<div class="row spread"><h2>¿Qué quieres registrar?</h2><button class="btn sm" data-act="close">Cerrar</button></div><div class="choice"><button data-act="newAct"><b>Visita o activación</b><span class="muted small">Visitas, degustaciones, muestras entregadas, cobranza</span></button>${can("registrar_ventas")?`<button data-act="newSale"><b>Venta</b><span class="muted small">Barriles, cajas de latas o cajas de kombucha</span></button>`:""}${can("editar_clientes")?`<button data-act="newClient"><b>Cliente nuevo</b><span class="muted small">Un local para tu cartera o tu ruta</span></button>`:""}${verBarriles()?`<button data-act="scan"><b>🛢️ Barril</b><span class="muted small">Escanear o buscar un barril para ver dónde está o moverlo</span></button>`:""}</div>`);break;
     case"logout":closeSheet();await SB?.auth.signOut();break;
+    case"altaPerfil":altaForm();break;
+    case"alClaveNueva":$("#alClave").value=claveAzar();break;
+    case"altaCopiar":try{await navigator.clipboard.writeText($("#altaMsg").textContent);toast("Mensaje copiado")}catch(err){toast("No se pudo copiar: selecciónalo y cópialo a mano")}break;
     case"menu":menuSheet();break;
     case"ia":iaSheet();break;
     case"iaRapida":iaEnviar(IA_RAPIDAS()[Number(t.dataset.v)]);break;
@@ -2971,7 +3067,7 @@ document.addEventListener("click",async e=>{
     case"newAct":actForm(id);break;
     case"editAct":actForm(null,id);break;
     case"addMuLine":addMuLine();break;
-    case"quickVisit":await guard(()=>DB.add("actividades",{clienteId:id,fecha:S.rutaFecha>today()?today():S.rutaFecha,tipo:"Visita",muestras:[],resultado:"",nota:""}),"Visita registrada");break;
+    case"quickVisit":{const cq=S.clientes.find(c=>c.id===id);await guard(()=>DB.add("actividades",{clienteId:id,fecha:S.rutaFecha>today()?today():S.rutaFecha,tipo:"Visita",marcas:(cq?.marcas||[]).length===1?cq.marcas:[],muestras:[],resultado:"",nota:""}),"Visita registrada");break}
     case"addLine":addLine();saleTotals();break;
     case"delLine":t.closest(".pline,.line").remove();saleTotals();break;
     case"toggleDesc":{const b=t.closest(".pline").querySelector(".lDesc");if(b.hidden){b.hidden=false;t.textContent="Quitar descuento";b.querySelector(".dVal").focus()}else{b.hidden=true;b.querySelector(".dVal").value="";b.querySelector(".dMot").value="";b.querySelector(".dNota").value="";t.textContent="+ Descuento"}saleTotals();break}
@@ -3013,8 +3109,9 @@ document.addEventListener("input",e=>{
   if(e.target.closest("#bNuevoForm")){if(e.target.id==="bnPre")$("#bnDesde").value=bSiguiente(e.target.value);bNuevoPrev()}
   if(e.target.id==="sFecha"&&!$("#saleForm").dataset.id)$("#sVence").value=addDays(e.target.value||today(),S.cfg.plazo[$("#sMarca").value]);
 });
-document.addEventListener("toggle",e=>{if(e.target.id==="agF")S.agF=e.target.open},true);
+document.addEventListener("toggle",e=>{if(e.target.id==="agF")S.agF=e.target.open;if(e.target.classList?.contains("eqDet")){const u=e.target.dataset.uid;e.target.open?S.eqAbierto.add(u):S.eqAbierto.delete(u)}},true);
 document.addEventListener("change",e=>{
+  {const uc=e.target.closest?.(".userCard");if(uc&&(e.target.dataset.perm||e.target.dataset.k)){guardarUsuario(uc,e.target);return}}
   if(e.target.id==="impFile"&&e.target.files[0]){importarRespaldo(e.target.files[0]);e.target.value=""}
   if(e.target.id==="cFoto"&&e.target.files[0]){$("#cFotoQuitar").value="";$("#cFotoNom").textContent="Foto lista: se sube al guardar"}
   if(e.target.closest?.("#clientForm")){const el=e.target;
@@ -3033,6 +3130,7 @@ document.addEventListener("change",e=>{
   if(e.target.id==="sCli"){const cl=S.clientes.find(c=>c.id===e.target.value),mk=cl?.marcas?.length===1?cl.marcas[0]:null;
     if(mk&&mk!==$("#sMarca").value)document.querySelector(`#saleForm [data-act="sMarca"][data-v="${mk}"]`)?.click()}
   if(e.target.id==="tareasDe"){S.tareasDe=e.target.value;render()}
+  if(e.target.id==="aCli"&&$("#aMkC")){const cl=S.clientes.find(c=>c.id===e.target.value),mk=(cl?.marcas||[]).length===1?cl.marcas:[];$("#aMkC").checked=mk.includes("cerveza");$("#aMkK").checked=mk.includes("kombucha")}
   if(e.target.id==="vozLeer"){vozGuardar("leer",e.target.checked);if(!e.target.checked)try{speechSynthesis.cancel()}catch(err){}}
   if(e.target.id==="vozSeguir")vozGuardar("seguir",e.target.checked);
   if(e.target.id==="bxCli")bVentasCli();
@@ -3093,7 +3191,8 @@ document.addEventListener("submit",async e=>{
     history.replaceState(null,"",location.pathname);
     const{data}=await SB.auth.getSession();ME.user=data?.session?.user;toast("Contraseña actualizada");afterLogin();return;
   }
-  if(f.classList.contains("userCard")){await guardarUsuario(f);return}
+  if(f.classList.contains("userCard"))return;
+  if(f.id==="altaForm"){await crearPerfil(f);return}
   if(f.id==="iaForm"){iaEnviar($("#iaQ").value);return}
   if(f.id==="perfilForm"){
     const nombre=$("#pfNombre").value.trim();if(!nombre){toast("Escribe tu nombre");return}
@@ -3207,7 +3306,10 @@ document.addEventListener("submit",async e=>{
   if(f.id==="actForm"){
     const cid=val("aCli");if(!cid){toast("Elige el cliente");return}
     const muestras=readMu();
-    const data={clienteId:cid,fecha:val("aFecha")||today(),tipo:val("aTipo"),muestras,resultado:val("aRes"),nota:val("aNota")};
+    const clV=S.clientes.find(c=>c.id===cid);
+    let mkV=[...($("#aMkC")?.checked?["cerveza"]:[]),...($("#aMkK")?.checked?["kombucha"]:[]),...muestras.map(m=>m.marca)];
+    if(!mkV.length&&(clV?.marcas||[]).length===1)mkV=clV.marcas;
+    const data={clienteId:cid,fecha:val("aFecha")||today(),tipo:val("aTipo"),marcas:[...new Set(mkV)],muestras,resultado:val("aRes"),nota:val("aNota")};
     const proxF=val("aProxF"),proxT=val("aProxT");
     const aid=f.dataset.id;
     const ok=await guard(async()=>{
