@@ -259,6 +259,20 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
   body.printing>*:not(#print){display:none!important}
   body.printing #print{display:flex!important;flex-wrap:wrap;gap:4mm}
 }
+/* asistente con IA */
+.ia-log{display:flex;flex-direction:column;gap:10px}
+.ia-msg{max-width:88%;padding:10px 12px;border-radius:12px;line-height:1.45;overflow-wrap:anywhere}
+.ia-msg.yo{align-self:flex-end;background:var(--ink);color:var(--bg);border-bottom-right-radius:4px;white-space:pre-wrap}
+.ia-msg.ia{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:4px}
+.ia-msg.err{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.ia-msg.pensando{color:var(--muted);font-style:italic}
+.ia-msg p{margin:0 0 6px}.ia-msg p:last-child{margin:0}
+.ia-msg ul{margin:2px 0 6px;padding-left:18px}.ia-msg ul:last-child{margin-bottom:0}.ia-msg li{margin:2px 0}
+.ia-form{display:flex;gap:8px;align-items:flex-end}
+.ia-form textarea{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);resize:none;font-size:16px;min-height:44px}
+.ia-form .btn{min-height:44px}
+.ia-ficha{white-space:pre-wrap;margin-top:8px}
+@media (max-width:480px){.hide-sm{display:none}}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}}
 </style>
 </head>
@@ -607,7 +621,7 @@ function weekStart(fecha){const w=wday(fecha);return addDays(fecha,w===0?-6:1-w)
 function render(){
   const vt=ME.perfil?visibleTabs():[];document.querySelectorAll("nav.tabs button").forEach(b=>{b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false");b.hidden=!vt.includes(b.dataset.tab)});
   const tabOn=document.querySelector('nav.tabs [aria-current="page"]'),nav=tabOn?.parentElement;if(tabOn&&nav.scrollWidth>nav.clientWidth)nav.scrollLeft=tabOn.offsetLeft-(nav.clientWidth-tabOn.offsetWidth)/2;
-  $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn" data-act="newClient">+ Cliente</button>`:""}<button class="btn" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
+  $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn" data-act="newClient">+ Cliente</button>`:""}${iaOn()?`<button class="btn" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨<span class="hide-sm"> Asistente</span></button>`:""}<button class="btn" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
   const v=$("#view");
   if(S.dbState==="loading"){v.innerHTML=`<div class="empty">Cargando tu cartera…</div>`;return}
@@ -2234,7 +2248,8 @@ const PERMISOS=[
   ["eliminar","Eliminar registros","Borrar clientes, ventas y visitas"],
   ["editar_ajustes","Editar ajustes","Precios, zonas, comisiones y variedades"],
   ["ver_barriles","Ver barriles","Dónde está cada barril, estilo, lote, factura y días en el cliente (útil para la gente de la cervecería)"],
-  ["gestionar_barriles","Mover barriles","Crear barriles, marcar lavado, embarrilar, entregar y retirar"]
+  ["gestionar_barriles","Mover barriles","Crear barriles, marcar lavado, embarrilar, entregar y retirar"],
+  ["usar_ia","Usar el asistente con IA","Preguntarle a la IA sobre su cartera. La IA solo ve lo mismo que esta persona ve en la app"]
 ];
 const SB=(window.CARTERA_CONFIG&&window.supabase&&!/PEGA_AQUI/.test(window.CARTERA_CONFIG.url))?window.supabase.createClient(window.CARTERA_CONFIG.url,window.CARTERA_CONFIG.anonKey):null;
 const ME={user:null,perfil:null};
@@ -2408,6 +2423,7 @@ function authScreen(mode="login",msg=""){
   </div>`;
 }
 async function afterLogin(){
+  S.ia=IA_VACIO();
   showApp(true);S.dbState="loading";render();
   try{await loadAll()}catch(e){
     if(loadCache()){S.offline=true}else{authScreen("login","No se pudo conectar. Revisa tu internet e intenta de nuevo.");return}
@@ -2512,7 +2528,146 @@ function menuSheet(){
   ${plataforma}</div>`,null);
 }
 
+/* ---------- asistente con IA ----------
+   La app arma un resumen de lo que esta persona ya ve (sin teléfonos, RUT, correos ni direcciones)
+   y se lo manda a la función "asistente" de Supabase, que guarda la clave de Gemini.
+   Memoria: ia_consultas (cada pregunta y respuesta) e ia_memoria (ficha consolidada), solo del usuario. */
+const IA_VACIO=()=>({log:[],ficha:"",cargado:false,ocupado:false,err:""});
+S.ia=IA_VACIO();
+// nombre de la función del asistente en Supabase (Edge Functions)
+const IA_FUNCION="clever-api";
+const iaOn=()=>!!SB&&can("usar_ia");
+const IA_RAPIDAS=()=>["¿A quién visito mañana y por qué?","¿Qué clientes se están quedando sin comprar?",...(can("ver_cobranza")?["¿A quién tengo que cobrar esta semana?"]:[]),"¿Qué conviene ofrecer en cada zona?"];
+const iaLimpio=t=>String(t||"").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g,"[correo]")
+  .replace(/\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b|\b\d{7,8}-[\dkK]\b/g,"[rut]")
+  .replace(/(\+?56[\s-]?)?\b9[\s-]?\d{4}[\s-]?\d{4}\b|\+56[\s-]?\d{1,2}[\s-]?\d{3}[\s-]?\d{4}\b/g,"[teléfono]").replace(/\s+/g," ").trim();
+/* resumen de la cartera para la IA: solo lo que esta cuenta puede ver, sin datos de contacto */
+function ctxIA(){
+  const t=today(),man=addDays(t,1),plata=can("ver_cobranza"),L=[],desde=hace6m();
+  L.push(`Hoy: ${DIAS_L[wday(t)]} ${fdate(t)}. Mañana: ${DIAS_L[wday(man)]} ${fdate(man)}.`);
+  L.push("Zonas que se visitan cada día: "+WEEK_ORDER.map(w=>`${DIAS_L[w]}: ${(S.cfg.zonasDia[String(w)]||[]).join(", ")||"—"}`).join(" · "));
+  L.push(`Frecuencia de visita por importancia: A cada ${S.cfg.frecVisita.A} días, B cada ${S.cfg.frecVisita.B}, C cada ${S.cfg.frecVisita.C}. Recompra esperada: cerveza cada ${S.cfg.frec.cerveza} días, kombucha cada ${S.cfg.frec.kombucha}.`);
+  const est=mk=>[...new Set(S.cfg.productos.filter(p=>p.marca===mk).map(estiloDe))].join(", ");
+  L.push(`Catálogo · cerveza El Growler: ${est("cerveza")} · kombucha Animal Social: ${est("kombucha")}.`);
+  const r=resumenMes(t.slice(0,7),"todas");
+  L.push(`Mes en curso (${mesLabel(t.slice(0,7))}): ${n1(r.litros)} L de cerveza en ${r.nC} ventas, ${n1(r.cajasK)} cajas de kombucha en ${r.nK} ventas, ${r.visitas} visitas y ${r.activ} activaciones.${plata?` Neto vendido: cerveza ${money(r.netoC)}, kombucha ${money(r.netoK)}.`:""}`);
+  if(can("ver_ingresos"))L.push(`Sueldo líquido estimado del mes: ${money(r.total)}, meta ${money(S.cfg.meta)}.`);
+  if(plata){const p=S.ventas.filter(v=>!v.pagado),venc=p.filter(v=>days(v.vence||v.fecha,t)>0);
+    L.push(`Por cobrar: ${money(p.reduce((s,v)=>s+(v.neto||0)*1.19,0))} con IVA en ${p.length} facturas; vencido ${money(venc.reduce((s,v)=>s+(v.neto||0)*1.19,0))}.`)}
+  [[t,"HOY"],[man,"MAÑANA"]].forEach(([f,lab])=>{const p=planDia(f);
+    L.push(`\nRUTA SUGERIDA ${lab} (zonas del día: ${p.zonasHoy.join(", ")||"ninguna"}):`);
+    p.items.slice(0,40).forEach(it=>L.push(`- ${it.c.nombre} [importancia ${impOf(it.c)}, ${it.zona}]${it.done?" (ya visitado)":""}: ${it.why.map(w=>w.t).join("; ")}${it.c.horario?` · horario: ${it.c.horario}`:""}`));
+    if(!p.items.length)L.push("- (nada sugerido)")});
+  const T=tareasAbiertas().filter(x=>x.fecha<=addDays(t,7)).sort((a,b)=>a.fecha.localeCompare(b.fecha)||b.prio-a.prio).slice(0,60);
+  L.push("\nTAREAS ABIERTAS (próximos 7 días, incluye atrasadas):");
+  T.forEach(x=>L.push(`- ${fdate(x.fecha)}${x.fecha<t?" (atrasada)":""} · ${x.c.nombre}: ${x.titulo} — ${iaLimpio(x.detalle)}`));
+  if(!T.length)L.push("- (ninguna)");
+  const Lz=lineasDesde(desde),zonas=[...new Set(Lz.map(x=>x.zona))];
+  if(zonas.length){L.push("\nLO QUE MÁS SE VENDE POR ZONA (últimos 6 meses, litros):");
+    zonas.forEach(z=>{const rs=Lz.filter(x=>x.zona===z),top=[...new Set(rs.map(x=>x.estilo))].map(e=>[e,sumM(rs.filter(x=>x.estilo===e),"litros")]).sort((a,b)=>b[1]-a[1]).slice(0,4);
+      L.push(`- ${z}: ${top.map(([e,l])=>`${e} ${n1(l)} L`).join(", ")}`)})}
+  const cs=[...S.clientes].sort((a,b)=>impOf(a).localeCompare(impOf(b))||a.nombre.localeCompare(b.nombre)).slice(0,250);
+  L.push(`\nCLIENTES (${S.clientes.length}${S.clientes.length>cs.length?`; se muestran ${cs.length}`:""}). Formato: nombre | tipo | zona/comuna | estado | importancia | marcas | visita | recompra | ${plata?"pago | ":""}seguimiento | compras por marca | lo que más compra (6 meses) | notas`);
+  cs.forEach(c=>{
+    const vs=ventasDe(c.id);
+    const comp=(c.marcas||[]).map(m=>{const vm=vs.filter(v=>v.marca===m);if(!vm.length)return `${m}: sin compras`;
+      const u=vm.map(v=>v.fecha).filter(Boolean).sort().pop(),fr=frecReal(c,m);return `${m}: ${vm.length} compras, última ${fdate(u)}${fr?`, compra cada ~${fr} días`:""}`}).join("; ")||"—";
+    const it=vs.filter(v=>(v.fecha||"")>=desde).flatMap(v=>(v.items||[]).map(x=>({...infoItem(x),l:(x.cant||0)*(x.litrosU||0)})));
+    const top=[...new Set(it.map(x=>x.estilo))].map(e=>[e,it.filter(x=>x.estilo===e).reduce((s,x)=>s+x.l,0)]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([e,l])=>`${e} ${n1(l)} L`).join(", ");
+    const ua=actsDe(c.id).filter(a=>!esTarea(a)&&a.nota).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")).pop();
+    const notas=iaLimpio([c.notas,ua?`última visita ${fdate(ua.fecha)}: ${ua.nota}`:""].filter(Boolean).join(" · ")).slice(0,220);
+    L.push(`- ${c.nombre} | ${c.tipo||"—"} | ${c.zona||"sin zona"}${c.comuna?"/"+c.comuna:""} | ${ESTADOS[c.estado]||c.estado||"—"} | ${impOf(c)} | ${(c.marcas||[]).join("+")||"—"} | visita: ${semVisita(c).text} | recompra: ${semRecompra(c).text||"—"} | ${plata?`pago: ${semPago(c).text} | `:""}seguimiento: ${semSeg(c).text} | ${comp} | ${top||"—"}${notas?` | notas: ${notas}`:""}`);
+  });
+  const txt=L.join("\n");
+  return txt.length>58000?txt.slice(0,58000)+"\n(…lista recortada por tamaño)":txt;
+}
+/* texto de la IA → HTML seguro: párrafos, viñetas "- " y **negritas** */
+function iaFormato(txt){
+  const neg=s=>esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+  let html="",ul=false;
+  String(txt||"").split(/\n/).forEach(l=>{const s=l.trim();
+    const m=s.match(/^(?:[-•*]|\d+[.)])\s+(.*)$/);
+    if(m){if(!ul){html+="<ul>";ul=true}html+=`<li>${neg(m[1])}</li>`;return}
+    if(ul){html+="</ul>";ul=false}
+    if(s)html+=`<p>${neg(s.replace(/^#+\s*/,""))}</p>`});
+  return html+(ul?"</ul>":"");
+}
+function iaPintar(){
+  const log=$("#iaLog");if(!log)return;const I=S.ia;
+  const aviso={falta_sql:"Falta activar el asistente en la base de datos: hay que pegar una vez el bloque SQL del asistente en Supabase (SQL Editor).",offline:"Sin conexión: el asistente necesita internet.",carga:"No se pudo cargar la memoria del asistente. Igual puedes preguntar."}[I.err];
+  log.innerHTML=(aviso?`<div class="banner">${aviso}</div>`:"")+
+    (I.log.length?I.log.map(m=>m.rol==="yo"?`<div class="ia-msg yo" data-notr>${esc(m.txt)}</div>`
+      :m.cargando?`<div class="ia-msg ia pensando">Pensando…</div>`
+      :`<div class="ia-msg ia${m.error?" err":""}" data-notr>${m.error?esc(m.txt):iaFormato(m.txt)}</div>`).join("")
+    :(I.cargado||I.err?`<div class="muted small">Aún no le has preguntado nada. Prueba con una de las preguntas de abajo.</div>`:`<div class="muted small">Cargando…</div>`));
+  const fi=$("#iaFicha");if(fi)fi.innerHTML=I.ficha?`<div class="ia-ficha" data-notr>${esc(I.ficha)}</div>`:`<div class="muted">Todavía nada. Se va armando sola con tus preguntas.</div>`;
+  const b=$("#iaEnviar");if(b){b.disabled=I.ocupado;b.textContent=I.ocupado?"…":"Preguntar"}
+  document.querySelectorAll("#iaRapidas button").forEach(x=>x.disabled=I.ocupado);
+  const sh=$("#modal .sheet");if(sh)sh.scrollTop=sh.scrollHeight;
+}
+async function iaCargar(){
+  try{
+    const[m,c]=await Promise.all([SB.from("ia_memoria").select("ficha").maybeSingle(),SB.from("ia_consultas").select("data,creado").order("creado",{ascending:false}).limit(20)]);
+    if(m.error||c.error)throw m.error||c.error;
+    S.ia.ficha=m.data?.ficha||"";
+    S.ia.log=[...(c.data||[])].reverse().flatMap(x=>[{rol:"yo",txt:x.data?.pregunta||""},{rol:"ia",txt:x.data?.respuesta||""}]).filter(x=>x.txt);
+    S.ia.cargado=true;S.ia.err="";
+  }catch(e){const m=e?.message||"";S.ia.err=S.offline||/Failed to fetch|NetworkError/i.test(m)?"offline":/ia_(consultas|memoria)|does not exist|schema cache/i.test(m)?"falta_sql":"carga"}
+  iaPintar();
+}
+function iaSheet(){
+  if(!iaOn()){toast("No tienes permiso para usar el asistente");return}
+  openSheet(`<div class="ia stack">
+    <div class="row spread" style="flex-wrap:nowrap"><h2>✨ Asistente</h2><button class="btn sm" data-act="close">Cerrar</button></div>
+    <div class="muted small">Pregúntale sobre tu cartera. Responde con los datos que ves en la app y no cambia nada por su cuenta.</div>
+    <details class="card"><summary>🧠 Lo que recuerda de ti</summary><div id="iaFicha" class="small"></div>
+      <div class="muted small" style="margin-top:8px">Se guarda en tu cuenta y solo tú la ves. Al preguntar, se envía a Gemini (Google) un resumen de tu cartera sin teléfonos, RUT, correos ni direcciones. En el plan gratis, Google puede usar lo enviado para mejorar sus productos.</div>
+      <div class="row" style="margin-top:8px"><button class="btn sm danger" type="button" data-act="iaBorrar">Borrar memoria e historial</button></div></details>
+    <div id="iaLog" class="ia-log" aria-live="polite"></div>
+    <div class="chips" id="iaRapidas">${IA_RAPIDAS().map((q,i)=>`<button type="button" class="chip strong lnk" data-act="iaRapida" data-v="${i}">${esc(q)}</button>`).join("")}</div>
+    <form id="iaForm" class="ia-form"><textarea id="iaQ" rows="2" maxlength="1500" placeholder="Escribe tu pregunta…" aria-label="Tu pregunta"></textarea><button class="btn primary" type="submit" id="iaEnviar">Preguntar</button></form>
+  </div>`);
+  iaPintar();
+  if(window.innerWidth>700)$("#iaQ")?.focus();
+  if(!S.ia.cargado)iaCargar();
+}
+async function iaEnviar(q){
+  q=String(q||"").trim();if(!q||S.ia.ocupado)return;
+  if(S.offline){toast("Sin conexión: el asistente necesita internet");return}
+  S.ia.ocupado=true;S.ia.log.push({rol:"yo",txt:q},{rol:"ia",cargando:true});
+  const qi=$("#iaQ");if(qi)qi.value="";iaPintar();
+  let res=null,err="";
+  try{
+    const{data,error}=await SB.functions.invoke(IA_FUNCION,{body:{pregunta:q,contexto:ctxIA(),fecha:`${DIAS_L[wday(today())]} ${fdate(today())}`}});
+    if(error){
+      let m="";try{m=(await error.context?.json?.())?.error||""}catch(_){}
+      const st=error.context?.status;
+      err=m||(st===404?"El asistente aún no está instalado en Supabase (falta la función del asistente).":
+        error.name==="FunctionsFetchError"?"No se pudo conectar con el asistente. Revisa tu internet, o que la función del asistente esté instalada en Supabase.":
+        "No se pudo consultar al asistente. Intenta de nuevo.");
+    }else res=data;
+  }catch(e){err="No se pudo consultar al asistente. Intenta de nuevo."}
+  S.ia.log=S.ia.log.filter(m=>!m.cargando);
+  if(res?.respuesta){S.ia.log.push({rol:"ia",txt:res.respuesta});if(typeof res.ficha==="string")S.ia.ficha=res.ficha;S.ia.err="";
+    if(res.guardado===false)toast("Respondió, pero no pudo guardarlo en la memoria")}
+  else S.ia.log.push({rol:"ia",txt:err||"No llegó respuesta. Intenta de nuevo.",error:true});
+  S.ia.ocupado=false;iaPintar();
+  if(window.innerWidth>700)$("#iaQ")?.focus();
+}
+async function iaBorrar(){
+  if(!await confirmar("¿Borrar la memoria del asistente?","Se borran tus preguntas, sus respuestas y lo que recuerda de ti. Tus clientes y ventas no se tocan.","Sí, borrar","Cancelar"))return;
+  try{
+    const[a,b]=await Promise.all([SB.from("ia_consultas").delete().eq("usuario",ME.user.id),SB.from("ia_memoria").delete().eq("usuario",ME.user.id)]);
+    if(a.error||b.error)throw a.error||b.error;
+    S.ia={...IA_VACIO(),cargado:true};iaPintar();toast("Memoria borrada");
+  }catch(e){toast(errMsg(e))}
+}
+
 /* ---------- events ---------- */
+document.addEventListener("keydown",e=>{
+  // en el computador, Enter envía la pregunta (Shift+Enter hace un salto de línea)
+  if(e.target.id==="iaQ"&&e.key==="Enter"&&!e.shiftKey&&window.innerWidth>700){e.preventDefault();iaEnviar(e.target.value)}
+});
 document.addEventListener("click",async e=>{
   const t=e.target.closest("[data-act],[data-tab]");if(!t)return;
   if(t.dataset.tab){closeSheet();S.tab=t.dataset.tab;render();window.scrollTo(0,0);return}
@@ -2523,6 +2678,9 @@ document.addEventListener("click",async e=>{
     case"chooser":openSheet(`<div class="row spread"><h2>¿Qué quieres registrar?</h2><button class="btn sm" data-act="close">Cerrar</button></div><div class="choice"><button data-act="newAct"><b>Visita o activación</b><span class="muted small">Visitas, degustaciones, muestras entregadas, cobranza</span></button>${can("registrar_ventas")?`<button data-act="newSale"><b>Venta</b><span class="muted small">Barriles, cajas de latas o cajas de kombucha</span></button>`:""}${can("editar_clientes")?`<button data-act="newClient"><b>Cliente nuevo</b><span class="muted small">Un local para tu cartera o tu ruta</span></button>`:""}${verBarriles()?`<button data-act="scan"><b>🛢️ Barril</b><span class="muted small">Escanear o buscar un barril para ver dónde está o moverlo</span></button>`:""}</div>`);break;
     case"logout":closeSheet();await SB?.auth.signOut();break;
     case"menu":menuSheet();break;
+    case"ia":iaSheet();break;
+    case"iaRapida":iaEnviar(IA_RAPIDAS()[Number(t.dataset.v)]);break;
+    case"iaBorrar":iaBorrar();break;
     case"lang":{const p=prefsLocal();p.idioma=t.dataset.v;try{localStorage.setItem("cartera-prefs",JSON.stringify(p));localStorage.setItem("cartera-ef",JSON.stringify({...prefsEf(),idioma:t.dataset.v}))}catch(err){}location.reload();break}
     case"authMode":authScreen(t.dataset.m);break;
     case"recheck":afterLogin();break;
@@ -2702,6 +2860,7 @@ document.addEventListener("submit",async e=>{
     const{data}=await SB.auth.getSession();ME.user=data?.session?.user;toast("Contraseña actualizada");afterLogin();return;
   }
   if(f.classList.contains("userCard")){await guardarUsuario(f);return}
+  if(f.id==="iaForm"){iaEnviar($("#iaQ").value);return}
   if(f.id==="perfilForm"){
     const nombre=$("#pfNombre").value.trim();if(!nombre){toast("Escribe tu nombre");return}
     if(await guard(()=>chk(SB.from("perfiles").update({nombre}).eq("id",ME.user.id)),"Nombre guardado"))menuSheet();
