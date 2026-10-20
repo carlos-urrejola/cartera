@@ -62,18 +62,33 @@ html{padding-top:env(safe-area-inset-top,0px)}
 img{max-width:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
 button,input,select,textarea{font:inherit;color:inherit}
-.app{max-width:1000px;margin:0 auto;padding-inline:16px;padding-block:16px 120px}
+.app{max-width:1000px;margin:0 auto;padding-inline:16px;padding-block:16px 96px}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 h1{font-family:var(--display);font-weight:800;font-size:26px;margin:0;line-height:1.1}
 h2{font-family:var(--display);font-weight:600;font-size:18px;margin:0}
 h3{font-family:var(--display);font-weight:600;font-size:16px;margin:0}
 .muted{color:var(--muted)} .small{font-size:13px}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
-nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px);z-index:20;overflow-x:auto;scrollbar-width:none}
-nav.tabs::-webkit-scrollbar{display:none}
-nav.tabs::before,nav.tabs::after{content:"";margin:auto}
-nav.tabs button{flex:1 0 auto;min-width:54px;max-width:180px;white-space:nowrap;background:none;border:0;padding:10px 2px 12px;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer;border-top:3px solid transparent}
-nav.tabs button[aria-current="page"]{color:var(--ink);border-top-color:var(--ink)}
+/* menú lateral: fijo a la izquierda en el PC; en el celular se abre con ☰ */
+.btn.navbtn{display:none}
+nav.tabs{position:fixed;top:0;bottom:0;left:0;width:248px;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px;padding:calc(14px + env(safe-area-inset-top,0px)) 10px calc(14px + env(safe-area-inset-bottom,0px));z-index:35;overflow-y:auto;overscroll-behavior:contain}
+nav.tabs .nav-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 8px 12px}
+nav.tabs .nav-hd b{font-family:var(--display);font-weight:800;font-size:18px;line-height:1.1}
+nav.tabs .nav-x{display:none}
+nav.tabs button[data-tab]{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:10px 12px;font-weight:600;font-size:15px;color:var(--muted);cursor:pointer}
+nav.tabs button[data-tab] .ico{width:22px;text-align:center;flex:none}
+nav.tabs button[data-tab]:hover{background:var(--surface-2);color:var(--ink)}
+nav.tabs button[aria-current="page"]{background:var(--surface-2);color:var(--ink);box-shadow:inset 3px 0 0 var(--ink)}
+.nav-fondo{display:none}
+@media (min-width:900px){body{padding-left:248px}}
+@media (max-width:899px){
+  .btn.navbtn{display:inline-flex;font-size:20px;line-height:1;padding:7px 11px}
+  nav.tabs{width:min(280px,84vw);z-index:55;transform:translateX(-105%);visibility:hidden;transition:transform .2s ease,visibility .2s}
+  body.menu-abierto nav.tabs{transform:none;visibility:visible;box-shadow:0 0 40px rgba(0,0,0,.35)}
+  nav.tabs .nav-x{display:inline-flex}
+  body.menu-abierto .nav-fondo{display:block;position:fixed;inset:0;background:rgba(10,14,12,.45);z-index:54}
+}
+@media (prefers-reduced-motion:reduce){nav.tabs{transition:none}}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;text-decoration:none;color:var(--ink);font-size:14px}
 .btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .btn.danger{color:var(--bad);border-color:var(--bad)}
@@ -158,7 +173,7 @@ td.r,th.r{text-align:right}
 .alert:last-child{border-bottom:0}
 .mnav{display:inline-flex;align-items:center;gap:6px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:8px;font-weight:600;font-size:14px;z-index:60}
-.fab{position:fixed;right:16px;bottom:calc(70px + env(safe-area-inset-bottom,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .authbox{max-width:420px;margin:0 auto;padding:40px 16px;display:flex;flex-direction:column;gap:16px}
 input[type=checkbox]{width:auto!important;flex:none}
 .btn.link.small{font-size:13px}
@@ -245,7 +260,6 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 .fotoloc{display:block;width:100%;max-height:240px;object-fit:cover;border-radius:8px;background:var(--surface-2);min-height:80px}
 .zcard{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:3px}
 .tip{position:fixed;z-index:70;background:var(--ink);color:var(--bg);padding:6px 9px;border-radius:6px;font-size:13px;pointer-events:none;max-width:280px;line-height:1.35}
-@media (max-width:480px){nav.tabs button{font-size:12px;padding-inline:5px}}
 /* etiquetas QR de barriles: siempre negro sobre blanco */
 #print{display:none}
 .etq{--lw:50mm;width:var(--lw);box-sizing:border-box;padding:calc(var(--lw)*.06);border:1px dashed #9aa4a0;border-radius:6px;background:#fff;color:#000;display:flex;flex-direction:column;align-items:center;gap:1mm;break-inside:avoid;page-break-inside:avoid;font-family:var(--body)}
@@ -272,7 +286,8 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 .ia-form textarea{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);resize:none;font-size:16px;min-height:44px}
 .ia-form .btn{min-height:44px}
 .ia-ficha{white-space:pre-wrap;margin-top:8px}
-.btn.ia-boton{width:40px;height:40px;padding:0;border-radius:50%;font-size:18px;flex:none}
+.btn.ia-boton,.btn.redondo{width:40px;height:40px;padding:0;border-radius:50%;font-size:18px;flex:none}
+.btn.redondo.mas{font-size:26px;font-weight:500;line-height:1}
 .ia-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .voz-card{position:fixed;left:12px;right:12px;bottom:calc(66px + env(safe-area-inset-bottom,0px));z-index:45;max-width:640px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .voz-card .voz-txt{max-height:34vh;overflow:auto;font-size:16px;line-height:1.45}
@@ -286,7 +301,7 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 
 <div class="app">
   <header class="top">
-    <div><h1>Cartera Valdivia</h1><div class="muted small">Clientes de cerveza El Growler y kombucha Animal Social</div></div>
+    <div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn navbtn" data-act="menuNav" aria-label="Abrir menú" aria-expanded="false" aria-controls="navLateral">☰</button><div><h1>Cartera Valdivia</h1><div class="muted small">Clientes de cerveza El Growler y kombucha Animal Social</div></div></div>
     <div class="row" id="hdr"></div>
   </header>
   <div id="status"></div>
@@ -294,15 +309,18 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 </div>
 <button class="btn primary fab" data-act="chooser">+ Registrar</button>
 <div id="vozCard" class="voz-card" role="status" aria-live="polite" hidden></div>
-<nav class="tabs" aria-label="Secciones">
-  <button data-tab="resumen">Resumen</button>
-  <button data-tab="tareas">Tareas</button>
-  <button data-tab="ruta">Ruta</button>
-  <button data-tab="clientes">Clientes</button>
-  <button data-tab="ventas">Ventas</button>
-  <button data-tab="barriles">Barriles</button>
-  <button data-tab="indices">Índices</button>
-  <button data-tab="ajustes">Ajustes</button>
+<div class="nav-fondo" data-act="cerrarNav"></div>
+<nav class="tabs" id="navLateral" aria-label="Secciones">
+  <div class="nav-hd"><b>Cartera Valdivia</b><button class="btn sm nav-x" data-act="cerrarNav" aria-label="Cerrar menú">✕</button></div>
+  <button data-tab="resumen"><span class="ico" aria-hidden="true">📊</span><span>Resumen</span></button>
+  <button data-tab="tareas"><span class="ico" aria-hidden="true">📋</span><span>Tareas</span></button>
+  <button data-tab="ruta"><span class="ico" aria-hidden="true">🗺️</span><span>Ruta</span></button>
+  <button data-tab="clientes"><span class="ico" aria-hidden="true">👥</span><span>Clientes</span></button>
+  <button data-tab="ventas"><span class="ico" aria-hidden="true">💰</span><span>Ventas</span></button>
+  <button data-tab="barriles"><span class="ico" aria-hidden="true">🛢️</span><span>Barriles</span></button>
+  <button data-tab="indices"><span class="ico" aria-hidden="true">📈</span><span>Índices</span></button>
+  <button data-tab="ajustes"><span class="ico" aria-hidden="true">⚙️</span><span>Ajustes</span></button>
+  <button data-tab="equipo"><span class="ico" aria-hidden="true">🔑</span><span>Equipo</span></button>
 </nav>
 <div id="modal"></div>
 <div id="toast" class="toast" hidden></div>
@@ -624,11 +642,14 @@ function planDia(fecha){
 }
 function weekStart(fecha){const w=wday(fecha);return addDays(fecha,w===0?-6:1-w)}
 
+/* menú lateral en el celular: abrir, cerrar y Escape */
+function navMenu(abrir){document.body.classList.toggle("menu-abierto",!!abrir);document.querySelector(".navbtn")?.setAttribute("aria-expanded",abrir?"true":"false");if(abrir)document.querySelector('nav.tabs [aria-current="page"]')?.focus()}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("menu-abierto")){e.stopPropagation();navMenu(false)}},true);
+
 /* ---------- views ---------- */
 function render(){
-  const vt=ME.perfil?visibleTabs():[];document.querySelectorAll("nav.tabs button").forEach(b=>{b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false");b.hidden=!vt.includes(b.dataset.tab)});
-  const tabOn=document.querySelector('nav.tabs [aria-current="page"]'),nav=tabOn?.parentElement;if(tabOn&&nav.scrollWidth>nav.clientWidth)nav.scrollLeft=tabOn.offsetLeft-(nav.clientWidth-tabOn.offsetWidth)/2;
-  $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn" data-act="newClient">+ Cliente</button>`:""}${iaOn()?`<button class="btn ia-boton" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨</button>`:""}<button class="btn" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
+  const vt=ME.perfil?visibleTabs():[];document.querySelectorAll("nav.tabs button[data-tab]").forEach(b=>{b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false");b.hidden=!vt.includes(b.dataset.tab)});
+  $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn redondo mas" data-act="newClient" aria-label="Nuevo cliente" title="Nuevo cliente">+</button>`:""}${iaOn()?`<button class="btn ia-boton" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨</button>`:""}<button class="btn redondo" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
   const v=$("#view");
   if(S.dbState==="loading"){v.innerHTML=`<div class="empty">Cargando tu cartera…</div>`;return}
@@ -1953,7 +1974,7 @@ function clientDetail(id){
    <div class="row spread"><span>Visita</span>${pill(semVisita(cl))}</div>
    ${(cl.marcas||[]).map(m=>`<div class="row spread"><span class="row" style="gap:6px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>Recompra ${m}</span>${pill(semCompra(cl,m))}</div>`).join("")}
    <div class="row spread"><span>Pago</span>${pill(semPago(cl))}</div><div class="row spread"><span>Seguimiento</span>${pill(semSeg(cl))}</div></div>
-  <div class="row"><button class="btn primary" data-act="newAct" data-id="${id}">+ Visita / activación</button>${can("registrar_ventas")?`<button class="btn" data-act="newSale" data-id="${id}">+ Venta</button>`:""}${can("editar_clientes")?`<button class="btn" data-act="editClient" data-id="${id}">Editar</button>`:""}${wa?`<a class="btn" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`:""}</div>
+  <div class="row"><button class="btn primary" data-act="newAct" data-id="${id}">+ Visita / activación</button>${can("registrar_ventas")?`<button class="btn" data-act="newSale" data-id="${id}">+ Venta</button>`:""}${can("editar_clientes")?`<button class="btn" data-act="editClient" data-id="${id}">Editar</button>`:""}${wa?`<a class="btn" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`:""}${can("eliminar")?`<button class="btn danger" data-act="delClient" data-id="${id}">🗑 Eliminar</button>`:""}</div>
   <div class="card stack" style="gap:6px">
    ${contactoBloque("Quién hace los pedidos",{nombre:cl.contacto||"",tel:cl.telefono||"",email:cl.emailPedidos||""})}
    ${cl.pagoMismo?(cl.contacto||cl.telefono?`<div><span class="muted small">Quién paga</span><div>La misma persona que hace los pedidos</div></div>`:""):contactoBloque("Quién paga",pagoDe(cl))}
@@ -2408,7 +2429,7 @@ async function importarRespaldo(file){
 }
 
 /* ---------- pantalla de ingreso ---------- */
-function showApp(on){document.querySelector(".app").hidden=!on;document.querySelector("nav.tabs").hidden=!on;$(".fab").hidden=!on;$("#auth").hidden=on;if(!on)$("#vozCard").hidden=true}
+function showApp(on){navMenu(false);document.querySelector(".app").hidden=!on;document.querySelector("nav.tabs").hidden=!on;$(".fab").hidden=!on;$("#auth").hidden=on;if(!on)$("#vozCard").hidden=true}
 function authScreen(mode="login",msg=""){
   showApp(false);
   const cfgFalta=!SB;
@@ -2780,7 +2801,9 @@ document.addEventListener("keydown",e=>{
 });
 document.addEventListener("click",async e=>{
   const t=e.target.closest("[data-act],[data-tab]");if(!t)return;
-  if(t.dataset.tab){closeSheet();S.tab=t.dataset.tab;render();window.scrollTo(0,0);return}
+  if(t.dataset.act==="menuNav"){navMenu(!document.body.classList.contains("menu-abierto"));return}
+  if(t.dataset.act==="cerrarNav"){navMenu(false);return}
+  if(t.dataset.tab){navMenu(false);closeSheet();S.tab=t.dataset.tab;render();window.scrollTo(0,0);return}
   const a=t.dataset.act,id=t.dataset.id;
   if(a==="closeBg"&&e.target!==t)return;
   switch(a){
@@ -2872,8 +2895,11 @@ document.addEventListener("click",async e=>{
       if(await guard(()=>DB.delete("ventas",id,),"Venta eliminada"))closeSheet();break;
     case"delAct":if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Toca otra vez para eliminar";return}
       if(await guard(()=>DB.delete("actividades",id,),"Registro eliminado"))closeSheet();break;
-    case"delClient":{const n=ventasDe(id).length+actsDe(id).length;if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent=n?`Eliminar cliente y sus ${n} registros: toca otra vez`:"Toca otra vez para eliminar";return}
-      if(await guard(async()=>{for(const v of ventasDe(id))await DB.delete("ventas",v.id,);for(const x of actsDe(id))await DB.delete("actividades",x.id,);await DB.delete("clientes",id,)},"Cliente eliminado"))closeSheet();break}
+    case"delClient":{const cl=S.clientes.find(c=>c.id===id);if(!cl)break;
+      const nv=ventasDe(id).length,na=actsDe(id).length,nb=S.barriles.filter(b=>b.estado==="en_cliente"&&b.clienteId===id).length;
+      const det=nv||na?` junto con ${nv} ${nv===1?"venta":"ventas"} y ${na} ${na===1?"visita":"visitas"}`:"";
+      if(!await confirmar(`¿Eliminar a ${esc(cl.nombre)}?`,`Se borrará el cliente${det}. Esto no se puede deshacer.${nb?`<br><b>Ojo:</b> tiene ${nb} ${nb===1?"barril":"barriles"} en el local; conviene retirarlos antes.`:""}`,"Sí, eliminar","Cancelar"))break;
+      if(await guard(async()=>{for(const v of ventasDe(id))await DB.delete("ventas",v.id);for(const x of actsDe(id))await DB.delete("actividades",x.id);await DB.delete("clientes",id)},"Cliente eliminado"))closeSheet();break}
     case"addProd":collectCfgForm();S.cfg.productos.push({id:"p"+Date.now().toString(36),marca:"cerveza",formato:"lata355",estilo:"",nombre:"Nuevo producto",litros:.355,neto:0});render();break;
     case"delProd":collectCfgForm();S.cfg.productos.splice(Number(t.dataset.i),1);render();break;
     case"addMu":collectCfgForm();S.cfg.muestras.push({id:"m"+Date.now().toString(36),marca:"cerveza",nombre:"Nueva variedad",unidad:"lata"});render();break;
