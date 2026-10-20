@@ -1,0 +1,31 @@
+# Mantiene activa la base de datos de Cartera Valdivia (Supabase plan gratis).
+# Supabase pausa los proyectos gratis que pasan ~7 días sin uso.
+# Esta tarea le hace una consulta pequeña cada 3 días para que no se duerma.
+# Usa solo la clave pública (anon), la misma que ya está en config.js.
+
+name: Mantener Supabase activa
+
+on:
+  schedule:
+    - cron: "17 12 */3 * *"   # cada 3 días, a las 12:17 UTC (≈ 9:17 en Chile)
+  workflow_dispatch:           # permite correrla a mano con el botón "Run workflow"
+
+jobs:
+  despertar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar la base de datos
+        env:
+          SUPABASE_URL: https://idjjwcvnkmrmkvlxiyxw.supabase.co
+          SUPABASE_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlkamp3Y3Zua21ybWt2bHhpeXh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0Njc5MzgsImV4cCI6MjEwNjA0MzkzOH0.GnbAgNwwA82cJKRHttlJ-40Xbc7l_j86O1eoH-7-47w
+        run: |
+          codigo=$(curl -s -o respuesta.txt -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/config?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON" \
+            -H "Authorization: Bearer $SUPABASE_ANON")
+          echo "Respuesta de Supabase: $codigo"
+          cat respuesta.txt
+          if [ "$codigo" != "200" ]; then
+            echo "La base no respondió bien. Revisa si está pausada en supabase.com"
+            exit 1
+          fi
