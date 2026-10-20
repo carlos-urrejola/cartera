@@ -272,13 +272,8 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 .ia-form textarea{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);resize:none;font-size:16px;min-height:44px}
 .ia-form .btn{min-height:44px}
 .ia-ficha{white-space:pre-wrap;margin-top:8px}
-@media (max-width:480px){.hide-sm{display:none}}
+.btn.ia-boton{width:40px;height:40px;padding:0;border-radius:50%;font-size:18px;flex:none}
 .ia-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-/* micrófono: botón grande para usar con una mano o con el teléfono en el soporte */
-.fab-mic{position:fixed;left:16px;bottom:calc(66px + env(safe-area-inset-bottom,0px));z-index:30;width:58px;height:58px;border-radius:50%;border:0;background:var(--kom);color:#fff;font-size:26px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);display:grid;place-items:center}
-.fab-mic.on{background:var(--bad)}
-.fab-mic.on::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:3px solid var(--bad);opacity:.6}
-@media (prefers-reduced-motion:no-preference){.fab-mic.on::after{animation:pulso 1.2s ease-out infinite}@keyframes pulso{from{transform:scale(.9);opacity:.7}to{transform:scale(1.25);opacity:0}}}
 .voz-card{position:fixed;left:12px;right:12px;bottom:calc(66px + env(safe-area-inset-bottom,0px));z-index:45;max-width:640px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .voz-card .voz-txt{max-height:34vh;overflow:auto;font-size:16px;line-height:1.45}
 .voz-card .voz-txt p{margin:0 0 6px}.voz-card .voz-txt ul{margin:2px 0 6px;padding-left:18px}
@@ -298,7 +293,6 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
   <main id="view"></main>
 </div>
 <button class="btn primary fab" data-act="chooser">+ Registrar</button>
-<button class="fab-mic" data-act="voz" aria-label="Hablarle al asistente" title="Hablarle al asistente" hidden>🎙️</button>
 <div id="vozCard" class="voz-card" role="status" aria-live="polite" hidden></div>
 <nav class="tabs" aria-label="Secciones">
   <button data-tab="resumen">Resumen</button>
@@ -634,8 +628,7 @@ function weekStart(fecha){const w=wday(fecha);return addDays(fecha,w===0?-6:1-w)
 function render(){
   const vt=ME.perfil?visibleTabs():[];document.querySelectorAll("nav.tabs button").forEach(b=>{b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false");b.hidden=!vt.includes(b.dataset.tab)});
   const tabOn=document.querySelector('nav.tabs [aria-current="page"]'),nav=tabOn?.parentElement;if(tabOn&&nav.scrollWidth>nav.clientWidth)nav.scrollLeft=tabOn.offsetLeft-(nav.clientWidth-tabOn.offsetWidth)/2;
-  $(".fab-mic").hidden=!(ME.perfil&&iaOn()&&SR_VOZ);
-  $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn" data-act="newClient">+ Cliente</button>`:""}${iaOn()?`<button class="btn" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨<span class="hide-sm"> Asistente</span></button>`:""}<button class="btn" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
+  $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn" data-act="newClient">+ Cliente</button>`:""}${iaOn()?`<button class="btn ia-boton" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨</button>`:""}<button class="btn" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
   const v=$("#view");
   if(S.dbState==="loading"){v.innerHTML=`<div class="empty">Cargando tu cartera…</div>`;return}
@@ -2415,7 +2408,7 @@ async function importarRespaldo(file){
 }
 
 /* ---------- pantalla de ingreso ---------- */
-function showApp(on){document.querySelector(".app").hidden=!on;document.querySelector("nav.tabs").hidden=!on;$(".fab").hidden=!on;$("#auth").hidden=on;if(!on){$(".fab-mic").hidden=true;$("#vozCard").hidden=true}}
+function showApp(on){document.querySelector(".app").hidden=!on;document.querySelector("nav.tabs").hidden=!on;$(".fab").hidden=!on;$("#auth").hidden=on;if(!on)$("#vozCard").hidden=true}
 function authScreen(mode="login",msg=""){
   showApp(false);
   const cfgFalta=!SB;
@@ -2678,7 +2671,7 @@ function iaSheet(){
       <div class="row" style="margin-top:8px"><button class="btn sm danger" type="button" data-act="iaBorrar">Borrar memoria e historial</button></div></details>
     <div id="iaLog" class="ia-log" aria-live="polite"></div>
     <div class="chips" id="iaRapidas">${IA_RAPIDAS().map((q,i)=>`<button type="button" class="chip strong lnk" data-act="iaRapida" data-v="${i}">${esc(q)}</button>`).join("")}</div>
-    <form id="iaForm" class="ia-form"><textarea id="iaQ" rows="2" maxlength="1500" placeholder="${SR_VOZ?"Escribe o toca 🎙️ y habla…":"Escribe tu pregunta…"}" aria-label="Tu pregunta"></textarea>${SR_VOZ?`<button class="btn" type="button" id="iaMic" data-act="voz" aria-label="Hablar">🎙️</button>`:""}<button class="btn primary" type="submit" id="iaEnviar">Preguntar</button></form>
+    <form id="iaForm" class="ia-form"><textarea id="iaQ" rows="2" maxlength="1500" placeholder="${SR_VOZ?"Escribe o toca 🎙️ y habla…":"Escribe tu pregunta…"}" aria-label="Tu pregunta"></textarea>${SR_VOZ?`<button class="btn" type="button" id="iaMic" data-act="voz" aria-label="Hablar" title="Hablar">🎙️</button>`:""}<button class="btn primary" type="submit" id="iaEnviar">Preguntar</button></form>
   </div>`);
   iaPintar();
   if(window.innerWidth>700)$("#iaQ")?.focus();
