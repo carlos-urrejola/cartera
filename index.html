@@ -80,6 +80,13 @@ nav.tabs button[data-tab] .ico{width:22px;text-align:center;flex:none}
 nav.tabs button[data-tab]:hover{background:var(--surface-2);color:var(--ink)}
 nav.tabs button[aria-current="page"]{background:var(--surface-2);color:var(--ink);box-shadow:inset 3px 0 0 var(--ink)}
 .nav-fondo{display:none}
+nav.tabs .subnav{display:flex;flex-direction:column;gap:1px;margin:2px 0 8px 22px;padding-left:12px;border-left:1px solid var(--line)}
+nav.tabs .subnav button[data-tab]{font-size:14px;font-weight:500;padding:7px 10px;box-shadow:none}
+nav.tabs .subnav button[aria-current="true"]{background:var(--surface-2);color:var(--ink);font-weight:600}
+.nav-badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#E0352B;color:#fff;font:700 12px/1 var(--body);display:inline-flex;align-items:center;justify-content:center;flex:none}
+nav.tabs .nav-badge{margin-left:auto}
+.btn.navbtn{position:relative}
+.navbtn .nav-badge{position:absolute;top:-7px;right:-7px;box-shadow:0 0 0 2px var(--bg)}
 @media (min-width:900px){body{padding-left:248px}}
 @media (max-width:899px){
   .btn.navbtn{display:inline-flex;font-size:20px;line-height:1;padding:7px 11px}
@@ -301,7 +308,7 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 
 <div class="app">
   <header class="top">
-    <div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn navbtn" data-act="menuNav" aria-label="Abrir menú" aria-expanded="false" aria-controls="navLateral">☰</button><div><h1>Cartera Valdivia</h1><div class="muted small">Clientes de cerveza El Growler y kombucha Animal Social</div></div></div>
+    <div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn navbtn" data-act="menuNav" aria-label="Abrir menú" aria-expanded="false" aria-controls="navLateral">☰<span class="nav-badge" hidden></span></button><div><h1>Cartera Valdivia</h1><div class="muted small">Clientes de cerveza El Growler y kombucha Animal Social</div></div></div>
     <div class="row" id="hdr"></div>
   </header>
   <div id="status"></div>
@@ -313,7 +320,7 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 <nav class="tabs" id="navLateral" aria-label="Secciones">
   <div class="nav-hd"><b>Cartera Valdivia</b><button class="btn sm nav-x" data-act="cerrarNav" aria-label="Cerrar menú">✕</button></div>
   <button data-tab="resumen"><span class="ico" aria-hidden="true">📊</span><span>Resumen</span></button>
-  <button data-tab="tareas"><span class="ico" aria-hidden="true">📋</span><span>Tareas</span></button>
+  <button data-tab="tareas"><span class="ico" aria-hidden="true">📋</span><span>Tareas</span><span class="nav-badge" hidden></span></button>
   <button data-tab="ruta"><span class="ico" aria-hidden="true">🗺️</span><span>Ruta</span></button>
   <button data-tab="clientes"><span class="ico" aria-hidden="true">👥</span><span>Clientes</span></button>
   <button data-tab="ventas"><span class="ico" aria-hidden="true">💰</span><span>Ventas</span></button>
@@ -642,13 +649,56 @@ function planDia(fecha){
 }
 function weekStart(fecha){const w=wday(fecha);return addDays(fecha,w===0?-6:1-w)}
 
+/* submenús del menú lateral: se despliegan bajo la sección abierta */
+S.tFiltro="todas";
+const TGRUPO={visita:["visita"],pedido:["recompra","dormido"],cobrar:["cobrar"],seg:["seg","prospecto"],barril:["barril"]};
+const TGRUPO_TXT={visita:"📍 Visitas",pedido:"📞 Llamar / ofrecer pedido",cobrar:"💰 Cobros",seg:"📅 Seguimientos",barril:"🛢️ Barriles"};
+function subItems(tab){
+  if(tab==="clientes")return[["lista","Listado de clientes"],...(can("editar_clientes")?[["nuevo","+ Crear cliente"]]:[]),["prospectos","Prospectos"],["atrasados","✕ Con algo atrasado"],["incompleta","! Ficha incompleta"]];
+  if(tab==="tareas")return[["todas","Todas"],...Object.keys(TGRUPO).filter(k=>k!=="barril"||verBarriles()).map(k=>[k,TGRUPO_TXT[k]])];
+  if(tab==="ruta")return[["hoy","Hoy"],["manana","Mañana"]];
+  if(tab==="ventas")return[...(can("registrar_ventas")?[["nueva","+ Registrar venta"]]:[]),["pendientes","Por cobrar"],["mes","Del mes"],["todas","Todas"]];
+  if(tab==="barriles")return[["scan","📷 Escanear"],["en_cliente","En clientes"],["lleno","Llenos"],["limpio","Limpios"],["vacio","Por lavar"],["todos","Todos"]];
+  if(tab==="indices")return[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","✚ Armar gráfico"],...(can("ver_cobranza")?[["cobranza","Cobranza"]]:[]),...(can("ver_ingresos")?[["sueldo","Sueldo y meta"]]:[])];
+  return[];
+}
+function subActual(tab){
+  if(tab==="clientes")return S.q?"":({todos:"lista","estado:prospecto":"prospectos",bad:"atrasados",ficha:"incompleta"})[S.fSem]||"";
+  if(tab==="tareas")return S.tFiltro;
+  if(tab==="ruta")return S.rutaFecha===today()?"hoy":S.rutaFecha===addDays(today(),1)?"manana":"";
+  if(tab==="ventas")return S.vFiltro;
+  if(tab==="barriles")return S.bq?"":S.bFiltro;
+  if(tab==="indices")return S.ix.vista;
+  return"";
+}
+/* aplica la opción elegida; devuelve lo que hay que abrir después de mostrar la sección */
+function aplicarSub(tab,sub){
+  if(tab==="clientes"){if(sub==="nuevo")return()=>clientForm();S.q="";S.fMarca="todas";S.fZona="todas";S.fSem=({lista:"todos",prospectos:"estado:prospecto",atrasados:"bad",incompleta:"ficha"})[sub]||"todos"}
+  if(tab==="tareas")S.tFiltro=TGRUPO[sub]?sub:"todas";
+  if(tab==="ruta")S.rutaFecha=sub==="manana"?addDays(today(),1):today();
+  if(tab==="ventas"){if(sub==="nueva")return()=>saleForm();S.vFiltro=sub}
+  if(tab==="barriles"){if(sub==="scan")return()=>escanear();S.bq="";S.bFiltro=sub}
+  if(tab==="indices")S.ix.vista=sub;
+  return null;
+}
+/* pendientes de hoy (con atrasadas) y mañana: globo rojo como de mensajes sin leer */
+function pendientesNav(){try{return ME.perfil?.activo&&S.dbState==="on"?tareasAbiertas().filter(x=>x.fecha<=addDays(today(),1)).length:0}catch(e){return 0}}
+function navExtras(){
+  const on=document.querySelector(`nav.tabs button[data-tab="${S.tab}"]:not([data-sub])`),subs=ME.perfil?subItems(S.tab):[];
+  if(on&&subs.length){const cur=subActual(S.tab);on.insertAdjacentHTML("afterend",`<div class="subnav">${subs.map(([k,l])=>`<button data-tab="${S.tab}" data-sub="${k}"${k===cur?' aria-current="true"':""}>${esc(l)}</button>`).join("")}</div>`)}
+  const n=pendientesNav();
+  document.querySelectorAll(".nav-badge").forEach(b=>{b.hidden=!n;b.textContent=n>99?"99+":String(n);b.title=n?`${n} ${n===1?"pendiente":"pendientes"} para hoy y mañana`:""});
+}
+
 /* menú lateral en el celular: abrir, cerrar y Escape */
 function navMenu(abrir){document.body.classList.toggle("menu-abierto",!!abrir);document.querySelector(".navbtn")?.setAttribute("aria-expanded",abrir?"true":"false");if(abrir)document.querySelector('nav.tabs [aria-current="page"]')?.focus()}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("menu-abierto")){e.stopPropagation();navMenu(false)}},true);
 
 /* ---------- views ---------- */
 function render(){
+  document.querySelectorAll("nav.tabs .subnav").forEach(x=>x.remove());
   const vt=ME.perfil?visibleTabs():[];document.querySelectorAll("nav.tabs button[data-tab]").forEach(b=>{b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false");b.hidden=!vt.includes(b.dataset.tab)});
+  navExtras();
   $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn redondo mas" data-act="newClient" aria-label="Nuevo cliente" title="Nuevo cliente">+</button>`:""}${iaOn()?`<button class="btn ia-boton" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨</button>`:""}<button class="btn redondo" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
   const v=$("#view");
@@ -1363,7 +1413,7 @@ function grupoFecha(f){
   if(f<=finSem)return[3,"Esta semana"];if(f<=finProx)return[4,"Próxima semana"];return[5,"Más adelante"];
 }
 function vTareas(){
-  const TT=generarTareas(),T=TT.filter(x=>x.estado==="abierta"||x.estado==="proceso"),equipo=S.equipo.length>1&&can("ver_todos_clientes");
+  const TT=generarTareas(),grp=TGRUPO[S.tFiltro],T=TT.filter(x=>(x.estado==="abierta"||x.estado==="proceso")&&(!grp||grp.includes(x.tipo))),equipo=S.equipo.length>1&&can("ver_todos_clientes");
   const cerradas=TT.filter(x=>x.estado==="listo"||x.estado==="no_lograda");
   const tel=c=>{const x=(c.telefono||c.telDueno||"").replace(/\D/g,"");return x?`https://wa.me/${x.length===9?"56"+x:x}`:""};
   // una tarjeta por cliente y día, con todas sus tareas
@@ -1389,6 +1439,8 @@ function vTareas(){
   const hoyN=lista.filter(x=>x.g[0]<=1).length;
   return `<div class="stack"><div class="row spread"><div><h2>Tareas</h2><div class="muted small">${hoyN} para hoy (incluye atrasadas) · calculadas con la frecuencia de compra, cobros, visitas y degustaciones</div></div>
     ${equipo?`<select id="tareasDe" aria-label="Tareas de" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><option value="${ME.user.id}">Mis tareas</option>${S.equipo.filter(u=>u.id!==ME.user.id).map(u=>`<option value="${u.id}"${S.tareasDe===u.id?" selected":""}>${esc(u.nombre)}</option>`).join("")}<option value="todos"${S.tareasDe==="todos"?" selected":""}>Todo el equipo</option></select>`:""}</div>
+    </div>
+    ${grp?`<div class="row"><span class="chip strong">Mostrando: ${TGRUPO_TXT[S.tFiltro]}</span><button class="btn sm" data-tab="tareas" data-sub="todas">Ver todas</button></div>`:""}
     ${lista.length?grupos.map(g=>{const xs=lista.filter(x=>x.g[0]===g);return `<section class="stack" style="gap:8px"><h3>${xs[0].g[1]} <span class="muted small">(${xs.length})</span></h3>${xs.map(card).join("")}</section>`}).join(""):`<div class="empty">No hay tareas pendientes para las próximas 3 semanas. 👌</div>`}
     ${cerradas.length?`<details class="card"><summary>Cerradas (${cerradas.length})</summary><div style="margin-top:8px">${cerradas.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(x=>`<div class="drow" style="cursor:default"><span>${TAREA_ICO[x.tipo]}</span><span><b style="font-weight:600">${esc(x.c.nombre)}</b> · ${esc(x.titulo)}<div class="sub">${x.estado==="listo"?"✓ Listo":"✕ No se logró"} · ${fdate(x.fecha)}</div></span><button class="btn sm" data-act="tareaEstado" data-v="abierta" data-k="${esc(x.key)}" data-id="${x.c.id}" data-t="${esc(x.titulo)}">Reabrir</button></div>`).join("")}</div></details>`:""}
     <div class="muted small">Las tareas se calculan solas con tus datos: al registrar la venta, la visita o el pago, se actualizan. "Listo" y "No se logró" las sacan de la lista y quedan en el historial del cliente.</div></div>`;
@@ -2803,7 +2855,7 @@ document.addEventListener("click",async e=>{
   const t=e.target.closest("[data-act],[data-tab]");if(!t)return;
   if(t.dataset.act==="menuNav"){navMenu(!document.body.classList.contains("menu-abierto"));return}
   if(t.dataset.act==="cerrarNav"){navMenu(false);return}
-  if(t.dataset.tab){navMenu(false);closeSheet();S.tab=t.dataset.tab;render();window.scrollTo(0,0);return}
+  if(t.dataset.tab){navMenu(false);closeSheet();S.tab=t.dataset.tab;const post=t.dataset.sub?aplicarSub(S.tab,t.dataset.sub):null;render();window.scrollTo(0,0);post?.();return}
   const a=t.dataset.act,id=t.dataset.id;
   if(a==="closeBg"&&e.target!==t)return;
   switch(a){
