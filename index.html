@@ -86,6 +86,9 @@ nav.tabs .subnav button[aria-current="true"]{background:var(--surface-2);color:v
 .nav-badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#E0352B;color:#fff;font:700 12px/1 var(--body);display:inline-flex;align-items:center;justify-content:center;flex:none}
 nav.tabs .nav-badge{margin-left:auto}
 .btn.navbtn{position:relative}
+nav.tabs .subnav .nav-badge{min-width:18px;height:18px;font-size:11px;padding:0 5px}
+.punto-nuevo{width:10px;height:10px;border-radius:50%;background:#E0352B;display:inline-block;flex:none;box-shadow:0 0 0 2px var(--surface)}
+.tarea.nueva{border-color:color-mix(in srgb,#E0352B 45%,var(--line))}
 .navbtn .nav-badge{position:absolute;top:-7px;right:-7px;box-shadow:0 0 0 2px var(--bg)}
 @media (min-width:900px){body{padding-left:248px}}
 @media (max-width:899px){
@@ -681,14 +684,29 @@ function aplicarSub(tab,sub){
   if(tab==="indices")S.ix.vista=sub;
   return null;
 }
-/* pendientes de hoy (con atrasadas) y mañana: globo rojo como de mensajes sin leer */
-function pendientesNav(){try{return ME.perfil?.activo&&S.dbState==="on"?tareasAbiertas().filter(x=>x.fecha<=addDays(today(),1)).length:0}catch(e){return 0}}
-function navExtras(){
-  const on=document.querySelector(`nav.tabs button[data-tab="${S.tab}"]:not([data-sub])`),subs=ME.perfil?subItems(S.tab):[];
-  if(on&&subs.length){const cur=subActual(S.tab);on.insertAdjacentHTML("afterend",`<div class="subnav">${subs.map(([k,l])=>`<button data-tab="${S.tab}" data-sub="${k}"${k===cur?' aria-current="true"':""}>${esc(l)}</button>`).join("")}</div>`)}
-  const n=pendientesNav();
-  document.querySelectorAll(".nav-badge").forEach(b=>{b.hidden=!n;b.textContent=n>99?"99+":String(n);b.title=n?`${n} ${n===1?"pendiente":"pendientes"} para hoy y mañana`:""});
+/* tareas "sin ver" de hoy (con atrasadas) y mañana: globo rojo como de mensajes sin leer.
+   Al tocar una tarea queda vista en este dispositivo y el número baja. */
+const VISTOS_K=()=>"cartera-vistos-"+(ME.user?.id||"");
+function vistos(){try{return new Set(JSON.parse(localStorage.getItem(VISTOS_K())||"[]")||[])}catch(e){return new Set()}}
+function marcarVistos(keys){
+  const v=vistos();let nuevo=false;keys.forEach(k=>{if(k&&!v.has(k)){v.add(k);nuevo=true}});if(!nuevo)return false;
+  const lim=addDays(today(),-90);try{localStorage.setItem(VISTOS_K(),JSON.stringify([...v].filter(k=>(k.split("|")[2]||"")>=lim)))}catch(e){}
+  return true;
 }
+const esNueva=(x,v)=>x.fecha<=addDays(today(),1)&&!v.has(x.key);
+function sinVer(){try{if(!(ME.perfil?.activo&&S.dbState==="on"))return[];const v=vistos();return tareasAbiertas().filter(x=>esNueva(x,v))}catch(e){return[]}}
+function pendientesNav(){return sinVer().length}
+function navExtras(){
+  document.querySelectorAll("nav.tabs .subnav").forEach(x=>x.remove());
+  const on=document.querySelector(`nav.tabs button[data-tab="${S.tab}"]:not([data-sub])`),subs=ME.perfil?subItems(S.tab):[];
+  if(on&&subs.length){const cur=subActual(S.tab);const sv=S.tab==="tareas"?sinVer():[],cuenta=k=>k==="todas"?sv.length:TGRUPO[k]?sv.filter(x=>TGRUPO[k].includes(x.tipo)).length:0;
+    on.insertAdjacentHTML("afterend",`<div class="subnav">${subs.map(([k,l])=>{const c=cuenta(k);return `<button data-tab="${S.tab}" data-sub="${k}"${k===cur?' aria-current="true"':""}><span>${esc(l)}</span>${c?`<span class="nav-badge">${c>99?"99+":c}</span>`:""}</button>`}).join("")}</div>`)}
+  const n=pendientesNav();
+  document.querySelectorAll(".navbtn .nav-badge,nav.tabs > button .nav-badge").forEach(b=>{b.hidden=!n;b.textContent=n>99?"99+":String(n);b.title=n?`${n} ${n===1?"pendiente":"pendientes"} para hoy y mañana`:""});
+}
+
+document.addEventListener("click",e=>{const tj=e.target.closest?.(".tarea[data-tkeys]");if(!tj)return;
+  if(marcarVistos(tj.dataset.tkeys.split(","))){tj.classList.remove("nueva");tj.querySelector(".punto-nuevo")?.remove();navExtras()}},true);
 
 /* menú lateral en el celular: abrir, cerrar y Escape */
 function navMenu(abrir){document.body.classList.toggle("menu-abierto",!!abrir);document.querySelector(".navbtn")?.setAttribute("aria-expanded",abrir?"true":"false");if(abrir)document.querySelector('nav.tabs [aria-current="page"]')?.focus()}
@@ -1413,7 +1431,7 @@ function grupoFecha(f){
   if(f<=finSem)return[3,"Esta semana"];if(f<=finProx)return[4,"Próxima semana"];return[5,"Más adelante"];
 }
 function vTareas(){
-  const TT=generarTareas(),grp=TGRUPO[S.tFiltro],T=TT.filter(x=>(x.estado==="abierta"||x.estado==="proceso")&&(!grp||grp.includes(x.tipo))),equipo=S.equipo.length>1&&can("ver_todos_clientes");
+  const VIS=vistos(),TT=generarTareas(),grp=TGRUPO[S.tFiltro],T=TT.filter(x=>(x.estado==="abierta"||x.estado==="proceso")&&(!grp||grp.includes(x.tipo))),equipo=S.equipo.length>1&&can("ver_todos_clientes");
   const cerradas=TT.filter(x=>x.estado==="listo"||x.estado==="no_lograda");
   const tel=c=>{const x=(c.telefono||c.telDueno||"").replace(/\D/g,"");return x?`https://wa.me/${x.length===9?"56"+x:x}`:""};
   // una tarjeta por cliente y día, con todas sus tareas
@@ -1423,8 +1441,9 @@ function vTareas(){
     .sort((a,b)=>a.g[0]-b.g[0]||a.fecha.localeCompare(b.fecha)||b.prio-a.prio||impOf(a.c).localeCompare(impOf(b.c)));
   const grupos=[...new Set(lista.map(x=>x.g[0]))];
   const card=tj=>{const c=tj.c,tipos=tj.items.map(i=>i.tipo),w=tel(c);
-    return `<div class="tarea${tj.prio>=3?" alta":""}">
-      <div class="row spread" style="flex-wrap:nowrap;align-items:flex-start"><button class="btn link" style="font-weight:700;font-size:15px" data-act="openClient" data-id="${c.id}">${impBadge(c)} ${esc(c.nombre)}</button><span class="muted small" style="white-space:nowrap">${tj.g[0]===0?"desde ":""}${fdate(tj.fecha)}</span></div>
+    const nueva=tj.items.some(i=>esNueva(i,VIS));
+    return `<div class="tarea${tj.prio>=3?" alta":""}${nueva?" nueva":""}" data-tkeys="${esc(tj.items.map(i=>i.key).join(","))}">
+      <div class="row spread" style="flex-wrap:nowrap;align-items:flex-start"><span class="row" style="gap:8px;flex-wrap:nowrap">${nueva?`<span class="punto-nuevo" role="img" aria-label="Sin ver" title="Sin ver"></span>`:""}<button class="btn link" style="font-weight:700;font-size:15px" data-act="openClient" data-id="${c.id}">${impBadge(c)} ${esc(c.nombre)}</button></span><span class="muted small" style="white-space:nowrap">${tj.g[0]===0?"desde ":""}${fdate(tj.fecha)}</span></div>
       ${tj.items.map(i=>{const b=(v,l)=>`<button class="btn sm${i.estado===v?" on":""}" data-act="tareaEstado" data-v="${v}" data-k="${esc(i.key)}" data-id="${c.id}" data-t="${esc(i.titulo)}">${l}</button>`;
         return `<div class="titem"><span aria-hidden="true">${TAREA_ICO[i.tipo]}</span><div><b style="font-weight:600">${esc(i.titulo)}</b>${i.estado==="proceso"?` <span class="chip strong">⏳ En proceso</span>`:""}<div class="small muted">${esc(i.detalle)}</div>
           <div class="row testados">${b("listo","✓ Listo")}${i.estado==="proceso"?b("abierta","Quitar en proceso"):b("proceso","⏳ En proceso")}${b("no_lograda","✕ No se logró")}</div></div></div>`}).join("")}
