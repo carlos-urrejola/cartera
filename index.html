@@ -335,6 +335,14 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 .ia-form textarea{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);resize:none;font-size:16px;min-height:44px}
 .ia-form .btn{min-height:44px}
 .ia-ficha{white-space:pre-wrap;margin-top:8px}
+.ia-pend-nota{margin-top:8px;font-size:13px;color:var(--muted)}
+.pend-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.pend-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface);display:flex;flex-direction:column;gap:6px;overflow-wrap:anywhere}
+.pend-item.hecho{opacity:.7}.pend-item.hecho .pend-tit{text-decoration:line-through}
+.pend-tit{font-weight:600;line-height:1.35}
+.pend-form{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.pend-form input,.pend-form select{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:16px;min-height:44px}
+.pend-form input{flex:1 1 220px;min-width:0}.pend-form select{flex:0 1 auto}.pend-form .btn{min-height:44px}
 .btn.ia-boton,.btn.redondo{width:40px;height:40px;padding:0;border-radius:50%;font-size:18px;flex:none}
 .btn.redondo.mas{font-size:26px;font-weight:500;line-height:1}
 .ia-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -3052,7 +3060,7 @@ function menuSheet(){
    La app arma un resumen de lo que esta persona ya ve (sin teléfonos, RUT, correos ni direcciones)
    y se lo manda a la función "asistente" de Supabase, que guarda la clave de Gemini.
    Memoria: ia_consultas (cada pregunta y respuesta) e ia_memoria (ficha consolidada), solo del usuario. */
-const IA_VACIO=()=>({log:[],ficha:"",cargado:false,ocupado:false,err:"",refs:{},card:false,escuchando:false,parcial:""});
+const IA_VACIO=()=>({log:[],ficha:"",cargado:false,ocupado:false,err:"",refs:{},card:false,escuchando:false,parcial:"",pend:[],pendCargado:false,pendErr:"",pendHechos:false});
 S.ia=IA_VACIO();
 // nombre de la función del asistente en Supabase (Edge Functions)
 const IA_FUNCION="clever-api";
@@ -3152,9 +3160,10 @@ function iaPintar(){
   log.innerHTML=(aviso?`<div class="banner">${aviso}</div>`:"")+
     (I.log.length?I.log.map(m=>m.rol==="yo"?`<div class="ia-msg yo" data-notr>${esc(m.txt)}</div>`
       :m.cargando?`<div class="ia-msg ia pensando">Pensando…</div>`
-      :`<div class="ia-msg ia${m.error?" err":""}" data-notr>${m.error?esc(m.txt):iaFormato(m.txt)}${m.error?"":iaBotonesHtml(m.botones)}</div>`).join("")
+      :`<div class="ia-msg ia${m.error?" err":""}" data-notr>${m.error?esc(m.txt):iaFormato(m.txt)}${m.error?"":iaBotonesHtml(m.botones)}${m.pend?`<div class="ia-pend-nota">📝 Anotado en pendientes: <b>${esc(m.pend.titulo)}</b></div>`:""}</div>`).join("")
     :(I.cargado||I.err?`<div class="muted small">Aún no le has preguntado nada. Prueba con una de las preguntas de abajo${SR_VOZ?" o toca 🎙️ y habla":""}.</div>`:`<div class="muted small">Cargando…</div>`));
   const fi=$("#iaFicha");if(fi)fi.innerHTML=I.ficha?`<div class="ia-ficha" data-notr>${esc(I.ficha)}</div>`:`<div class="muted">Todavía nada. Se va armando sola con tus preguntas.</div>`;
+  pendPintar();
   const b=$("#iaEnviar");if(b){b.disabled=I.ocupado;b.textContent=I.ocupado?"…":"Preguntar"}
   const mic=$("#iaMic");if(mic){mic.classList.toggle("on",!!I.escuchando);mic.textContent=I.escuchando?"⏹":"🎙️";mic.disabled=I.ocupado}
   const q=$("#iaQ");if(q&&I.escuchando)q.value=I.parcial||"";
@@ -3178,6 +3187,7 @@ function iaSheet(){
   openSheet(`<div class="ia stack">
     <div class="row spread" style="flex-wrap:nowrap"><h2>✨ Asistente</h2><button class="btn sm" data-act="close">Cerrar</button></div>
     <div class="muted small">Pregúntale sobre tu cartera o pídele que te lleve a una pantalla. Responde con los datos que ves en la app y no cambia nada por su cuenta.</div>
+    <details class="card" id="pendBox"><summary>📝 Pendientes de la app <span id="pendN" class="muted"></span></summary><div id="pendLista"></div></details>
     <details class="card"><summary>⚙️ Voz y memoria</summary>
       ${SR_VOZ||window.speechSynthesis?`<div class="checks" style="margin-top:8px;flex-direction:column;gap:8px">
         ${window.speechSynthesis?`<label><input type="checkbox" id="vozLeer" ${vozPref("leer")?"checked":""}> 🔊 Leer en voz alta las respuestas a lo que dicto</label>`:""}
@@ -3193,6 +3203,7 @@ function iaSheet(){
   iaPintar();
   if(window.innerWidth>700)$("#iaQ")?.focus();
   if(!S.ia.cargado)iaCargar();
+  if(!S.ia.pendCargado)pendCargar();
 }
 async function iaEnviar(q,opt={}){
   q=String(q||"").trim();if(!q||S.ia.ocupado)return;
@@ -3215,7 +3226,8 @@ async function iaEnviar(q,opt={}){
   S.ia.log=S.ia.log.filter(m=>!m.cargando);
   let dicho="";
   if(res?.respuesta){
-    S.ia.log.push({rol:"ia",txt:res.respuesta,botones:res.botones||[],nuevo:true});
+    S.ia.log.push({rol:"ia",txt:res.respuesta,botones:res.botones||[],pend:res.pendiente||null,nuevo:true});
+    if(res.pendiente)pendCargar();
     if(typeof res.ficha==="string")S.ia.ficha=res.ficha;S.ia.err="";dicho=res.respuesta;
     if(res.guardado===false)toast("Respondió, pero no pudo guardarlo en la memoria");
     // si pidió ir a una pantalla, la app se mueve y la respuesta queda en la tarjeta de abajo
@@ -3230,8 +3242,66 @@ async function iaBorrar(){
   try{
     const[a,b]=await Promise.all([SB.from("ia_consultas").delete().eq("usuario",ME.user.id),SB.from("ia_memoria").delete().eq("usuario",ME.user.id)]);
     if(a.error||b.error)throw a.error||b.error;
-    S.ia={...IA_VACIO(),cargado:true};iaPintar();toast("Memoria borrada");
+    S.ia={...IA_VACIO(),cargado:true,pend:S.ia.pend,pendCargado:S.ia.pendCargado,pendErr:S.ia.pendErr};iaPintar();toast("Memoria borrada");
   }catch(e){toast(errMsg(e))}
+}
+
+/* ---------- pendientes de la app ----------
+   Carpeta de mejoras: datos que la app no guarda, cosas que no hace e ideas.
+   La anota el asistente (cuando no puede responder o le piden "anota que…") o la persona a mano.
+   Tabla ia_pendientes: cada uno ve y cierra los suyos; el administrador ve todos. */
+const PEND_TIPOS={dato:"🧩 Dato que falta",funcion:"⚙️ Función que falta",idea:"💡 Idea"};
+async function pendCargar(){
+  try{
+    const{data,error}=await SB.from("ia_pendientes").select("id,usuario,data,creado").order("creado",{ascending:false}).limit(300);
+    if(error)throw error;
+    S.ia.pend=data||[];S.ia.pendCargado=true;S.ia.pendErr="";
+  }catch(e){const m=e?.message||"";S.ia.pendErr=S.offline||/Failed to fetch|NetworkError/i.test(m)?"offline":/ia_pendientes|does not exist|schema cache/i.test(m)?"falta_sql":"carga"}
+  pendPintar();
+}
+const pendAutor=u=>u===ME.user?.id?"":(S.equipo.find(x=>x.id===u)?.nombre||(S.perfiles||[]).find(x=>x.id===u)?.nombre||"otra cuenta");
+function pendFila(p){
+  const d=p.data||{},hecho=d.estado==="hecho",autor=pendAutor(p.usuario);
+  return `<div class="pend-item${hecho?" hecho":""}">
+    <div class="chips"><span class="chip">${PEND_TIPOS[d.tipo]||PEND_TIPOS.idea}</span>${autor?`<span class="chip strong">de ${esc(autor)}</span>`:""}<span class="chip">${fdate(String(p.creado||"").slice(0,10))} · ${d.por==="ia"?"lo anotó el asistente":"a mano"}</span></div>
+    <div class="pend-tit" data-notr>${esc(d.titulo||"(sin título)")}</div>
+    ${d.detalle?`<div class="small" data-notr>${esc(d.detalle)}</div>`:""}
+    ${d.origen&&d.por==="ia"?`<div class="muted small" data-notr>Pregunta: “${esc(d.origen)}”</div>`:""}
+    <div class="row" style="gap:6px">${hecho
+      ?`<button type="button" class="btn sm" data-act="pendEstado" data-id="${p.id}" data-v="abierto">↩ Reabrir</button><button type="button" class="btn sm danger" data-act="pendBorrar" data-id="${p.id}">Borrar</button>`
+      :`<button type="button" class="btn sm" data-act="pendEstado" data-id="${p.id}" data-v="hecho">✓ Listo</button>`}</div>
+  </div>`;
+}
+function pendPintar(){
+  const box=$("#pendLista");if(!box)return;const I=S.ia;
+  const abiertos=I.pend.filter(p=>p.data?.estado!=="hecho"),hechos=I.pend.filter(p=>p.data?.estado==="hecho");
+  const n=$("#pendN");if(n)n.textContent=abiertos.length?`(${abiertos.length})`:"";
+  const aviso={falta_sql:"Falta un paso: pegar en Supabase (SQL Editor) el bloque SQL de pendientes.",offline:"Sin conexión: los pendientes necesitan internet.",carga:"No se pudieron cargar los pendientes."}[I.pendErr];
+  if(aviso){box.innerHTML=`<div class="banner" style="margin-top:8px">${aviso}</div>`;return}
+  if(!I.pendCargado){box.innerHTML=`<div class="muted small" style="margin-top:8px">Cargando…</div>`;return}
+  box.innerHTML=`<div class="muted small" style="margin-top:8px">Lo que la app todavía no guarda o no hace, para mejorarla. El asistente anota solo cuando le falta algo para responder, o cuando le dices "anota que…".${isAdmin()?" Como administrador, ves también lo que anotan las otras cuentas.":""}</div>
+    <div class="pend-list">${abiertos.length?abiertos.map(pendFila).join(""):`<div class="muted small">No hay pendientes abiertos. 👌</div>`}</div>
+    <form id="pendForm" class="pend-form"><input id="pendTit" maxlength="100" placeholder="Anotar algo a mano…" aria-label="Nuevo pendiente"><select id="pendTipo" aria-label="Tipo">${Object.entries(PEND_TIPOS).map(([k,v])=>`<option value="${k}"${k==="idea"?" selected":""}>${v}</option>`).join("")}</select><button class="btn primary" type="submit">Agregar</button></form>
+    ${hechos.length?`<div class="row" style="margin-top:10px"><button type="button" class="btn sm" data-act="pendHechos">${I.pendHechos?"Ocultar":"Ver"} los listos (${hechos.length})</button></div>${I.pendHechos?`<div class="pend-list">${hechos.map(pendFila).join("")}</div>`:""}`:""}`;
+}
+async function pendAgregar(){
+  const tit=iaLimpio($("#pendTit")?.value||"").slice(0,100),tipo=$("#pendTipo")?.value;
+  if(!tit){toast("Escribe qué falta");return}
+  try{
+    const{error}=await SB.from("ia_pendientes").insert({data:{titulo:tit,tipo:PEND_TIPOS[tipo]?tipo:"idea",detalle:"",origen:"",estado:"abierto",por:"manual"}});
+    if(error)throw error;toast("Anotado en pendientes");await pendCargar();
+  }catch(e){toast(errMsg(e))}
+}
+async function pendEstado(id,estado){
+  const p=S.ia.pend.find(x=>x.id===id);if(!p)return;
+  try{
+    const{error}=await SB.from("ia_pendientes").update({data:{...p.data,estado,...(estado==="hecho"?{hecho:today()}:{})}}).eq("id",id);
+    if(error)throw error;await pendCargar();toast(estado==="hecho"?"Marcado como listo":"Reabierto");
+  }catch(e){toast(errMsg(e))}
+}
+async function pendBorrar(id){
+  if(!await confirmar("¿Borrar este pendiente?","Se borra de la carpeta de pendientes. No toca tus clientes ni ventas.","Sí, borrar","Cancelar"))return;
+  try{const{error}=await SB.from("ia_pendientes").delete().eq("id",id);if(error)throw error;await pendCargar();toast("Borrado")}catch(e){toast(errMsg(e))}
 }
 
 /* ---------- voz: dictar con el micrófono y escuchar las respuestas ----------
@@ -3331,6 +3401,9 @@ document.addEventListener("click",async e=>{
     case"ia":iaSheet();break;
     case"iaRapida":iaEnviar(IA_RAPIDAS()[Number(t.dataset.v)]);break;
     case"iaBorrar":iaBorrar();break;
+    case"pendEstado":pendEstado(id,t.dataset.v);break;
+    case"pendBorrar":pendBorrar(id);break;
+    case"pendHechos":S.ia.pendHechos=!S.ia.pendHechos;pendPintar();break;
     case"voz":escuchar();break;
     case"vozCerrar":vozParar();S.ia.card=false;iaPintar();break;
     case"vozRepetir":{const u=[...S.ia.log].reverse().find(m=>m.rol==="ia"&&!m.cargando);if(u)hablar(u.txt);break}
@@ -3529,6 +3602,7 @@ document.addEventListener("submit",async e=>{
   if(f.classList.contains("userCard"))return;
   if(f.id==="altaForm"){await crearPerfil(f);return}
   if(f.id==="iaForm"){iaEnviar($("#iaQ").value);return}
+  if(f.id==="pendForm"){pendAgregar();return}
   if(f.id==="perfilForm"){
     const nombre=$("#pfNombre").value.trim();if(!nombre){toast("Escribe tu nombre");return}
     if(await guard(()=>chk(SB.from("perfiles").update({nombre}).eq("id",ME.user.id)),"Nombre guardado"))menuSheet();
