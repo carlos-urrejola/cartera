@@ -2204,7 +2204,7 @@ function bEnCliente(cl){
 
 /* ---------- sheets ---------- */
 function openSheet(html,detailId=null){scanStop();S.openDetail=detailId;S.barrilAbierto=null;$("#modal").innerHTML=`<div class="overlay" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;const f=$("#modal input,#modal select");if(f&&window.innerWidth>700&&!detailId)f.focus();if(SB)mostrarFotos($("#modal"))}
-function closeSheet(){scanStop();S.openDetail=null;S.barrilAbierto=null;S.pila=[];$("#modal").innerHTML="";tipHide?.()}
+function closeSheet(){scanStop();S.openDetail=null;S.barrilAbierto=null;S.pila=[];$("#modal").innerHTML="";tipHide?.();if(S.syncPend)setTimeout(()=>sincronizar({forzar:true}),300)}
 
 function actLine(a){
   if(esTarea(a))return `<div class="act"><div class="row spread"><b>${fdate(a.fecha)} · Tarea</b><span class="chip">${esc(TAREA_EST[a.estado]||a.estado)}</span></div><div class="small">${esc(a.titulo||"")}</div></div>`;
@@ -2651,10 +2651,10 @@ function mergeCfg(d){
     zonas:d.zonas||D.zonas,zonasDia:{...D.zonasDia,...(d.zonasDia||{})},muestras:d.muestras||D.muestras,productos:migrarLatas(migrarProductos(d.productos)||D.productos),empaques:d.empaques||D.empaques,
     prefs:{permitir:{...D.prefs.permitir,...(d.prefs?.permitir||{})},defecto:{...D.prefs.defecto,...(d.prefs?.defecto||{})}}};
 }
-const strip=o=>{const{id,clienteId,asignado_a,creado_por,actualizado,...rest}=o;return rest};
-const fromCliente=r=>({...r.data,id:r.id,asignado_a:r.asignado_a,creado_por:r.creado_por});
-const fromHijo=r=>({...r.data,id:r.id,clienteId:r.cliente_id,creado_por:r.creado_por});
-const fromBarril=r=>({...r.data,id:r.id,codigo:r.codigo,creado_por:r.creado_por,actualizado:r.actualizado});
+const strip=o=>{const{id,clienteId,asignado_a,creado_por,actualizado,_v,...rest}=o;return rest};
+const fromCliente=r=>({...r.data,id:r.id,asignado_a:r.asignado_a,creado_por:r.creado_por,_v:r.actualizado});
+const fromHijo=r=>({...r.data,id:r.id,clienteId:r.cliente_id,creado_por:r.creado_por,_v:r.actualizado});
+const fromBarril=r=>({...r.data,id:r.id,codigo:r.codigo,creado_por:r.creado_por,actualizado:r.actualizado,_v:r.actualizado});
 async function fetchAll(table){
   const out=[];let from=0;
   for(;;){const{data,error}=await SB.from(table).select("*").range(from,from+999);if(error)throw error;out.push(...data);if(data.length<1000)break;from+=1000}
@@ -2680,7 +2680,7 @@ async function loadAll(){
     if(mk!=="cerveza"){S.barriles=[];S.barrilErr=null}
   }
   S.perfiles=isAdmin()?((await SB.from("perfiles").select("*").order("creado")).data||[]):[];
-  S.offline=false;
+  S.offline=false;S.huella=undefined;S.syncOk=new Date();
   try{localStorage.setItem(KEYCACHE(),JSON.stringify({perfil,clientes:S.clientes,ventas:S.ventas,acts:S.acts,cfg:S.cfg,equipo:S.equipo,barriles:S.barriles,t:new Date().toISOString()}))}catch(e){}
 }
 function loadCache(){
@@ -2690,14 +2690,22 @@ function loadCache(){
 const TBL={clientes:"clientes",ventas:"ventas",actividades:"actividades",barriles:"barriles"};
 const LOCAL={clientes:"clientes",ventas:"ventas",actividades:"acts",barriles:"barriles"};
 function rowFor(col,data){
-  if(col==="barriles"){const{id,creado_por,actualizado,...rest}=data;return{codigo:rest.codigo,data:rest}}
+  if(col==="barriles"){const{id,creado_por,actualizado,_v,...rest}=data;return{codigo:rest.codigo,data:rest}}
   if(col==="clientes"){const r={data:strip(data)};if("asignado_a" in data)r.asignado_a=data.asignado_a||null;return r}
   return{cliente_id:data.clienteId,data:strip(data)};
 }
 async function chk(p){const{error}=await p;if(error)throw error}
 const DB={
   add:(col,data)=>soloMira()?DB.marca(col,null,data):chk(SB.from(TBL[col]).insert(rowFor(col,data))),
-  set:(col,id,data)=>soloMira()?DB.marca(col,id,data):chk(SB.from(TBL[col]).update(rowFor(col,data)).eq("id",id)),
+  set:(col,id,data)=>soloMira()?DB.marca(col,id,data):DB.setNube(col,id,data),
+  /* guarda solo si nadie lo cambió desde otro dispositivo desde que se cargó aquí (si no, avisa y no pisa lo nuevo) */
+  setNube:async(col,id,data)=>{
+    const cur=S[LOCAL[col]]?.find(x=>x.id===id),v=cur?._v;
+    let q=SB.from(TBL[col]).update(rowFor(col,data)).eq("id",id);if(v)q=q.eq("actualizado",v);
+    const{data:r,error}=await q.select("actualizado");if(error)throw error;
+    if(v&&!r?.length){const e=new Error("Esto se cambió en otro dispositivo mientras lo tenías abierto. Ya cargué la versión más nueva: revísala y vuelve a hacer tu cambio.");e.code="CONFLICTO";throw e}
+    if(cur&&r?.[0])cur._v=r[0].actualizado;
+  },
   // cuenta de marca: el servidor revisa permiso, marca y que no toque lo que no ve
   marca:(col,id,data)=>{if(!["clientes","ventas","actividades"].includes(col))return Promise.reject(new Error("Tu cuenta no puede cambiar esto"));
     const r=rowFor(col,data);return chk(SB.rpc("marca_guardar",{p_tabla:col,p_id:id||null,p_cliente:r.cliente_id||null,p_data:r.data}))},
@@ -2709,7 +2717,7 @@ function errMsg(e){
   const m=e?.message||"";
   if(S.offline||/Failed to fetch|NetworkError|network/i.test(m))return"Sin conexión: no se guardó. Intenta cuando tengas señal.";
   if(e?.code==="42501"||/row-level security/i.test(m))return"No tienes permiso para hacer esto";
-  if(e?.code==="P0001")return m;
+  if(e?.code==="P0001"||e?.code==="CONFLICTO")return m;
   if(e?.code==="23505"&&/barril/i.test(m))return"Ese código de barril ya existe";
   return"No se pudo guardar: "+m;
 }
@@ -2821,8 +2829,47 @@ async function initCloud(){
   const{data}=await SB.auth.getSession();
   if(data?.session&&!location.hash.includes("type=recovery")){ME.user=data.session.user;afterLogin()}
   else if(!location.hash.includes("type=recovery"))authScreen();
-  document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&ME.perfil?.activo&&!$("#modal").innerHTML){try{await loadAll();aplicarPrefs();refresh()}catch(e){}}});
-  window.addEventListener("online",async()=>{if(ME.perfil?.activo){try{await loadAll();refresh();toast("Conexión recuperada")}catch(e){}}});
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")sincronizar({forzar:true})});
+  window.addEventListener("pageshow",()=>sincronizar({forzar:true}));
+  window.addEventListener("focus",()=>sincronizar());
+  window.addEventListener("online",()=>sincronizar({forzar:true}));
+  setInterval(()=>sincronizar(),SYNC_MS);
+}
+
+/* ---------- sincronización entre dispositivos ----------
+   Cada 30 s (con la app a la vista) y al volver a abrirla, pregunta a la base de datos si algo cambió
+   (cuántos registros hay y cuándo fue el último cambio). Solo si cambió descarga todo de nuevo.
+   Si estás llenando un formulario, espera a que lo cierres para no borrarte lo que escribes. */
+const SYNC_MS=30000;
+async function huella(){
+  if(miMarca())return null; // cuentas de marca: reciben sus datos ya filtrados, se recargan completos cada 90 s
+  const t=["clientes","ventas","actividades","barriles"].map(n=>SB.from(n).select("actualizado",{count:"exact"}).order("actualizado",{ascending:false}).limit(1).then(({data,count,error})=>error?"x":count+"@"+(data?.[0]?.actualizado||"")));
+  const r=await Promise.all([...t,SB.from("config").select("data").eq("id",1).maybeSingle(),SB.from("perfiles").select("*").eq("id",ME.user.id).maybeSingle()]);
+  const[cf,pf]=r.slice(4);if(cf.error)throw cf.error;if(pf.error)throw pf.error;
+  return[...r.slice(0,4),JSON.stringify(cf.data?.data||{}),JSON.stringify(pf.data||{})].join("|");
+}
+const firmaLocal=()=>JSON.stringify([S.clientes,S.ventas,S.acts,S.cfg,S.barriles,ME.perfil]).length;
+function editando(){
+  if([...document.querySelectorAll("#modal form")].some(f=>!f.closest(".menu")))return true;
+  const a=document.activeElement;return!!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!a.closest(".menu"));
+}
+async function sincronizar(o={}){
+  if(!SB||!ME.user||!ME.perfil?.activo||S.dbState!=="on"||S.syncOcupado)return false;
+  if(document.visibilityState==="hidden"&&!o.manual)return false;
+  if(!o.forzar&&!o.manual&&Date.now()-(S.syncT||0)<5000)return false;
+  S.syncOcupado=true;S.syncT=Date.now();let cambio=false;
+  try{
+    if(S.offline){await loadAll();aplicarPrefs();S.syncPend=false;refresh();toast("Conexión recuperada: datos al día");return true}
+    const h=await huella();
+    if(h===null){if(!o.manual&&Date.now()-(S.syncFull||0)<90000)return false;S.syncFull=Date.now();if(editando()){S.syncPend=true;return false}
+      const antes=firmaLocal();await loadAll();cambio=firmaLocal()!==antes}
+    else if(S.huella===undefined)S.huella=h;
+    else if(h!==S.huella){if(editando()){S.syncPend=true;return false}await loadAll();S.huella=h;cambio=true}
+    S.syncPend=false;S.syncOk=new Date();
+    if(cambio){aplicarPrefs();if(!ME.perfil?.activo){authScreen("pendiente");return true}refresh();toast("🔄 Datos actualizados con los cambios más recientes")}
+    return cambio;
+  }catch(e){return false}
+  finally{S.syncOcupado=false}
 }
 
 /* ---------- equipo (solo admin) ---------- */
@@ -2994,6 +3041,9 @@ function menuSheet(){
     <form id="perfilForm" class="row" style="flex-wrap:nowrap"><input id="pfNombre" aria-label="Tu nombre" value="${esc(ME.perfil?.nombre||"")}" required><button class="btn sm" type="submit">Guardar nombre</button></form>
     <form id="claveForm" class="row" style="flex-wrap:nowrap"><input id="pfClave" type="password" minlength="8" required autocomplete="new-password" placeholder="Contraseña nueva (mínimo 8)" aria-label="Contraseña nueva (mínimo 8)"><button class="btn sm" type="submit">Cambiar contraseña</button></form>
     <div><button class="btn" data-act="logout">Cerrar sesión</button></div>
+  </section>
+  <section class="card stack"><div><h3>Sincronización</h3><div class="muted small">Los cambios que hagas en el celular o en el computador aparecen solos en el otro (revisa cada 30 segundos y cada vez que vuelves a abrir la app).</div></div>
+    <div class="row spread"><span class="small">${S.offline?"✕ Sin conexión":"✓ Al día"}${S.syncOk?` · revisado a las <span class="num">${String(S.syncOk.getHours()).padStart(2,"0")}:${String(S.syncOk.getMinutes()).padStart(2,"0")}</span>`:""}</span><button class="btn sm" data-act="syncNow">Sincronizar ahora</button></div>
   </section>
   <section class="card stack"><div><h3>Preferencias</h3><div class="muted small">Se guardan en este dispositivo</div></div>${prefs}</section>
   ${plataforma}</div>`,null);
@@ -3290,6 +3340,7 @@ document.addEventListener("click",async e=>{
     case"lang":{const p=prefsLocal();p.idioma=t.dataset.v;try{localStorage.setItem("cartera-prefs",JSON.stringify(p));localStorage.setItem("cartera-ef",JSON.stringify({...prefsEf(),idioma:t.dataset.v}))}catch(err){}location.reload();break}
     case"authMode":authScreen(t.dataset.m);break;
     case"recheck":afterLogin();break;
+    case"syncNow":{const c=await sincronizar({manual:true});if(!c)toast(S.offline?"Sin conexión: intenta cuando tengas señal":"Todo al día: no había cambios nuevos");if($("#modal .menu"))menuSheet();break}
     case"scope":S.scope=t.dataset.v;render();break;
     case"olvido":{const em=$("#auEmail")?.value.trim();if(!em){toast("Escribe tu correo primero");return}
       const{error}=await SB.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
