@@ -320,10 +320,12 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 .voz-card .btn.big{min-height:48px;padding:10px 16px;font-size:16px}
 .voz-estado{font-weight:600;display:flex;align-items:center;gap:8px}
 /* cuentas de marca: solo mirar (los botones que cambian datos no se muestran) */
-body.mk-sin-registrar .fab,body.mk-sin-visitas [data-act="newAct"],body.mk-sin-visitas [data-act="quickVisit"],body.mk-sin-visitas [data-act="editAct"],body.mk-sin-ventas [data-act="newSale"],body.mk-sin-ventas [data-act="editSale"],body.mk-sin-pagos [data-act="pay"],body.mk-sin-pagos [data-act="unpay"],body.solo-mira [data-act="tareaEstado"],body.mk-sin-clientes [data-act="editClient"],body.mk-sin-clientes [data-act="newClient"]{display:none!important}
+body.mk-sin-registrar .fab,body.mk-sin-visitas [data-act="newAct"],body.mk-sin-visitas [data-act="quickVisit"],body.mk-sin-visitas [data-act="editAct"],body.mk-sin-ventas [data-act="newSale"],body.mk-sin-editventa [data-act="editSale"],body.mk-sin-muestras [data-act="addMuLine"],body.mk-sin-pagos [data-act="pay"],body.mk-sin-pagos [data-act="unpay"],body.solo-mira [data-act="tareaEstado"],body.mk-sin-editcli [data-act="editClient"],body.mk-sin-crearcli [data-act="newClient"]{display:none!important}
 body.sin-rotacion [data-k^="recompra:"],body.sin-montos [data-k^="pago|"],body.sin-visitas [data-k^="visita|"]{display:none!important}
 /* en los formularios, una cuenta de marca no elige marca ni toca notas, frecuencias ni foto */
 body.solo-mira .field:has(#mC),body.solo-mira .field:has(#cFoto),body.solo-mira .field:has(#cNotas),body.solo-mira .field:has(#cProxT),body.solo-mira .field:has(#cFrecC),body.solo-mira .field:has(#cFrecK),body.solo-mira .field:has(#sMarca),body.solo-mira .field:has(#aMkC){display:none!important}
+.perm-item{display:flex;flex-direction:column;gap:4px}.perm-item.off{opacity:.55}
+.perm-sub{margin-left:28px}.perm-sub summary{cursor:pointer;color:var(--muted);font-weight:600}
 .alta-txt{white-space:pre-wrap;font-family:var(--mono);font-size:13px;background:var(--surface-2);border-radius:8px;padding:10px 12px;overflow-wrap:anywhere}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}}
 </style>
@@ -686,7 +688,7 @@ function subItems(tab){
   if(tab==="ruta")return[["hoy","Hoy"],["manana","Mañana"]];
   if(tab==="ventas")return[...(can("registrar_ventas")?[["nueva","Registrar venta"]]:[]),["pendientes","Por cobrar"],["mes","Del mes"],["todas","Todas"]];
   if(tab==="barriles")return[["scan","Escanear"],["en_cliente","En clientes"],["lleno","Llenos"],["limpio","Limpios"],["vacio","Por lavar"],["todos","Todos"]];
-  if(tab==="indices")return[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","Armar gráfico"],...(can("ver_cobranza")?[["cobranza","Cobranza"]]:[]),...(can("ver_ingresos")?[["sueldo","Sueldo y meta"]]:[])];
+  if(tab==="indices")return[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","Armar gráfico"],...(can("ver_cobranza")&&ve("cobranza")?[["cobranza","Cobranza"]]:[]),...(can("ver_ingresos")?[["sueldo","Sueldo y meta"]]:[])].filter(([k])=>k==="cobranza"||k==="sueldo"||subOk("ver_indices",k));
   return[];
 }
 function subActual(tab){
@@ -746,9 +748,10 @@ function render(){
   const vt=ME.perfil?visibleTabs():[];document.querySelectorAll("nav.tabs button[data-tab]").forEach(b=>{b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false");b.hidden=!vt.includes(b.dataset.tab)});
   navExtras();
   {const b=document.body.classList,mk=soloMira();b.toggle("solo-mira",mk);
-    b.toggle("mk-sin-visitas",mk&&!can("registrar_visitas"));b.toggle("mk-sin-ventas",mk&&!can("registrar_ventas"));b.toggle("mk-sin-pagos",mk&&!can("marcar_pagos"));b.toggle("mk-sin-clientes",mk&&!can("editar_clientes"));
-    b.toggle("mk-sin-registrar",mk&&!can("registrar_visitas")&&!can("registrar_ventas")&&!can("editar_clientes"));
-    b.toggle("sin-rotacion",!ve("rotacion"));b.toggle("sin-montos",!ve("montos"));b.toggle("sin-visitas",!ve("visitas"))}
+    b.toggle("mk-sin-visitas",mk&&!can("registrar_visitas"));b.toggle("mk-sin-ventas",mk&&!puedeSub("registrar_ventas","nuevas"));b.toggle("mk-sin-editventa",mk&&!puedeSub("registrar_ventas","editar"));b.toggle("mk-sin-pagos",mk&&!can("marcar_pagos"));
+    b.toggle("mk-sin-crearcli",mk&&!puedeSub("editar_clientes","crear"));b.toggle("mk-sin-editcli",mk&&!puedeSub("editar_clientes","editar"));b.toggle("mk-sin-muestras",mk&&!puedeSub("registrar_visitas","muestras"));
+    b.toggle("mk-sin-registrar",mk&&!can("registrar_visitas")&&!puedeSub("registrar_ventas","nuevas")&&!puedeSub("editar_clientes","crear"));
+    b.toggle("sin-rotacion",!ve("rotacion"));b.toggle("sin-montos",!ve("cobranza"));b.toggle("sin-visitas",!ve("visitas"))}
   const st=$("#subtit");if(st)st.textContent=({kombucha:"Clientes de kombucha Animal Social",cerveza:"Clientes de cerveza El Growler"})[miMarca()]||"Clientes de cerveza El Growler y kombucha Animal Social";
   $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn redondo mas" data-act="newClient" aria-label="Nuevo cliente" title="Nuevo cliente">+</button>`:""}${iaOn()?`<button class="btn ia-boton" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨</button>`:""}<button class="btn redondo" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
@@ -769,7 +772,7 @@ function vResumen(){
   const cv=conversion();
   const al=[];
   S.clientes.filter(x=>x.estado!=="pausado").forEach(cl=>{
-    [["Pago",semPago(cl)],["Recompra",semRecompra(cl)],["Seguimiento",semSeg(cl)],["Visita",semVisita(cl)]].filter(([k])=>!soloMira()||(k==="Pago"?ve("montos"):k==="Recompra"?ve("rotacion"):k==="Visita"?ve("visitas"):true)).forEach(([k,s])=>{if(s.level==="bad"||(s.level==="warn"&&k!=="Visita"))al.push({cl,k,s})});
+    [["Pago",semPago(cl)],["Recompra",semRecompra(cl)],["Seguimiento",semSeg(cl)],["Visita",semVisita(cl)]].filter(([k])=>!soloMira()||(k==="Pago"?ve("cobranza"):k==="Recompra"?ve("rotacion"):k==="Visita"?ve("visitas"):true)).forEach(([k,s])=>{if(s.level==="bad"||(s.level==="warn"&&k!=="Visita"))al.push({cl,k,s})});
   });
   al.sort((a,b)=>rank[b.s.level]-rank[a.s.level]||impOf(a.cl).localeCompare(impOf(b.cl)));
   const muRows=Object.entries(r.mu).sort((a,b)=>b[1]-a[1]);
@@ -793,13 +796,13 @@ function vResumen(){
   <section class="kpis">
     ${miMarca()==="kombucha"?"":`<button class="kpi kpi-btn" data-act="drill" data-k="cerveza"><span class="lab"><i class="sw beer"></i>Litros cerveza</span><span class="val">${n1(r.litros)} L</span><span class="muted small">${r.nC} ventas${can("ver_cobranza")?` · ${money(r.netoC)} neto`:""}</span></button>`}
     ${miMarca()==="cerveza"?"":`<button class="kpi kpi-btn" data-act="drill" data-k="kombucha"><span class="lab"><i class="sw kom"></i>Cajas kombucha</span><span class="val">${n1(r.cajasK)}</span><span class="muted small">${r.nK} ventas${can("ver_cobranza")?` · ${money(r.netoK)} neto`:""}</span></button>`}
-    ${can("ver_cobranza")?`<button class="kpi kpi-btn" data-act="drill" data-k="cobrar"><span class="lab">Por cobrar (con IVA)</span><span class="val">${money(porCobrar)}</span><span class="muted small">Vencido: ${money(vencido)}</span></button>`:""}
+    ${can("ver_cobranza")&&ve("cobranza")?`<button class="kpi kpi-btn" data-act="drill" data-k="cobrar"><span class="lab">Por cobrar (con IVA)</span><span class="val">${money(porCobrar)}</span><span class="muted small">Vencido: ${money(vencido)}</span></button>`:""}
     <button class="kpi kpi-btn" data-act="drill" data-k="clientes"><span class="lab">Clientes</span><span class="val">${activos} activos</span><span class="muted small">${prosp} prospectos</span></button>
   </section>
   <section class="kpis">
     ${soloMira()&&!ve("ruta")?"":`<button class="kpi kpi-btn" data-act="drill" data-k="ruta"><span class="lab">Ruta de hoy</span><span class="val">${pend} por visitar</span><span class="muted small">Ver ruta de ${DIAS_L[wday(today())]} ›</span></button>`}
     ${ve("visitas")?`<button class="kpi kpi-btn" data-act="drill" data-k="visitas"><span class="lab">Visitas del mes</span><span class="val">${r.visitas}</span><span class="muted small">${r.activ} activaciones</span></button>
-    <button class="kpi kpi-btn" data-act="drill" data-k="muestras"><span class="lab">Muestras del mes</span><span class="val">${n1(r.muC+r.muK)}</span><span class="muted small"><i class="sw beer"></i> ${n1(r.muC)} cerveza · <i class="sw kom"></i> ${n1(r.muK)} kombucha</span></button>
+    ${ve("muestras")?`<button class="kpi kpi-btn" data-act="drill" data-k="muestras"><span class="lab">Muestras del mes</span><span class="val">${n1(r.muC+r.muK)}</span><span class="muted small"><i class="sw beer"></i> ${n1(r.muC)} cerveza · <i class="sw kom"></i> ${n1(r.muK)} kombucha</span></button>`:""}
     <button class="kpi kpi-btn" data-act="drill" data-k="conversion"><span class="lab">Conversión 60 días</span><span class="val">${cv.total?Math.round(cv.conv/cv.total*100)+"%":"—"}</span><span class="muted small">${cv.conv} de ${cv.total} activados compraron</span></button>`:""}
     ${verBarriles()&&S.barriles.length?(()=>{const e=S.barriles.filter(b=>b.estado==="en_cliente"),a=e.filter(b=>semBarril(b).level==="bad").length;return `<button class="kpi kpi-btn" data-tab="barriles"><span class="lab">🛢️ Barriles en clientes</span><span class="val">${e.length}</span><span class="muted small">${a?`✕ ${a} pasados de ${S.cfg.barrilDias} días`:"✓ Todos en plazo"}</span></button>`})():""}
   </section>
@@ -878,7 +881,7 @@ function compraItem(v,n){
       <div style="text-align:right"><span class="num small">${v.marca==="cerveza"?n1(v.litros)+" L":n1(v.cajas)+" cajas"}${can("ver_cobranza")?" · "+money(v.neto*1.19):""}</span></div></div>
     <div class="small">${itemsTexto(v.items,v.marca)}</div>${bVentaLinea(v)}
     ${descTexto(v)&&can("ver_cobranza")?`<div class="small muted">🏷️ Descuentos: ${descTexto(v)}</div>`:""}${empaqueTexto(v)?`<div class="small muted">📦 Empaque: ${empaqueTexto(v)}</div>`:""}
-    <div class="row spread">${ve("montos")?pill(s):"<span></span>"}${puede?`<span class="row" style="gap:6px">${v.pagado?`<button class="btn sm" data-act="unpay" data-id="${v.id}">Deshacer pago</button>`:`<button class="btn sm" data-act="pay" data-id="${v.id}">Marcar pagada</button>`}<button class="btn sm" data-act="editSale" data-id="${v.id}">Editar</button></span>`:""}</div>
+    <div class="row spread">${ve("cobranza")?pill(s):"<span></span>"}${puede?`<span class="row" style="gap:6px">${v.pagado?`<button class="btn sm" data-act="unpay" data-id="${v.id}">Deshacer pago</button>`:`<button class="btn sm" data-act="pay" data-id="${v.id}">Marcar pagada</button>`}<button class="btn sm" data-act="editSale" data-id="${v.id}">Editar</button></span>`:""}</div>
   </div>`;
 }
 function vVentas(){
@@ -930,7 +933,7 @@ function hbars(filas,medida){
 const leyenda=items=>items.length>1?`<div class="legend">${items.map(([sw,t])=>`<span><i class="sw sw-${sw}"></i>${esc(t)}</span>`).join("")}</div>`:"";
 function vIndices(){
   const x=S.ix,sueldo=can("ver_ingresos"),plata=can("ver_cobranza");
-  const vistas=[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","✚ Armar gráfico"],...(plata?[["cobranza","Cobranza"]]:[]),...(sueldo?[["sueldo","Sueldo y meta"]]:[])];
+  const vistas=[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","✚ Armar gráfico"],...(plata&&ve("cobranza")?[["cobranza","Cobranza"]]:[]),...(sueldo?[["sueldo","Sueldo y meta"]]:[])].filter(([k])=>k==="cobranza"||k==="sueldo"||subOk("ver_indices",k));
   if(!vistas.some(([k])=>k===x.vista))x.vista="productos";
   if(x.medida==="neto"&&!plata)x.medida="litros";
   const opt=(v,t,cur)=>`<option value="${v}"${cur===v?" selected":""}>${esc(t)}</option>`;
@@ -2088,7 +2091,7 @@ function clientDetail(id){
   <div class="stack" style="gap:6px">
    ${ve("visitas")?`<div class="row spread"><span>Visita</span>${pill(semVisita(cl))}</div>`:""}
    ${(ve("rotacion")?(cl.marcas||[]):[]).map(m=>`<div class="row spread"><span class="row" style="gap:6px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>Recompra ${m}</span>${pill(semCompra(cl,m))}</div>`).join("")}
-   ${ve("montos")?`<div class="row spread"><span>Pago</span>${pill(semPago(cl))}</div>`:""}<div class="row spread"><span>Seguimiento</span>${pill(semSeg(cl))}</div></div>
+   ${ve("cobranza")?`<div class="row spread"><span>Pago</span>${pill(semPago(cl))}</div>`:""}<div class="row spread"><span>Seguimiento</span>${pill(semSeg(cl))}</div></div>
   <div class="row"><button class="btn primary" data-act="newAct" data-id="${id}">+ Visita / activación</button>${can("registrar_ventas")?`<button class="btn" data-act="newSale" data-id="${id}">+ Venta</button>`:""}${can("editar_clientes")?`<button class="btn" data-act="editClient" data-id="${id}">Editar</button>`:""}${wa?`<a class="btn" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`:""}${can("eliminar")?`<button class="btn danger" data-act="delClient" data-id="${id}">🗑 Eliminar</button>`:""}</div>
   <div class="card stack" style="gap:6px">
    ${contactoBloque("Quién hace los pedidos",{nombre:cl.contacto||"",tel:cl.telefono||"",email:cl.emailPedidos||""})}
@@ -2106,7 +2109,7 @@ function clientDetail(id){
   ${ve("compras")?analisisCliente(cl):""}
   ${ve("visitas")||can("registrar_visitas")?`<h3>Visitas y activaciones (${as.length})</h3>
   <div class="stack" style="gap:10px">${as.length?as.slice(0,20).map(actLine).join(""):`<div class="muted small">Sin visitas registradas.</div>`}</div>`:""}
-  ${ve("compras")?`<h3>Historial de compras (${vs.length})</h3>
+  ${ve("historial")?`<h3>Historial de compras (${vs.length})</h3>
   <div class="stack" style="gap:8px">${vs.length?vs.map((v,i)=>compraItem(v,vs.length-i)).join(""):`<div class="muted small">Sin ventas registradas.</div>`}</div>`:""}`,id);
   const sh=$("#modal .sheet");if(sh)sh.scrollTop=sc;
 }
@@ -2449,12 +2452,25 @@ const MARCA_MOD=[["editar_clientes","Crear y editar clientes","Crea locales nuev
   ["marcar_pagos","Marcar pagos","Marcar facturas como pagadas. Necesita \"Montos y cobranza\"","ver_cobranza"],
   ["registrar_visitas","Registrar visitas y muestras","Visitas, degustaciones y muestras de su marca"],
   ["gestionar_barriles","Mover barriles","Lavar, embarrilar, entregar y retirar (solo cerveza)","cerveza"]];
+/* submenú de cada permiso: parte sin marcar = no la ve / no la hace. Parte que no aparece guardada = sí */
+const MARCA_SUB={
+  ver_contactos:[["nombres","Nombres de contacto y del dueño"],["telefonos","Teléfonos"],["correos","Correos"],["direccion","Dirección, ubicación GPS y horario de recepción"],["tributarios","Razón social, RUT y giro"],["foto","Foto del local"]],
+  ver_compras:[["resumen","Resumen de compras: qué compra más, cada cuánto y gráfico"],["historial","Historial de pedidos"]],
+  ver_indices:[["productos","Productos"],["tendencia","Tendencia en el tiempo"],["zonas","Qué se vende más por zona"],["clientes","Mejores clientes"],["armar","Armar gráfico"]],
+  ver_cobranza:[["montos","Montos en $: neto vendido y precios"],["cobranza","Cobranza: facturas por cobrar, vencimientos y pagos"]],
+  ver_visitas:[["visitas","Visitas y activaciones"],["muestras","Muestras entregadas"]],
+  editar_clientes:[["crear","Crear locales nuevos"],["editar","Editar los locales que ya existen"]],
+  registrar_ventas:[["nuevas","Registrar ventas nuevas"],["editar","Editar las ventas que registró"]],
+  registrar_visitas:[["visitas","Registrar visitas y activaciones"],["muestras","Registrar muestras entregadas"]]};
 const MARCA_DEF={ver_contactos:true,ver_compras:true,ver_rotacion:true,ver_indices:true,ver_cobranza:true,ver_visitas:true,ver_ruta:true};
 const MARCA_PUEDE=new Set(["ver_cobranza","editar_clientes","registrar_ventas","marcar_pagos","registrar_visitas","usar_ia"]);
-const ve=k=>!soloMira()||!!ME.perfil?.permisos?.[k==="montos"?"ver_cobranza":"ver_"+k];
+const subOk=(p,sub)=>!soloMira()||!!(ME.perfil?.permisos?.[p]&&ME.perfil.permisos[p+":"+sub]!==false);
+const VE_MAPA={montos:["ver_cobranza","montos"],cobranza:["ver_cobranza","cobranza"],muestras:["ver_visitas","muestras"],visitas:["ver_visitas","visitas"],historial:["ver_compras","historial"],compras:["ver_compras","resumen"]};
+const ve=k=>!soloMira()||(VE_MAPA[k]?subOk(...VE_MAPA[k]):!!ME.perfil?.permisos?.["ver_"+k]);
+const puedeSub=(p,sub)=>can(p)&&subOk(p,sub);
 const can=p=>isAdmin()||!!(ME.perfil?.activo&&(miMarca()
   ?(ME.perfil.permisos?.[p]&&(MARCA_PUEDE.has(p)||(miMarca()==="cerveza"&&(p==="ver_barriles"||p==="gestionar_barriles")))
-     &&(p!=="registrar_ventas"&&p!=="marcar_pagos"||ME.perfil.permisos?.ver_cobranza))
+     &&(p!=="ver_cobranza"&&p!=="registrar_ventas"||subOk("ver_cobranza","montos"))&&(p!=="marcar_pagos"||subOk("ver_cobranza","cobranza")))
   :ME.perfil?.permisos?.[p]));
 const nombreDe=id=>S.equipo.find(x=>x.id===id)?.nombre||"";
 const ownerOf=c=>c.asignado_a||c.creado_por;
@@ -2650,7 +2666,7 @@ async function afterLogin(){
   bAbrirPendiente();
 }
 function visibleTabs(){
-  if(soloMira())return["resumen",...(ve("ruta")?["ruta"]:[]),"clientes",...(ve("montos")||can("registrar_ventas")?["ventas"]:[]),...(verBarriles()?["barriles"]:[]),...(ve("indices")?["indices"]:[])];
+  if(soloMira())return["resumen",...(ve("ruta")?["ruta"]:[]),"clientes",...(ve("montos")||ve("cobranza")||can("registrar_ventas")?["ventas"]:[]),...(verBarriles()?["barriles"]:[]),...(ve("indices")?["indices"]:[])];
   const t=["resumen","tareas","ruta","clientes"];
   if(can("ver_cobranza")||can("registrar_ventas"))t.push("ventas");
   if(verBarriles())t.push("barriles");
@@ -2676,7 +2692,7 @@ async function initCloud(){
 /* equipo: cada cuenta con lo que puede VER y lo que puede MODIFICAR; cada casilla se guarda al tocarla */
 const PERM_GRUPOS=[["👀 Puede ver",["ver_todos_clientes","ver_cobranza","ver_ingresos","ver_barriles"]],["✏️ Puede modificar",["editar_clientes","registrar_ventas","eliminar","editar_ajustes","gestionar_barriles"]],["✨ Otros",["usar_ia"]]];
 const PERM_CORTO={ver_todos_clientes:"toda la cartera",ver_cobranza:"cobranza y montos",ver_ingresos:"ingresos y metas",ver_barriles:"barriles",editar_clientes:"clientes",registrar_ventas:"ventas",eliminar:"borrar",editar_ajustes:"ajustes",gestionar_barriles:"barriles",usar_ia:"asistente IA"};
-S.eqAbierto=new Set();
+S.eqAbierto=new Set();S.eqSubAbierto=new Set();
 function eqResumen(p){
   if(p.rol==="admin")return `<span class="chip strong">Administrador · ve y modifica todo</span>`;
   if(p.marca){const lis=a=>a.filter(([k,,,x])=>p.permisos?.[k]&&(!x||x===p.marca||p.permisos?.[x])).map(([,t])=>t.toLowerCase());const v=lis(MARCA_VER),m=lis(MARCA_MOD);
@@ -2702,15 +2718,20 @@ function vEquipo(){
       <details class="eqDet" data-uid="${p.id}"${abierto?" open":""}><summary class="small" style="cursor:pointer;font-weight:600">Cambiar lo que puede ver y modificar</summary>
       <div class="stack" style="gap:12px;margin-top:10px">
         ${(()=>{const mk=p.marca,mkTxt=mk==="kombucha"?"kombucha":mk==="cerveza"?"cerveza":"";let n=0;const paso=t=>`<b class="small">${++n}. ${t}</b>`;
-          const casilla=([k,t,h,x])=>{if(x==="cerveza"||x==="kombucha"){if(x!==mk)return""}
-            const dep=x&&x!=="cerveza"&&x!=="kombucha"&&!p.permisos?.[x];
-            return `<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap${dep?";opacity:.55":""}"><input type="checkbox" data-perm="${k}" ${p.permisos?.[k]&&!dep?"checked":""} ${dep?"disabled":""} style="margin-top:3px"><span><b style="font-weight:600">${t}${mkTxt?` de ${mkTxt}`:""}</b><br><span class="muted small">${h}</span></span></label>`};
+          const casilla=([k,t,h,x],g)=>{if(x==="cerveza"||x==="kombucha"){if(x!==mk)return""}
+            const dep=x&&x!=="cerveza"&&x!=="kombucha"&&!p.permisos?.[x],on=!!p.permisos?.[k]&&!dep,subs=MARCA_SUB[k]||[];
+            const nOn=subs.filter(([sk])=>p.permisos?.[k+":"+sk]!==false).length;
+            return `<div class="perm-item${dep?" off":""}"><label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-perm="${k}" data-g="${g}" ${on?"checked":""} ${dep?"disabled":""} style="margin-top:3px"><span><b style="font-weight:600">${t}${mkTxt?` de ${mkTxt}`:""}</b><br><span class="muted small">${h}</span></span></label>
+              ${subs.length?`<details class="perm-sub" data-subk="${p.id}|${k}"${S.eqSubAbierto.has(p.id+"|"+k)?" open":""}><summary class="small">${on?`Elegir qué: ${nOn===subs.length?"todo":nOn+" de "+subs.length}`:"Elegir qué (primero marca la casilla)"}</summary>
+                <div class="stack" style="gap:6px;margin-top:6px">${subs.map(([sk,st])=>`<label class="row" style="gap:8px;flex-wrap:nowrap"><input type="checkbox" data-perm="${k}:${sk}" data-g="${g}" data-padre="${k}" ${p.permisos?.[k+":"+sk]!==false?"checked":""} ${on?"":"disabled"}><span class="small">${st}</span></label>`).join("")}
+                ${on?`<div><button type="button" class="btn sm" data-act="eqTodas" data-uid="${p.id}" data-scope="item:${k}">Habilitar todas</button></div>`:""}</div></details>`:""}</div>`};
+          const todas=g=>`<button type="button" class="btn sm" data-act="eqTodas" data-uid="${p.id}" data-scope="${g}">Habilitar todas</button>`;
           return `<div class="stack" style="gap:6px">${paso("¿Qué cartera ve?")}
             ${conMarca?`<select id="mk-${p.id}" data-k="marca" aria-label="Qué cartera ve" ${adm?"disabled":""} style="padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><option value="">Toda la cartera (cerveza y kombucha)</option><option value="kombucha"${mk==="kombucha"?" selected":""}>Solo kombucha Animal Social</option><option value="cerveza"${mk==="cerveza"?" selected":""}>Solo cerveza El Growler</option></select>`:`<div class="muted small">Toda la cartera (para separar por marca falta el SQL de marcas).</div>`}
             ${mk&&!adm?`<span class="muted small">Todo lo que vea o modifique es solo de la ${mkTxt}. Nunca ve nada de la otra marca, ni tus notas, comisiones o sueldo, y no puede borrar.</span>`:""}</div>
           ${adm?`<div class="muted small">Un administrador ve y modifica todo.</div>`:mk?`
-            <div class="stack" style="gap:6px">${paso(`¿Qué puede ver de la ${mkTxt}?`)}${MARCA_VER.map(casilla).join("")}</div>
-            <div class="stack" style="gap:6px">${paso(`¿Qué puede modificar de la ${mkTxt}?`)}${MARCA_MOD.map(casilla).join("")}</div>
+            <div class="stack" style="gap:6px"><div class="row spread">${paso(`¿Qué puede ver de la ${mkTxt}?`)}${todas("ver")}</div>${MARCA_VER.map(x=>casilla(x,"ver")).join("")}</div>
+            <div class="stack" style="gap:6px"><div class="row spread">${paso(`¿Qué puede modificar de la ${mkTxt}?`)}${todas("mod")}</div>${MARCA_MOD.map(x=>casilla(x,"mod")).join("")}</div>
             <div class="stack" style="gap:6px">${paso("¿Usa el asistente con IA?")}<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-perm="usar_ia" ${p.permisos?.usar_ia?"checked":""} style="margin-top:3px"><span><b style="font-weight:600">Usar el asistente con IA</b><br><span class="muted small">Puede preguntarle a la IA sobre la ${mkTxt}. La IA solo ve lo mismo que esta cuenta ve.</span></span></label></div>`
             :PERM_GRUPOS.map(([tit,ks])=>`<div class="stack" style="gap:6px">${paso(tit.replace(/^\S+ /,"").replace("Puede ver","¿Qué puede ver?").replace("Puede modificar","¿Qué puede modificar?").replace("Otros","¿Qué más puede usar?"))}${ks.map(perm).join("")}</div>`).join("")}
           <div class="stack" style="gap:6px">${paso("¿Le das acceso a la app?")}<div class="checks"><label><input type="checkbox" data-k="activo" ${p.activo?"checked":""}> ${p.activo?"Sí, puede entrar":"Bloqueado · tócalo para habilitar"}</label></div>${!p.activo&&!mk&&conMarca&&!adm?`<span class="small" style="color:var(--warn)">! Si es la cuenta de una marca, elige primero la marca en el paso 1.</span>`:""}</div>
@@ -2733,7 +2754,8 @@ async function guardarUsuario(f,el){
   if(el?.dataset.k==="activo"&&!activo&&!await confirmar(`¿Quitarle el acceso a ${esc(p.nombre||p.email)}?`,"No podrá entrar a la app hasta que vuelvas a habilitarlo. No se borra nada.","Sí, quitar acceso","Cancelar")){el.checked=true;return}
   if(el?.dataset.k==="rol"&&rol==="admin"&&!await confirmar(`¿Hacer administrador a ${esc(p.nombre||p.email)}?`,"Va a poder ver y modificar todo, incluido el equipo y los permisos de los demás.","Sí, hacer administrador","Cancelar")){el.value=p.rol;return}
   const permisos={};
-  if(rol!=="admin")f.querySelectorAll("[data-perm]").forEach(x=>{if(x.checked)permisos[x.dataset.perm]=true});
+  // las partes de un submenú se guardan siempre (marcada = true, desmarcada = false)
+  if(rol!=="admin")f.querySelectorAll("[data-perm]").forEach(x=>{if(x.dataset.perm.includes(":"))permisos[x.dataset.perm]=x.checked;else if(x.checked)permisos[x.dataset.perm]=true});
   const upd={rol,activo,permisos},mk=f.querySelector('[data-k="marca"]');
   if(mk)upd.marca=rol==="admin"?null:(mk.value||null);
   // al pasar a una marca, parte viendo todo lo de esa marca y sin modificar nada
@@ -2741,7 +2763,7 @@ async function guardarUsuario(f,el){
   else if(!upd.marca&&p.marca)upd.permisos={editar_clientes:true,registrar_ventas:true};
   S.eqAbierto.add(id);
   const ok=await guard(()=>chk(SB.from("perfiles").update(upd).eq("id",id)),"Guardado");
-  if(ok||el?.dataset.k)render();
+  if(ok||el?.dataset.k||el?.dataset.perm)render();
 }
 /* crear un perfil desde Equipo: se registra la cuenta con una clave inicial (sin cerrar tu sesión)
    y luego se aprueba con lo que puede ver. Nunca se usa la clave service_role. */
@@ -3083,9 +3105,10 @@ document.addEventListener("keydown",e=>{
   // en el computador, Enter envía la pregunta (Shift+Enter hace un salto de línea)
   if(e.target.id==="iaQ"&&e.key==="Enter"&&!e.shiftKey&&window.innerWidth>700){e.preventDefault();iaEnviar(e.target.value)}
 });
-const ACC_PERMISO={newAct:"registrar_visitas",quickVisit:"registrar_visitas",editAct:"registrar_visitas",newSale:"registrar_ventas",editSale:"registrar_ventas",pay:"marcar_pagos",unpay:"marcar_pagos",editClient:"editar_clientes",newClient:"editar_clientes",tareaEstado:"-",delClient:"-",delSale:"-",delAct:"-"};
+const ACC_PERMISO={newAct:"registrar_visitas",quickVisit:"registrar_visitas",editAct:"registrar_visitas",newSale:"registrar_ventas:nuevas",editSale:"registrar_ventas:editar",pay:"marcar_pagos",unpay:"marcar_pagos",editClient:"editar_clientes:editar",newClient:"editar_clientes:crear",addMuLine:"registrar_visitas:muestras",tareaEstado:"-",delClient:"-",delSale:"-",delAct:"-"};
 document.addEventListener("click",e=>{if(!soloMira())return;const t=e.target.closest?.("[data-act]");if(!t)return;const a=t.dataset.act,pm=ACC_PERMISO[a];
-  const no=a==="chooser"?!(can("registrar_visitas")||can("registrar_ventas")||can("editar_clientes")):pm&&(pm==="-"||!can(pm));
+  const okP=x=>{const[pp,ss]=x.split(":");return ss?puedeSub(pp,ss):can(pp)};
+  const no=a==="chooser"?!(can("registrar_visitas")||puedeSub("registrar_ventas","nuevas")||puedeSub("editar_clientes","crear")):pm&&(pm==="-"||!okP(pm));
   if(no){e.preventDefault();e.stopImmediatePropagation();toast("Tu cuenta no tiene permiso para esto")}},true);
 document.addEventListener("click",async e=>{
   const t=e.target.closest("[data-act],[data-tab]");if(!t)return;
@@ -3101,6 +3124,12 @@ document.addEventListener("click",async e=>{
     case"chooser":openSheet(`<div class="row spread"><h2>¿Qué quieres registrar?</h2><button class="btn sm" data-act="close">Cerrar</button></div><div class="choice"><button data-act="newAct"><b>Visita o activación</b><span class="muted small">Visitas, degustaciones, muestras entregadas, cobranza</span></button>${can("registrar_ventas")?`<button data-act="newSale"><b>Venta</b><span class="muted small">Barriles, cajas de latas o cajas de kombucha</span></button>`:""}${can("editar_clientes")?`<button data-act="newClient"><b>Cliente nuevo</b><span class="muted small">Un local para tu cartera o tu ruta</span></button>`:""}${verBarriles()?`<button data-act="scan"><b>🛢️ Barril</b><span class="muted small">Escanear o buscar un barril para ver dónde está o moverlo</span></button>`:""}</div>`);break;
     case"logout":closeSheet();await SB?.auth.signOut();break;
     case"altaPerfil":altaForm();break;
+    case"eqTodas":{const f=document.getElementById("u-"+t.dataset.uid);if(!f)break;const sc=t.dataset.scope;
+      const xs=[...f.querySelectorAll("[data-perm]")].filter(x=>sc.startsWith("item:")?(x.dataset.perm===sc.slice(5)||x.dataset.padre===sc.slice(5)):x.dataset.g===sc);
+      xs.forEach(x=>{x.checked=true;x.disabled=false});
+      // lo que depende de "Montos y cobranza" se habilita junto
+      if(sc==="mod"){const vc=f.querySelector('[data-perm="ver_cobranza"]');if(vc&&!vc.checked){vc.checked=true;f.querySelectorAll('[data-padre="ver_cobranza"]').forEach(x=>{x.checked=true;x.disabled=false})}}
+      await guardarUsuario(f,{dataset:{perm:"todas"}});break}
     case"irCuenta":{navMenu(false);closeSheet();S.tab="equipo";S.eqAbierto.add(id);render();
       const c=document.getElementById("u-"+id);if(c){c.scrollIntoView({behavior:"smooth",block:"start"});c.classList.add("destaca");setTimeout(()=>c.classList.remove("destaca"),2500);c.querySelector('[data-k="activo"]')?.focus({preventScroll:true})}break}
     case"alClaveNueva":$("#alClave").value=claveAzar();break;
@@ -3220,7 +3249,7 @@ document.addEventListener("input",e=>{
   if(e.target.closest("#bNuevoForm")){if(e.target.id==="bnPre")$("#bnDesde").value=bSiguiente(e.target.value);bNuevoPrev()}
   if(e.target.id==="sFecha"&&!$("#saleForm").dataset.id)$("#sVence").value=addDays(e.target.value||today(),S.cfg.plazo[$("#sMarca").value]);
 });
-document.addEventListener("toggle",e=>{if(e.target.id==="agF")S.agF=e.target.open;if(e.target.classList?.contains("eqDet")){const u=e.target.dataset.uid;e.target.open?S.eqAbierto.add(u):S.eqAbierto.delete(u)}},true);
+document.addEventListener("toggle",e=>{if(e.target.id==="agF")S.agF=e.target.open;if(e.target.classList?.contains("perm-sub")){const u=e.target.dataset.subk;e.target.open?S.eqSubAbierto.add(u):S.eqSubAbierto.delete(u)}if(e.target.classList?.contains("eqDet")){const u=e.target.dataset.uid;e.target.open?S.eqAbierto.add(u):S.eqAbierto.delete(u)}},true);
 document.addEventListener("change",e=>{
   {const uc=e.target.closest?.(".userCard");if(uc&&(e.target.dataset.perm||e.target.dataset.k)){guardarUsuario(uc,e.target);return}}
   if(e.target.id==="impFile"&&e.target.files[0]){importarRespaldo(e.target.files[0]);e.target.value=""}
