@@ -320,7 +320,10 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 .voz-card .btn.big{min-height:48px;padding:10px 16px;font-size:16px}
 .voz-estado{font-weight:600;display:flex;align-items:center;gap:8px}
 /* cuentas de marca: solo mirar (los botones que cambian datos no se muestran) */
-body.solo-mira .fab,body.solo-mira [data-act="newAct"],body.solo-mira [data-act="quickVisit"],body.solo-mira [data-act="newSale"],body.solo-mira [data-act="pay"],body.solo-mira [data-act="unpay"],body.solo-mira [data-act="editSale"],body.solo-mira [data-act="editAct"],body.solo-mira [data-act="tareaEstado"],body.solo-mira [data-act="editClient"],body.solo-mira [data-act="newClient"]{display:none!important}
+body.mk-sin-registrar .fab,body.mk-sin-visitas [data-act="newAct"],body.mk-sin-visitas [data-act="quickVisit"],body.mk-sin-visitas [data-act="editAct"],body.mk-sin-ventas [data-act="newSale"],body.mk-sin-ventas [data-act="editSale"],body.mk-sin-pagos [data-act="pay"],body.mk-sin-pagos [data-act="unpay"],body.solo-mira [data-act="tareaEstado"],body.mk-sin-clientes [data-act="editClient"],body.mk-sin-clientes [data-act="newClient"]{display:none!important}
+body.sin-rotacion [data-k^="recompra:"],body.sin-montos [data-k^="pago|"],body.sin-visitas [data-k^="visita|"]{display:none!important}
+/* en los formularios, una cuenta de marca no elige marca ni toca notas, frecuencias ni foto */
+body.solo-mira .field:has(#mC),body.solo-mira .field:has(#cFoto),body.solo-mira .field:has(#cNotas),body.solo-mira .field:has(#cProxT),body.solo-mira .field:has(#cFrecC),body.solo-mira .field:has(#cFrecK),body.solo-mira .field:has(#sMarca),body.solo-mira .field:has(#aMkC){display:none!important}
 .alta-txt{white-space:pre-wrap;font-family:var(--mono);font-size:13px;background:var(--surface-2);border-radius:8px;padding:10px 12px;overflow-wrap:anywhere}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}}
 </style>
@@ -742,7 +745,10 @@ function render(){
   document.querySelectorAll("nav.tabs .subnav").forEach(x=>x.remove());
   const vt=ME.perfil?visibleTabs():[];document.querySelectorAll("nav.tabs button[data-tab]").forEach(b=>{b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false");b.hidden=!vt.includes(b.dataset.tab)});
   navExtras();
-  document.body.classList.toggle("solo-mira",soloMira());
+  {const b=document.body.classList,mk=soloMira();b.toggle("solo-mira",mk);
+    b.toggle("mk-sin-visitas",mk&&!can("registrar_visitas"));b.toggle("mk-sin-ventas",mk&&!can("registrar_ventas"));b.toggle("mk-sin-pagos",mk&&!can("marcar_pagos"));b.toggle("mk-sin-clientes",mk&&!can("editar_clientes"));
+    b.toggle("mk-sin-registrar",mk&&!can("registrar_visitas")&&!can("registrar_ventas")&&!can("editar_clientes"));
+    b.toggle("sin-rotacion",!ve("rotacion"));b.toggle("sin-montos",!ve("montos"));b.toggle("sin-visitas",!ve("visitas"))}
   const st=$("#subtit");if(st)st.textContent=({kombucha:"Clientes de kombucha Animal Social",cerveza:"Clientes de cerveza El Growler"})[miMarca()]||"Clientes de cerveza El Growler y kombucha Animal Social";
   $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn redondo mas" data-act="newClient" aria-label="Nuevo cliente" title="Nuevo cliente">+</button>`:""}${iaOn()?`<button class="btn ia-boton" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨</button>`:""}<button class="btn redondo" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
@@ -763,7 +769,7 @@ function vResumen(){
   const cv=conversion();
   const al=[];
   S.clientes.filter(x=>x.estado!=="pausado").forEach(cl=>{
-    [["Pago",semPago(cl)],["Recompra",semRecompra(cl)],["Seguimiento",semSeg(cl)],["Visita",semVisita(cl)]].forEach(([k,s])=>{if(s.level==="bad"||(s.level==="warn"&&k!=="Visita"))al.push({cl,k,s})});
+    [["Pago",semPago(cl)],["Recompra",semRecompra(cl)],["Seguimiento",semSeg(cl)],["Visita",semVisita(cl)]].filter(([k])=>!soloMira()||(k==="Pago"?ve("montos"):k==="Recompra"?ve("rotacion"):k==="Visita"?ve("visitas"):true)).forEach(([k,s])=>{if(s.level==="bad"||(s.level==="warn"&&k!=="Visita"))al.push({cl,k,s})});
   });
   al.sort((a,b)=>rank[b.s.level]-rank[a.s.level]||impOf(a.cl).localeCompare(impOf(b.cl)));
   const muRows=Object.entries(r.mu).sort((a,b)=>b[1]-a[1]);
@@ -785,16 +791,16 @@ function vResumen(){
     </div>
   </section>`:""}
   <section class="kpis">
-    ${miMarca()==="kombucha"?"":`<button class="kpi kpi-btn" data-act="drill" data-k="cerveza"><span class="lab"><i class="sw beer"></i>Litros cerveza</span><span class="val">${n1(r.litros)} L</span><span class="muted small">${r.nC} ventas · ${money(r.netoC)} neto</span></button>`}
-    ${miMarca()==="cerveza"?"":`<button class="kpi kpi-btn" data-act="drill" data-k="kombucha"><span class="lab"><i class="sw kom"></i>Cajas kombucha</span><span class="val">${n1(r.cajasK)}</span><span class="muted small">${r.nK} ventas · ${money(r.netoK)} neto</span></button>`}
+    ${miMarca()==="kombucha"?"":`<button class="kpi kpi-btn" data-act="drill" data-k="cerveza"><span class="lab"><i class="sw beer"></i>Litros cerveza</span><span class="val">${n1(r.litros)} L</span><span class="muted small">${r.nC} ventas${can("ver_cobranza")?` · ${money(r.netoC)} neto`:""}</span></button>`}
+    ${miMarca()==="cerveza"?"":`<button class="kpi kpi-btn" data-act="drill" data-k="kombucha"><span class="lab"><i class="sw kom"></i>Cajas kombucha</span><span class="val">${n1(r.cajasK)}</span><span class="muted small">${r.nK} ventas${can("ver_cobranza")?` · ${money(r.netoK)} neto`:""}</span></button>`}
     ${can("ver_cobranza")?`<button class="kpi kpi-btn" data-act="drill" data-k="cobrar"><span class="lab">Por cobrar (con IVA)</span><span class="val">${money(porCobrar)}</span><span class="muted small">Vencido: ${money(vencido)}</span></button>`:""}
     <button class="kpi kpi-btn" data-act="drill" data-k="clientes"><span class="lab">Clientes</span><span class="val">${activos} activos</span><span class="muted small">${prosp} prospectos</span></button>
   </section>
   <section class="kpis">
-    ${soloMira()?"":`<button class="kpi kpi-btn" data-act="drill" data-k="ruta"><span class="lab">Ruta de hoy</span><span class="val">${pend} por visitar</span><span class="muted small">Ver ruta de ${DIAS_L[wday(today())]} ›</span></button>`}
-    <button class="kpi kpi-btn" data-act="drill" data-k="visitas"><span class="lab">Visitas del mes</span><span class="val">${r.visitas}</span><span class="muted small">${r.activ} activaciones</span></button>
+    ${soloMira()&&!ve("ruta")?"":`<button class="kpi kpi-btn" data-act="drill" data-k="ruta"><span class="lab">Ruta de hoy</span><span class="val">${pend} por visitar</span><span class="muted small">Ver ruta de ${DIAS_L[wday(today())]} ›</span></button>`}
+    ${ve("visitas")?`<button class="kpi kpi-btn" data-act="drill" data-k="visitas"><span class="lab">Visitas del mes</span><span class="val">${r.visitas}</span><span class="muted small">${r.activ} activaciones</span></button>
     <button class="kpi kpi-btn" data-act="drill" data-k="muestras"><span class="lab">Muestras del mes</span><span class="val">${n1(r.muC+r.muK)}</span><span class="muted small"><i class="sw beer"></i> ${n1(r.muC)} cerveza · <i class="sw kom"></i> ${n1(r.muK)} kombucha</span></button>
-    <button class="kpi kpi-btn" data-act="drill" data-k="conversion"><span class="lab">Conversión 60 días</span><span class="val">${cv.total?Math.round(cv.conv/cv.total*100)+"%":"—"}</span><span class="muted small">${cv.conv} de ${cv.total} activados compraron</span></button>
+    <button class="kpi kpi-btn" data-act="drill" data-k="conversion"><span class="lab">Conversión 60 días</span><span class="val">${cv.total?Math.round(cv.conv/cv.total*100)+"%":"—"}</span><span class="muted small">${cv.conv} de ${cv.total} activados compraron</span></button>`:""}
     ${verBarriles()&&S.barriles.length?(()=>{const e=S.barriles.filter(b=>b.estado==="en_cliente"),a=e.filter(b=>semBarril(b).level==="bad").length;return `<button class="kpi kpi-btn" data-tab="barriles"><span class="lab">🛢️ Barriles en clientes</span><span class="val">${e.length}</span><span class="muted small">${a?`✕ ${a} pasados de ${S.cfg.barrilDias} días`:"✓ Todos en plazo"}</span></button>`})():""}
   </section>
   ${muRows.length?`<section class="card"><h3 style="margin-bottom:6px">Muestras entregadas en ${mesLabel(S.mes)}</h3><div class="tbox"><table><thead><tr><th>Variedad</th><th class="r">Cantidad</th></tr></thead><tbody>${muRows.map(([k,n])=>{const[m,nom,u]=k.split("|");return `<tr><td><span class="row" style="gap:6px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>${esc(nom)}</span></td><td class="r num">${n1(n)} ${esc(u)}${n===1?"":"s"}</td></tr>`}).join("")}</tbody></table></div></section>`:""}
@@ -821,7 +827,7 @@ function vRuta(){
   return `<div class="stack">
     <div class="row spread"><div class="row"><h2>Ruta</h2>${S.equipo.length>1&&can("ver_todos_clientes")?`<select id="rutaDe" aria-label="Ruta de" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">${S.equipo.map(u=>`<option value="${u.id}"${u.id===S.rutaDe?" selected":""}>${esc(u.id===ME.user.id?"Mi ruta":u.nombre)}</option>`).join("")}</select>`:""}</div><div class="mnav"><button class="btn sm" data-act="rutaSem" data-d="-7" aria-label="Semana anterior">‹</button><button class="btn sm" data-act="rutaDia" data-f="${today()}">Hoy</button><button class="btn sm" data-act="rutaSem" data-d="7" aria-label="Semana siguiente">›</button></div></div>
     <div class="week" role="group" aria-label="Días de la semana">${strip}</div>
-    <div class="card row spread"><div><h3>${DIAS_L[wday(f)][0].toUpperCase()+DIAS_L[wday(f)].slice(1)} ${fdate(f)}</h3><div class="muted small">Zonas del día: ${esc(p.zonasHoy.join(", ")||"ninguna asignada")} · ${hechos} de ${total} visitados</div></div><button class="btn sm" data-tab="ajustes">Cambiar zonas por día</button></div>
+    <div class="card row spread"><div><h3>${DIAS_L[wday(f)][0].toUpperCase()+DIAS_L[wday(f)].slice(1)} ${fdate(f)}</h3><div class="muted small">Zonas del día: ${esc(p.zonasHoy.join(", ")||"ninguna asignada")} · ${hechos} de ${total} visitados</div></div>${soloMira()?"":`<button class="btn sm" data-tab="ajustes">Cambiar zonas por día</button>`}</div>
     ${total?order.map(z=>`<section class="stack" style="gap:8px"><h3>${esc(z)} <span class="muted small">(${groups[z].length})</span></h3>${groups[z].map(stop).join("")}</section>`).join(""):`<div class="empty">Nada sugerido para este día.<span class="small">La ruta se arma con: clientes de las zonas asignadas a este día a los que les toca visita según su importancia, los que tienen este día como día fijo y los que agendaste para esta fecha.</span></div>`}
     <div class="muted small">Orden dentro de cada zona: importancia (A, B, C), luego agendados, cobros y recompras atrasadas. Frecuencia de visita: A cada ${S.cfg.frecVisita.A} días, B cada ${S.cfg.frecVisita.B}, C cada ${S.cfg.frecVisita.C}.</div>
   </div>`;
@@ -831,7 +837,7 @@ function clientRow(cl){
   const marcas=(cl.marcas||[]).map(m=>`<span class="chip"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>${m==="cerveza"?"Cerveza":"Kombucha"}</span>`).join("");
   return `<button class="item" data-act="openClient" data-id="${cl.id}">
     <div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${impBadge(cl)}<span class="name">${esc(cl.nombre)}</span>${cl.demo?`<span class="chip">Ejemplo</span>`:""}</span><span class="chip">${esc(ESTADOS[cl.estado]||"")}</span></div>
-    <div class="chips">${marcas}${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${cl.zona?`<span class="chip">${esc(cl.zona)}</span>`:""}${can("ver_todos_clientes")&&ownerOf(cl)&&S.equipo.length>1?`<span class="chip">A cargo: ${esc(nombreDe(ownerOf(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.estado==="activo"&&faltantes(cl).length?`<span class="chip strong">! Ficha incompleta</span>`:""}</div>
+    <div class="chips">${marcas}${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${cl.zona?`<span class="chip">${esc(cl.zona)}</span>`:""}${can("ver_todos_clientes")&&ownerOf(cl)&&S.equipo.length>1?`<span class="chip">A cargo: ${esc(nombreDe(ownerOf(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.estado==="activo"&&(!soloMira()||(can("editar_clientes")&&ve("contactos")))&&faltantes(cl).length?`<span class="chip strong">! Ficha incompleta</span>`:""}</div>
     <div class="chips">${pill(semVisita(cl),"Visita")}${pill(semRecompra(cl),"Recompra")}${pill(semPago(cl),"Pago")}${pill(semSeg(cl),"Seguimiento")}</div></button>`;
 }
 function vClientes(){
@@ -872,7 +878,7 @@ function compraItem(v,n){
       <div style="text-align:right"><span class="num small">${v.marca==="cerveza"?n1(v.litros)+" L":n1(v.cajas)+" cajas"}${can("ver_cobranza")?" · "+money(v.neto*1.19):""}</span></div></div>
     <div class="small">${itemsTexto(v.items,v.marca)}</div>${bVentaLinea(v)}
     ${descTexto(v)&&can("ver_cobranza")?`<div class="small muted">🏷️ Descuentos: ${descTexto(v)}</div>`:""}${empaqueTexto(v)?`<div class="small muted">📦 Empaque: ${empaqueTexto(v)}</div>`:""}
-    <div class="row spread">${pill(s)}${puede?`<span class="row" style="gap:6px">${v.pagado?`<button class="btn sm" data-act="unpay" data-id="${v.id}">Deshacer pago</button>`:`<button class="btn sm" data-act="pay" data-id="${v.id}">Marcar pagada</button>`}<button class="btn sm" data-act="editSale" data-id="${v.id}">Editar</button></span>`:""}</div>
+    <div class="row spread">${ve("montos")?pill(s):"<span></span>"}${puede?`<span class="row" style="gap:6px">${v.pagado?`<button class="btn sm" data-act="unpay" data-id="${v.id}">Deshacer pago</button>`:`<button class="btn sm" data-act="pay" data-id="${v.id}">Marcar pagada</button>`}<button class="btn sm" data-act="editSale" data-id="${v.id}">Editar</button></span>`:""}</div>
   </div>`;
 }
 function vVentas(){
@@ -2078,11 +2084,11 @@ function clientDetail(id){
   const muTot={};as.forEach(a=>(a.muestras||[]).forEach(m=>{muTot[m.nombre]=(muTot[m.nombre]||0)+m.cant}));
   openSheet(`<div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${btnVolver()}${impBadge(cl)}<h2>${esc(cl.nombre)}</h2></span><button class="btn sm" data-act="close">Cerrar</button></div>
   <div class="chips"><span class="chip">${esc(ESTADOS[cl.estado]||"")}</span><span class="chip">${esc(IMPORT[impOf(cl)])}</span>${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${lnkZona(cl.zona)}${cl.demo?`<span class="chip">Ejemplo</span>`:""}${can("ver_todos_clientes")&&ownerOf(cl)&&S.equipo.length>1?`<span class="chip">A cargo: ${esc(nombreDe(ownerOf(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.horario?`<span class="chip">🕑 ${esc(cl.horario)}</span>`:""}</div>
-  ${cl.estado==="activo"&&faltantes(cl).length?`<div class="banner row spread"><span>Ficha incompleta. Falta: ${esc(faltantes(cl).join(", "))}.</span>${can("editar_clientes")?`<button class="btn sm" data-act="editClient" data-id="${id}">Completar</button>`:""}</div>`:""}
+  ${cl.estado==="activo"&&(!soloMira()||(can("editar_clientes")&&ve("contactos")))&&faltantes(cl).length?`<div class="banner row spread"><span>Ficha incompleta. Falta: ${esc(faltantes(cl).join(", "))}.</span>${can("editar_clientes")?`<button class="btn sm" data-act="editClient" data-id="${id}">Completar</button>`:""}</div>`:""}
   <div class="stack" style="gap:6px">
-   <div class="row spread"><span>Visita</span>${pill(semVisita(cl))}</div>
-   ${(cl.marcas||[]).map(m=>`<div class="row spread"><span class="row" style="gap:6px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>Recompra ${m}</span>${pill(semCompra(cl,m))}</div>`).join("")}
-   <div class="row spread"><span>Pago</span>${pill(semPago(cl))}</div><div class="row spread"><span>Seguimiento</span>${pill(semSeg(cl))}</div></div>
+   ${ve("visitas")?`<div class="row spread"><span>Visita</span>${pill(semVisita(cl))}</div>`:""}
+   ${(ve("rotacion")?(cl.marcas||[]):[]).map(m=>`<div class="row spread"><span class="row" style="gap:6px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>Recompra ${m}</span>${pill(semCompra(cl,m))}</div>`).join("")}
+   ${ve("montos")?`<div class="row spread"><span>Pago</span>${pill(semPago(cl))}</div>`:""}<div class="row spread"><span>Seguimiento</span>${pill(semSeg(cl))}</div></div>
   <div class="row"><button class="btn primary" data-act="newAct" data-id="${id}">+ Visita / activación</button>${can("registrar_ventas")?`<button class="btn" data-act="newSale" data-id="${id}">+ Venta</button>`:""}${can("editar_clientes")?`<button class="btn" data-act="editClient" data-id="${id}">Editar</button>`:""}${wa?`<a class="btn" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`:""}${can("eliminar")?`<button class="btn danger" data-act="delClient" data-id="${id}">🗑 Eliminar</button>`:""}</div>
   <div class="card stack" style="gap:6px">
    ${contactoBloque("Quién hace los pedidos",{nombre:cl.contacto||"",tel:cl.telefono||"",email:cl.emailPedidos||""})}
@@ -2097,11 +2103,11 @@ function clientDetail(id){
    <div class="row" style="gap:24px">${can("ver_cobranza")?`<div><span class="muted small">Por cobrar (con IVA)</span><div class="num">${money(deuda)}</div></div>`:""}<div><span class="muted small">Muestras entregadas</span><div class="small">${Object.keys(muTot).length?Object.entries(muTot).map(([k,v])=>n1(v)+" "+esc(k)).join(", "):"—"}</div></div></div>
   </div>
   ${bEnCliente(cl)}
-  ${analisisCliente(cl)}
-  <h3>Visitas y activaciones (${as.length})</h3>
-  <div class="stack" style="gap:10px">${as.length?as.slice(0,20).map(actLine).join(""):`<div class="muted small">Sin visitas registradas.</div>`}</div>
-  <h3>Historial de compras (${vs.length})</h3>
-  <div class="stack" style="gap:8px">${vs.length?vs.map((v,i)=>compraItem(v,vs.length-i)).join(""):`<div class="muted small">Sin ventas registradas.</div>`}</div>`,id);
+  ${ve("compras")?analisisCliente(cl):""}
+  ${ve("visitas")||can("registrar_visitas")?`<h3>Visitas y activaciones (${as.length})</h3>
+  <div class="stack" style="gap:10px">${as.length?as.slice(0,20).map(actLine).join(""):`<div class="muted small">Sin visitas registradas.</div>`}</div>`:""}
+  ${ve("compras")?`<h3>Historial de compras (${vs.length})</h3>
+  <div class="stack" style="gap:8px">${vs.length?vs.map((v,i)=>compraItem(v,vs.length-i)).join(""):`<div class="muted small">Sin ventas registradas.</div>`}</div>`:""}`,id);
   const sh=$("#modal .sheet");if(sh)sh.scrollTop=sc;
 }
 
@@ -2200,7 +2206,7 @@ function saleForm(clienteId,ventaId){
   if(!S.clientes.length){toast("Primero agrega un cliente");clientForm();return}
   const cid=v?.clienteId||clienteId||"";
   const cl=S.clientes.find(c=>c.id===cid);
-  const marca=v?.marca||(cl?.marcas?.[0])||"cerveza";
+  const marca=v?.marca||miMarca()||(cl?.marcas?.[0])||"cerveza";
   const f=v?.fecha||today();
   openSheet(`<div class="row spread"><h2>${v?"Editar venta":"Registrar venta"}</h2><button class="btn sm" data-act="close">Cerrar</button></div>
   <form id="saleForm" class="form" data-id="${ventaId||""}">
@@ -2427,9 +2433,28 @@ const isAdmin=()=>ME.perfil?.rol==="admin"&&ME.perfil?.activo;
    no conserva permisos, salvo ver montos de su marca y, si es de cerveza, los de barriles. */
 const MARCA_TXT={kombucha:"Kombucha Animal Social",cerveza:"Cerveza El Growler"};
 const miMarca=()=>(ME.perfil&&ME.perfil.rol!=="admin"&&ME.perfil.marca)||null;
-const soloMira=()=>!!miMarca();
+const soloMira=()=>!!miMarca();   // = cuenta de una sola marca
+/* Lo que puede ver y modificar una cuenta de marca: siempre solo de su marca.
+   Las mismas reglas están en la base de datos (datos_marca y marca_guardar). */
+const MARCA_VER=[["ver_contactos","Datos de contacto de los clientes","Teléfonos, correos, RUT, dirección y foto del local"],
+  ["ver_compras","Flujo de compras de cada cliente","En la ficha: qué compra, cuánto, cada cuánto y su historial de pedidos"],
+  ["ver_rotacion","Rotación","Semáforo de recompra: quién debería volver a comprar y quién está atrasado"],
+  ["ver_indices","Índices","Qué producto se vende más por zona, tendencia en el tiempo y mejores clientes"],
+  ["ver_cobranza","Montos y cobranza","Neto vendido, facturas, quién debe y cómo paga"],
+  ["ver_visitas","Visitas y degustaciones","Visitas, activaciones y muestras entregadas"],
+  ["ver_ruta","Ruta de visitas","Qué días se visita cada zona y a qué clientes les toca"],
+  ["ver_barriles","Barriles","Dónde está cada barril (solo cerveza)","cerveza"]];
+const MARCA_MOD=[["editar_clientes","Crear y editar clientes","Crea locales nuevos de su marca y edita los datos que ve. No toca tus notas ni tu clasificación"],
+  ["registrar_ventas","Registrar ventas","Ventas de su marca. Necesita \"Montos y cobranza\"","ver_cobranza"],
+  ["marcar_pagos","Marcar pagos","Marcar facturas como pagadas. Necesita \"Montos y cobranza\"","ver_cobranza"],
+  ["registrar_visitas","Registrar visitas y muestras","Visitas, degustaciones y muestras de su marca"],
+  ["gestionar_barriles","Mover barriles","Lavar, embarrilar, entregar y retirar (solo cerveza)","cerveza"]];
+const MARCA_DEF={ver_contactos:true,ver_compras:true,ver_rotacion:true,ver_indices:true,ver_cobranza:true,ver_visitas:true,ver_ruta:true};
+const MARCA_PUEDE=new Set(["ver_cobranza","editar_clientes","registrar_ventas","marcar_pagos","registrar_visitas","usar_ia"]);
+const ve=k=>!soloMira()||!!ME.perfil?.permisos?.[k==="montos"?"ver_cobranza":"ver_"+k];
 const can=p=>isAdmin()||!!(ME.perfil?.activo&&(miMarca()
-  ?(p==="ver_cobranza"||(miMarca()==="cerveza"&&(p==="ver_barriles"||p==="gestionar_barriles")&&ME.perfil.permisos?.[p]))
+  ?(ME.perfil.permisos?.[p]&&(MARCA_PUEDE.has(p)||(miMarca()==="cerveza"&&(p==="ver_barriles"||p==="gestionar_barriles")))
+     &&(p!=="registrar_ventas"&&p!=="marcar_pagos"||ME.perfil.permisos?.ver_cobranza))
   :ME.perfil?.permisos?.[p]));
 const nombreDe=id=>S.equipo.find(x=>x.id===id)?.nombre||"";
 const ownerOf=c=>c.asignado_a||c.creado_por;
@@ -2518,10 +2543,13 @@ function rowFor(col,data){
 }
 async function chk(p){const{error}=await p;if(error)throw error}
 const DB={
-  add:(col,data)=>chk(SB.from(TBL[col]).insert(rowFor(col,data))),
-  set:(col,id,data)=>chk(SB.from(TBL[col]).update(rowFor(col,data)).eq("id",id)),
+  add:(col,data)=>soloMira()?DB.marca(col,null,data):chk(SB.from(TBL[col]).insert(rowFor(col,data))),
+  set:(col,id,data)=>soloMira()?DB.marca(col,id,data):chk(SB.from(TBL[col]).update(rowFor(col,data)).eq("id",id)),
+  // cuenta de marca: el servidor revisa permiso, marca y que no toque lo que no ve
+  marca:(col,id,data)=>{if(!["clientes","ventas","actividades"].includes(col))return Promise.reject(new Error("Tu cuenta no puede cambiar esto"));
+    const r=rowFor(col,data);return chk(SB.rpc("marca_guardar",{p_tabla:col,p_id:id||null,p_cliente:r.cliente_id||null,p_data:r.data}))},
   update:(col,id,patch)=>{const cur=S[LOCAL[col]].find(x=>x.id===id);if(!cur)throw new Error("Registro no encontrado");return DB.set(col,id,{...cur,...patch})},
-  delete:(col,id)=>chk(SB.from(TBL[col]).delete().eq("id",id)),
+  delete:(col,id)=>soloMira()?Promise.reject(new Error("Tu cuenta no puede borrar")):chk(SB.from(TBL[col]).delete().eq("id",id)),
   setCfg:cfg=>chk(SB.from("config").update({data:cfg}).eq("id",1))
 };
 function errMsg(e){
@@ -2616,13 +2644,13 @@ async function afterLogin(){
   if(!ME.perfil||!ME.perfil.activo){authScreen("pendiente");return}
   const ef=aplicarPrefs();
   if(ef.idioma!==LANG&&prefsEf().idioma===ef.idioma){location.reload();return}
-  S.dbState="on";S.rutaDe=ME.user.id;
+  S.dbState="on";S.rutaDe=soloMira()?null:ME.user.id;
   S.tab=visibleTabs().includes(ef.inicio)?ef.inicio:"resumen";
   render();
   bAbrirPendiente();
 }
 function visibleTabs(){
-  if(soloMira())return["resumen","clientes","ventas",...(verBarriles()?["barriles"]:[]),"indices"];
+  if(soloMira())return["resumen",...(ve("ruta")?["ruta"]:[]),"clientes",...(ve("montos")||can("registrar_ventas")?["ventas"]:[]),...(verBarriles()?["barriles"]:[]),...(ve("indices")?["indices"]:[])];
   const t=["resumen","tareas","ruta","clientes"];
   if(can("ver_cobranza")||can("registrar_ventas"))t.push("ventas");
   if(verBarriles())t.push("barriles");
@@ -2651,7 +2679,8 @@ const PERM_CORTO={ver_todos_clientes:"toda la cartera",ver_cobranza:"cobranza y 
 S.eqAbierto=new Set();
 function eqResumen(p){
   if(p.rol==="admin")return `<span class="chip strong">Administrador · ve y modifica todo</span>`;
-  if(p.marca)return `<span class="chip strong">👀 ${esc(MARCA_TXT[p.marca]||p.marca)} · solo mirar</span>`;
+  if(p.marca){const lis=a=>a.filter(([k,,,x])=>p.permisos?.[k]&&(!x||x===p.marca||p.permisos?.[x])).map(([,t])=>t.toLowerCase());const v=lis(MARCA_VER),m=lis(MARCA_MOD);
+    return `<span class="chip strong">Solo ${esc(MARCA_TXT[p.marca]||p.marca)}</span><span class="chip">👀 Ve: ${esc(v.length?v.join(", "):"solo la lista de clientes")}</span><span class="chip">✏️ Modifica: ${esc(m.length?m.join(", "):"nada")}</span>${p.permisos?.usar_ia?`<span class="chip">✨ asistente IA</span>`:""}`}
   const [ver,mod,otro]=PERM_GRUPOS.map(([,ks])=>ks.filter(k=>p.permisos?.[k]).map(k=>PERM_CORTO[k]));
   return `<span class="chip">👀 Ve: ${esc(ver.length?ver.join(", "):"solo sus clientes")}</span><span class="chip">✏️ Modifica: ${esc(mod.length?mod.join(", "):"nada")}</span>${otro.length?`<span class="chip">✨ ${esc(otro.join(", "))}</span>`:""}`;
 }
@@ -2663,7 +2692,7 @@ function vEquipo(){
   const card=p=>{const yo=p.id===ME.user.id,adm=p.rol==="admin",nCl=S.clientes.filter(c=>ownerOf(c)===p.id).length;
     const est=p.activo?{level:"ok",short:"Activo"}:{level:"warn",short:"Sin acceso"};
     const abierto=S.eqAbierto.has(p.id)||(!p.activo&&!yo);
-    const permOff=adm||!!p.marca||yo;
+    const permOff=adm||yo;
     const perm=k=>{const x=PERMISOS.find(y=>y[0]===k);if(!x)return"";const[,t,h]=x;
       return `<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-perm="${k}" ${adm||p.permisos?.[k]?"checked":""} ${permOff?"disabled":""} style="margin-top:3px"><span><b style="font-weight:600">${t}</b>${h?`<br><span class="muted small">${h}</span>`:""}</span></label>`};
     return `<form class="card stack userCard" id="u-${p.id}" data-uid="${p.id}">
@@ -2672,13 +2701,20 @@ function vEquipo(){
       ${yo?`<div class="muted small">Tu cuenta es la de administrador: ve y modifica todo, y no se puede quitar ese rol a sí misma.</div>`:`
       <details class="eqDet" data-uid="${p.id}"${abierto?" open":""}><summary class="small" style="cursor:pointer;font-weight:600">Cambiar lo que puede ver y modificar</summary>
       <div class="stack" style="gap:12px;margin-top:10px">
-        <div class="form">
-          <div class="field"><span class="lbl">Acceso a la app</span><div class="checks"><label><input type="checkbox" data-k="activo" ${p.activo?"checked":""}> ${p.activo?"Puede entrar":"Bloqueado · tócalo para habilitar"}</label></div></div>
-          <div class="field"><label for="rol-${p.id}">Rol</label><select id="rol-${p.id}" data-k="rol"><option value="usuario"${!adm?" selected":""}>Usuario</option><option value="admin"${adm?" selected":""}>Administrador (todo)</option></select></div>
-          ${conMarca?`<div class="field full"><label for="mk-${p.id}">Qué parte de la cartera ve</label><select id="mk-${p.id}" data-k="marca" ${adm?"disabled":""}><option value="">Toda la cartera (según permisos)</option><option value="kombucha"${p.marca==="kombucha"?" selected":""}>Solo kombucha Animal Social · solo mirar</option><option value="cerveza"${p.marca==="cerveza"?" selected":""}>Solo cerveza El Growler · solo mirar</option></select></div>`:""}
-        </div>
-        ${adm?`<div class="muted small">Un administrador tiene todos los permisos.</div>`:p.marca?`<div class="muted small">Una cuenta de marca ve los clientes, ventas, cobranza e índices de su marca y no puede modificar nada. Para darle permisos, cambia "Qué parte de la cartera ve" a toda la cartera.</div>`:""}
-        <div class="stack" style="gap:14px">${PERM_GRUPOS.map(([tit,ks])=>`<div class="stack" style="gap:6px"><b class="small">${tit}</b>${ks.map(perm).join("")}</div>`).join("")}</div>
+        ${(()=>{const mk=p.marca,mkTxt=mk==="kombucha"?"kombucha":mk==="cerveza"?"cerveza":"";let n=0;const paso=t=>`<b class="small">${++n}. ${t}</b>`;
+          const casilla=([k,t,h,x])=>{if(x==="cerveza"||x==="kombucha"){if(x!==mk)return""}
+            const dep=x&&x!=="cerveza"&&x!=="kombucha"&&!p.permisos?.[x];
+            return `<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap${dep?";opacity:.55":""}"><input type="checkbox" data-perm="${k}" ${p.permisos?.[k]&&!dep?"checked":""} ${dep?"disabled":""} style="margin-top:3px"><span><b style="font-weight:600">${t}${mkTxt?` de ${mkTxt}`:""}</b><br><span class="muted small">${h}</span></span></label>`};
+          return `<div class="stack" style="gap:6px">${paso("¿Qué cartera ve?")}
+            ${conMarca?`<select id="mk-${p.id}" data-k="marca" aria-label="Qué cartera ve" ${adm?"disabled":""} style="padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><option value="">Toda la cartera (cerveza y kombucha)</option><option value="kombucha"${mk==="kombucha"?" selected":""}>Solo kombucha Animal Social</option><option value="cerveza"${mk==="cerveza"?" selected":""}>Solo cerveza El Growler</option></select>`:`<div class="muted small">Toda la cartera (para separar por marca falta el SQL de marcas).</div>`}
+            ${mk&&!adm?`<span class="muted small">Todo lo que vea o modifique es solo de la ${mkTxt}. Nunca ve nada de la otra marca, ni tus notas, comisiones o sueldo, y no puede borrar.</span>`:""}</div>
+          ${adm?`<div class="muted small">Un administrador ve y modifica todo.</div>`:mk?`
+            <div class="stack" style="gap:6px">${paso(`¿Qué puede ver de la ${mkTxt}?`)}${MARCA_VER.map(casilla).join("")}</div>
+            <div class="stack" style="gap:6px">${paso(`¿Qué puede modificar de la ${mkTxt}?`)}${MARCA_MOD.map(casilla).join("")}</div>
+            <div class="stack" style="gap:6px">${paso("¿Usa el asistente con IA?")}<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-perm="usar_ia" ${p.permisos?.usar_ia?"checked":""} style="margin-top:3px"><span><b style="font-weight:600">Usar el asistente con IA</b><br><span class="muted small">Puede preguntarle a la IA sobre la ${mkTxt}. La IA solo ve lo mismo que esta cuenta ve.</span></span></label></div>`
+            :PERM_GRUPOS.map(([tit,ks])=>`<div class="stack" style="gap:6px">${paso(tit.replace(/^\S+ /,"").replace("Puede ver","¿Qué puede ver?").replace("Puede modificar","¿Qué puede modificar?").replace("Otros","¿Qué más puede usar?"))}${ks.map(perm).join("")}</div>`).join("")}
+          <div class="stack" style="gap:6px">${paso("¿Le das acceso a la app?")}<div class="checks"><label><input type="checkbox" data-k="activo" ${p.activo?"checked":""}> ${p.activo?"Sí, puede entrar":"Bloqueado · tócalo para habilitar"}</label></div>${!p.activo&&!mk&&conMarca&&!adm?`<span class="small" style="color:var(--warn)">! Si es la cuenta de una marca, elige primero la marca en el paso 1.</span>`:""}</div>
+          <details><summary class="small muted" style="cursor:pointer">Rol (avanzado)</summary><div class="field" style="margin-top:8px"><label for="rol-${p.id}">Rol</label><select id="rol-${p.id}" data-k="rol"><option value="usuario"${!adm?" selected":""}>Usuario</option><option value="admin"${adm?" selected":""}>Administrador (todo)</option></select></div></details>`})()}
         <div class="muted small">Cada cambio se guarda al tocarlo. La persona lo ve la próxima vez que abra o recargue la app.</div>
       </div></details>`}
     </form>`};
@@ -2700,7 +2736,9 @@ async function guardarUsuario(f,el){
   if(rol!=="admin")f.querySelectorAll("[data-perm]").forEach(x=>{if(x.checked)permisos[x.dataset.perm]=true});
   const upd={rol,activo,permisos},mk=f.querySelector('[data-k="marca"]');
   if(mk)upd.marca=rol==="admin"?null:(mk.value||null);
-  if(upd.marca)upd.permisos={};
+  // al pasar a una marca, parte viendo todo lo de esa marca y sin modificar nada
+  if(upd.marca&&upd.marca!==p.marca)upd.permisos={...MARCA_DEF};
+  else if(!upd.marca&&p.marca)upd.permisos={editar_clientes:true,registrar_ventas:true};
   S.eqAbierto.add(id);
   const ok=await guard(()=>chk(SB.from("perfiles").update(upd).eq("id",id)),"Guardado");
   if(ok||el?.dataset.k)render();
@@ -2716,10 +2754,10 @@ function altaForm(){
     <div class="field"><label for="alNom">Nombre</label><input id="alNom" required data-cap autocapitalize="words" autocomplete="off" placeholder="Ej: Raimundo"></div>
     <div class="field"><label for="alMail">Correo con el que va a entrar</label><input id="alMail" type="email" required inputmode="email" autocomplete="off" placeholder="nombre@empresa.cl"></div>
     <div class="field full"><label for="alTipo">Qué puede ver</label><select id="alTipo">
-      <option value="kombucha"${conMarca?"":" disabled"}>Solo kombucha Animal Social · solo mirar</option>
-      <option value="cerveza"${conMarca?"":" disabled"}>Solo cerveza El Growler · solo mirar</option>
+      <option value="kombucha"${conMarca?"":" disabled"}>Solo kombucha Animal Social</option>
+      <option value="cerveza"${conMarca?"":" disabled"}>Solo cerveza El Growler</option>
       <option value="equipo"${conMarca?"":" selected"}>Equipo · después eliges sus permisos</option></select>
-      <span class="muted small">Solo kombucha: ve los clientes, ventas, cobranza e índices de la kombucha. No ve nada de la cerveza, ni notas, comisiones, sueldo, ruta ni tu clasificación de los locales. No puede cambiar nada.</span>
+      <span class="muted small">Solo kombucha: parte viendo todo lo de la kombucha (clientes, compras, rotación, índices, cobranza, visitas y ruta) y sin poder modificar nada. Después, en Equipo, eliges qué ve y qué puede modificar. Nunca ve nada de la cerveza ni tus notas, comisiones o sueldo.</span>
       ${conMarca?"":`<span class="small" style="color:var(--warn)">! Para las opciones por marca falta pegar el bloque SQL de marcas en Supabase.</span>`}</div>
     <div class="field full"><label for="alClave">Clave inicial (mínimo 8)</label><div class="row" style="flex-wrap:nowrap"><input id="alClave" required minlength="8" autocomplete="off" value="${claveAzar()}" class="num"><button type="button" class="btn sm" data-act="alClaveNueva" style="white-space:nowrap">Otra</button></div>
       <span class="muted small">Se la mandas y la persona la cambia en ⚙️ › Mi perfil.</span></div>
@@ -2744,7 +2782,7 @@ async function crearPerfil(f){
     }
     const upd={nombre,activo:true};
     if(tipo==="equipo"){if(nueva)upd.permisos={editar_clientes:true,registrar_ventas:true};if("marca" in (S.perfiles[0]||{}))upd.marca=null}
-    else{upd.marca=tipo;upd.permisos={};upd.rol="usuario"}
+    else{upd.marca=tipo;upd.permisos={...MARCA_DEF};upd.rol="usuario"}
     await chk(SB.from("perfiles").update(upd).eq("id",p.id));
     try{await loadAll()}catch(e){}render();
     const url=location.origin+location.pathname;
@@ -2793,7 +2831,7 @@ function menuSheet(){
   </section>`:"";
   openSheet(`<div class="menu stack"><div class="row spread"><h2>Configuración</h2><button class="btn sm" data-act="close">Cerrar</button></div>
   <section class="card stack"><h3>Mi perfil</h3>
-    <div class="muted small">${esc(ME.user?.email||"")} · ${admin?"Administrador":miMarca()?esc(MARCA_TXT[miMarca()])+" · solo mirar":"Usuario"}</div>
+    <div class="muted small">${esc(ME.user?.email||"")} · ${admin?"Administrador":miMarca()?"Solo "+esc(MARCA_TXT[miMarca()]):"Usuario"}</div>
     <form id="perfilForm" class="row" style="flex-wrap:nowrap"><input id="pfNombre" aria-label="Tu nombre" value="${esc(ME.perfil?.nombre||"")}" required><button class="btn sm" type="submit">Guardar nombre</button></form>
     <form id="claveForm" class="row" style="flex-wrap:nowrap"><input id="pfClave" type="password" minlength="8" required autocomplete="new-password" placeholder="Contraseña nueva (mínimo 8)" aria-label="Contraseña nueva (mínimo 8)"><button class="btn sm" type="submit">Cambiar contraseña</button></form>
     <div><button class="btn" data-act="logout">Cerrar sesión</button></div>
@@ -3045,9 +3083,10 @@ document.addEventListener("keydown",e=>{
   // en el computador, Enter envía la pregunta (Shift+Enter hace un salto de línea)
   if(e.target.id==="iaQ"&&e.key==="Enter"&&!e.shiftKey&&window.innerWidth>700){e.preventDefault();iaEnviar(e.target.value)}
 });
-const ACC_ESCRITURA=new Set(["chooser","newAct","quickVisit","newSale","pay","unpay","editSale","editAct","tareaEstado","editClient","newClient","delClient","delSale","delAct"]);
-document.addEventListener("click",e=>{if(!soloMira())return;const t=e.target.closest?.("[data-act]");
-  if(t&&ACC_ESCRITURA.has(t.dataset.act)){e.preventDefault();e.stopImmediatePropagation();toast("Tu cuenta es solo para mirar")}},true);
+const ACC_PERMISO={newAct:"registrar_visitas",quickVisit:"registrar_visitas",editAct:"registrar_visitas",newSale:"registrar_ventas",editSale:"registrar_ventas",pay:"marcar_pagos",unpay:"marcar_pagos",editClient:"editar_clientes",newClient:"editar_clientes",tareaEstado:"-",delClient:"-",delSale:"-",delAct:"-"};
+document.addEventListener("click",e=>{if(!soloMira())return;const t=e.target.closest?.("[data-act]");if(!t)return;const a=t.dataset.act,pm=ACC_PERMISO[a];
+  const no=a==="chooser"?!(can("registrar_visitas")||can("registrar_ventas")||can("editar_clientes")):pm&&(pm==="-"||!can(pm));
+  if(no){e.preventDefault();e.stopImmediatePropagation();toast("Tu cuenta no tiene permiso para esto")}},true);
 document.addEventListener("click",async e=>{
   const t=e.target.closest("[data-act],[data-tab]");if(!t)return;
   if(t.dataset.act==="menuNav"){navMenu(!document.body.classList.contains("menu-abierto"));return}
@@ -3333,7 +3372,7 @@ document.addEventListener("submit",async e=>{
     return;
   }
   if(f.id==="clientForm"){
-    const marcas=[$("#mC").checked&&"cerveza",$("#mK").checked&&"kombucha"].filter(Boolean);
+    const marcas=soloMira()?[miMarca()]:[$("#mC").checked&&"cerveza",$("#mK").checked&&"kombucha"].filter(Boolean);
     const diasVisita=[...document.querySelectorAll("[data-dv]")].filter(x=>x.checked).map(x=>Number(x.dataset.dv));
     const cap=k=>capitalizar(val(k)),min=k=>val(k).toLowerCase(),mismo=$("#cPagoMismo").checked;
     const data={nombre:cap("cNombre"),tipo:val("cTipo"),estado:val("cEstado"),importancia:val("cImp"),zona:val("cZona"),marcas,diasVisita,horario:val("cHorario"),frecVisita:Number(val("cFrecV"))||null,
@@ -3388,7 +3427,7 @@ document.addEventListener("submit",async e=>{
     const ok=await guard(async()=>{
       if(aid)await DB.set("actividades",aid,data);else await DB.add("actividades",data);
       const cl=S.clientes.find(c=>c.id===cid);
-      if(cl){const upd={};
+      if(cl&&(!soloMira()||can("editar_clientes"))){const upd={};
         if(proxF){upd.proxFecha=proxF;upd.proxTexto=proxT||cl.proxTexto||""}
         else if(cl.proxFecha&&cl.proxFecha<=data.fecha&&PRESENCIAL.has(data.tipo)){upd.proxFecha="";upd.proxTexto=""}
         if(data.resultado==="No interesado"&&cl.estado==="prospecto")upd.estado="pausado";
@@ -3410,7 +3449,7 @@ document.addEventListener("submit",async e=>{
     const ok=await guard(async()=>{
       if(old)await DB.set("ventas",old.id,data);else await DB.add("ventas",data);
       const cl=S.clientes.find(c=>c.id===cid);
-      if(cl){const upd={};if(cl.estado==="prospecto")upd.estado="activo";if(!(cl.marcas||[]).includes(m))upd.marcas=[...(cl.marcas||[]),m];if(Object.keys(upd).length)await DB.update("clientes",cid,upd)}
+      if(cl&&!soloMira()){const upd={};if(cl.estado==="prospecto")upd.estado="activo";if(!(cl.marcas||[]).includes(m))upd.marcas=[...(cl.marcas||[]),m];if(Object.keys(upd).length)await DB.update("clientes",cid,upd)}
     },"Venta guardada");
     if(ok){if(old)closeSheet();else ocSheet({...data,id:"nueva"},true)}
   }
