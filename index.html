@@ -367,6 +367,8 @@ const DEFAULT_CFG = {
   plazo:{cerveza:7, kombucha:0},
   tolPago:7,
   barrilDias:30, barrilFresco:60,
+  // A quién se le manda la orden de compra (OC) por WhatsApp en cada marca
+  oc:{cerveza:{nombre:"",tel:""},kombucha:{nombre:"",tel:""}},
   frecVisita:{A:7,B:14,C:30},
   zonas:["Centro","Isla Teja","Barrios Bajos","Las Ánimas","Collico","Regional","Niebla / Costa"],
   zonasDia:{"1":["Centro"],"2":["Isla Teja","Barrios Bajos"],"3":["Las Ánimas","Collico"],"4":["Centro","Regional"],"5":["Isla Teja","Niebla / Costa"],"6":[],"0":[]},
@@ -1746,6 +1748,16 @@ function vAjustes(){
     ${f("meta","Meta líquida mensual",c.meta,"10000")}
     <div class="field" style="justify-content:flex-end"><div class="checks"><label><input type="checkbox" id="grat" ${c.grat?"checked":""}> Incluir gratificación legal</label></div></div>
   </div></section>
+  <section class="card stack"><h3>Órdenes de compra por WhatsApp</h3>
+    <span class="muted small">Al registrar un pedido, la app arma la OC y te ofrece mandarla por WhatsApp a quien la recibe en cada marca. Escribe el número con o sin +56 (ej. 9 1234 5678).</span>
+    <div class="form">
+      <div class="field"><label for="ocNomC">El Growler · quién recibe la OC</label><input id="ocNomC" data-cap autocapitalize="words" value="${esc(c.oc?.cerveza?.nombre||"")}" placeholder="Nombre o área (ej. Despacho)"></div>
+      <div class="field"><label for="ocTelC">El Growler · WhatsApp</label><input id="ocTelC" type="tel" inputmode="tel" value="${esc(c.oc?.cerveza?.tel||"")}" placeholder="+56 9 1234 5678"></div>
+      <div class="field"><label for="ocNomK">Animal Social · quién recibe la OC</label><input id="ocNomK" data-cap autocapitalize="words" value="${esc(c.oc?.kombucha?.nombre||"")}" placeholder="Nombre o área (ej. Raimundo)"></div>
+      <div class="field"><label for="ocTelK">Animal Social · WhatsApp</label><input id="ocTelK" type="tel" inputmode="tel" value="${esc(c.oc?.kombucha?.tel||"")}" placeholder="+56 9 1234 5678"></div>
+    </div>
+    <span class="muted small">Si dejas el número vacío, WhatsApp te deja elegir el chat (sirve para mandarla a un grupo).</span>
+  </section>
   <section class="card stack"><div class="row spread"><h3>Productos y precios netos</h3><button type="button" class="btn sm" data-act="addProd">+ Producto</button></div>
   <div class="tbox"><table><thead><tr><th>Marca</th><th>Formato</th><th>Estilo / variedad</th><th>Producto</th><th class="r">Litros</th><th class="r">Neto por unidad</th><th></th></tr></thead><tbody id="prodBody">
   ${c.productos.map((p,i)=>`<tr><td><select data-k="marca"><option value="cerveza"${p.marca==="cerveza"?" selected":""}>Cerveza</option><option value="kombucha"${p.marca==="kombucha"?" selected":""}>Kombucha</option></select></td><td><select data-k="formato">${[...new Set([...FMT_VENTA,p.formato||"otro"])].map(k=>`<option value="${k}"${(p.formato||"otro")===k?" selected":""}>${FORMATOS[k]||k}</option>`).join("")}</select></td><td><input data-k="estilo" value="${esc(p.estilo||"")}" style="min-width:110px;width:100%"></td><td><input data-k="nombre" value="${esc(p.nombre)}" style="min-width:220px;width:100%"></td><td class="r"><input data-k="litros" type="number" step="0.01" value="${p.litros}" style="width:80px"></td><td class="r"><input data-k="neto" type="number" step="any" value="${p.neto}" style="width:100px"></td><td><button type="button" class="btn sm" data-act="delProd" data-i="${i}" aria-label="Quitar producto">✕</button></td></tr>`).join("")}
@@ -2205,7 +2217,7 @@ function saleForm(clienteId,ventaId){
    <div class="field" style="justify-content:flex-end"><div class="checks"><label><input type="checkbox" id="sPag" ${v?.pagado?"checked":""}> Ya está pagada</label></div></div>
    <div class="field full"><label for="sNota">Nota</label><input id="sNota" value="${esc(v?.nota)}"></div>
    <div class="full card" id="sTot"></div>
-   <div class="full row spread"><button class="btn primary" type="submit" id="sGuardar">Guardar venta</button>${v&&can("eliminar")?`<button class="btn danger" type="button" data-act="delSale" data-id="${v.id}">Eliminar venta</button>`:""}</div>
+   <div class="full row spread"><span class="row"><button class="btn primary" type="submit" id="sGuardar">Guardar venta</button>${v?`<button class="btn" type="button" data-act="ocVer" data-id="${v.id}">Enviar OC por WhatsApp</button>`:""}</span>${v&&can("eliminar")?`<button class="btn danger" type="button" data-act="delSale" data-id="${v.id}">Eliminar venta</button>`:""}</div>
   </form>`);
   const its=v?.items||[];
   its.forEach(it=>addLine(it));
@@ -2361,6 +2373,37 @@ function descTexto(v){
   return d.join(" · ");
 }
 const empaqueTexto=v=>(v.empaque||[]).map(p=>`${p.cant} × ${esc(p.nombre)}`).join(" + ");
+
+/* ---------- orden de compra (OC) por WhatsApp a quien corresponde en cada marca ---------- */
+const telWa=t=>{const x=String(t||"").replace(/\D/g,"");return x.length===9?"56"+x:x.length===8?"569"+x:x};
+const ocDestino=m=>S.cfg.oc?.[m]||{nombre:"",tel:""};
+function ocTexto(v){
+  const c=S.clientes.find(x=>x.id===v.clienteId)||{};
+  const L=[`*Orden de compra · ${MARCA_TXT[v.marca]||v.marca}*`,`Fecha: ${fdate(v.fecha)}`,"",`*Cliente:* ${c.nombre||"—"}`];
+  if(c.razonSocial||c.rutEmpresa)L.push([c.razonSocial,c.rutEmpresa&&"RUT "+c.rutEmpresa].filter(Boolean).join(" · "));
+  const dir=[c.direccion,c.comuna].filter(Boolean).join(", ");if(dir)L.push(`Despacho: ${dir}`);
+  if(c.horario)L.push(`Horario: ${c.horario}`);
+  if(c.contacto||c.telefono)L.push(`Recibe: ${[c.contacto,c.telefono].filter(Boolean).join(" · ")}`);
+  L.push("","*Pedido*");
+  (v.items||[]).forEach(it=>{const i=infoItem(it);L.push(`• ${n1(it.cant)} ${unidadDe(i.formato,it.cant)} · ${i.estilo||it.nombre} (${FORMATOS[i.formato]||i.formato})${it.desc?` · desc. ${it.desc.tipo==="%"?n1(it.desc.valor)+"%":money(it.desc.monto)}`:""}`)});
+  const emp=(v.empaque||[]).map(p=>`${p.cant} × ${p.nombre}`).join(" + ");if(emp)L.push(`Empaque: ${emp}`);
+  if(v.descGeneral?.monto)L.push(`Descuento general: −${money(v.descGeneral.monto)}${v.descGeneral.motivo?" ("+v.descGeneral.motivo+")":""}`);
+  L.push(`Total neto: ${money(v.neto)} · con IVA: ${money((v.neto||0)*1.19)}`);
+  L.push(v.pagado?"Pago: ya pagado":v.vence&&v.vence!==v.fecha?`Pago: vence el ${fdate(v.vence)}`:"Pago: contra entrega");
+  if(v.factura)L.push(`N° factura: ${v.factura}`);
+  if(v.nota)L.push(`Nota: ${v.nota}`);
+  if(ME.perfil?.nombre)L.push("",`Vendedor: ${ME.perfil.nombre}`);
+  return L.join("\n");
+}
+const ocLink=v=>{const n=telWa(ocDestino(v.marca).tel);return `https://wa.me/${n}?text=${encodeURIComponent(ocTexto(v))}`};
+function ocSheet(v,recien=false){
+  const d=ocDestino(v.marca),quien=d.nombre||(d.tel?"+"+telWa(d.tel):"");
+  openSheet(`<div class="row spread"><h2>${recien?"Pedido guardado":"Orden de compra"}</h2><button class="btn sm" data-act="close">Cerrar</button></div>
+    ${recien?`<div class="row">${pill({level:"ok",short:"Venta guardada"})}</div>`:""}
+    ${d.tel?`<div class="small">Se manda a <b>${esc(quien)}</b> · ${esc(MARCA_TXT[v.marca])}</div>`:`<div class="banner">Aún no hay WhatsApp para ${esc(MARCA_TXT[v.marca])}. WhatsApp te dejará elegir el chat. Puedes dejar el número fijo en Ajustes › Órdenes de compra por WhatsApp.</div>`}
+    <div class="alta-txt" id="ocMsg">${esc(ocTexto(v))}</div>
+    <div class="row"><a class="btn primary" href="${ocLink(v)}" target="_blank" rel="noopener" data-act="ocEnviado">Enviar OC por WhatsApp${quien?" a "+esc(quien):""}</a><button class="btn" data-act="ocCopiar">Copiar</button>${recien?`<button class="btn" data-act="close">Ahora no</button>`:""}</div>`);
+}
 /* ---------- nube (Supabase): sesión, permisos y datos ---------- */
 const PERMISOS=[
   ["ver_todos_clientes","Ver toda la cartera","Si no, ve solo los clientes asignados a él o que creó"],
@@ -2424,6 +2467,7 @@ const netoIt=it=>it.netoFinal??(it.cant||0)*(it.netoU||0);
 function mergeCfg(d){
   const D=structuredClone(DEFAULT_CFG);d=d||{};
   return{...D,...structuredClone(d),frec:{...D.frec,...(d.frec||{})},plazo:{...D.plazo,...(d.plazo||{})},frecVisita:{...D.frecVisita,...(d.frecVisita||{})},
+    oc:{cerveza:{...D.oc.cerveza,...(d.oc?.cerveza||{})},kombucha:{...D.oc.kombucha,...(d.oc?.kombucha||{})}},
     zonas:d.zonas||D.zonas,zonasDia:{...D.zonasDia,...(d.zonasDia||{})},muestras:d.muestras||D.muestras,productos:migrarLatas(migrarProductos(d.productos)||D.productos),empaques:d.empaques||D.empaques,
     prefs:{permitir:{...D.prefs.permitir,...(d.prefs?.permitir||{})},defecto:{...D.prefs.defecto,...(d.prefs?.defecto||{})}}};
 }
@@ -3017,6 +3061,9 @@ document.addEventListener("click",async e=>{
     case"altaPerfil":altaForm();break;
     case"alClaveNueva":$("#alClave").value=claveAzar();break;
     case"altaCopiar":try{await navigator.clipboard.writeText($("#altaMsg").textContent);toast("Mensaje copiado")}catch(err){toast("No se pudo copiar: selecciónalo y cópialo a mano")}break;
+    case"ocCopiar":try{await navigator.clipboard.writeText($("#ocMsg").textContent);toast("OC copiada")}catch(err){toast("No se pudo copiar: selecciónala y cópiala a mano")}break;
+    case"ocEnviado":setTimeout(closeSheet,400);break;
+    case"ocVer":{const v=S.ventas.find(x=>x.id===id);if(v)ocSheet(v)}break;
     case"menu":menuSheet();break;
     case"ia":iaSheet();break;
     case"iaRapida":iaEnviar(IA_RAPIDAS()[Number(t.dataset.v)]);break;
@@ -3183,6 +3230,7 @@ function collectCfgForm(){
   S.cfg={...S.cfg,comL:g("comL"),horas:g("horas"),imm:g("imm"),desc:g("desc"),pctK:g("pctK"),ret:g("ret"),meta:g("meta"),grat:$("#grat").checked,tolPago:g("tolPago"),barrilDias:g("barrilDias")||30,barrilFresco:g("barrilFresco")||60,
     frec:{cerveza:g("frecC")||14,kombucha:g("frecK")||14},plazo:{cerveza:g("plazoC")||0,kombucha:g("plazoK")||0},
     frecVisita:{A:g("fvA")||7,B:g("fvB")||14,C:g("fvC")||30},zonas,zonasDia,
+    oc:{cerveza:{nombre:($("#ocNomC")?.value||"").trim(),tel:($("#ocTelC")?.value||"").trim()},kombucha:{nombre:($("#ocNomK")?.value||"").trim(),tel:($("#ocTelK")?.value||"").trim()}},
     productos:rows("#prodBody",["marca","formato","estilo","nombre","litros","neto"]).map((o,i)=>({id:S.cfg.productos[i]?.id||"p"+i,marca:o.marca,formato:o.formato,estilo:o.estilo.trim(),nombre:o.nombre,litros:Number(o.litros)||0,neto:Number(o.neto)||0})),
     muestras:rows("#muBody",["marca","nombre","unidad"]).map((o,i)=>({id:S.cfg.muestras[i]?.id||"m"+i,marca:o.marca,nombre:o.nombre,unidad:o.unidad||"lata"})),
     empaques:rows("#empBody",["nombre","formato","unidades"]).map((o,i)=>({id:S.cfg.empaques[i]?.id||"e"+Date.now().toString(36)+i,nombre:o.nombre.trim()||"Empaque",formato:o.formato,unidades:Math.max(1,Math.round(Number(o.unidades)||1))}))};
@@ -3359,7 +3407,7 @@ document.addEventListener("submit",async e=>{
       const cl=S.clientes.find(c=>c.id===cid);
       if(cl){const upd={};if(cl.estado==="prospecto")upd.estado="activo";if(!(cl.marcas||[]).includes(m))upd.marcas=[...(cl.marcas||[]),m];if(Object.keys(upd).length)await DB.update("clientes",cid,upd)}
     },"Venta guardada");
-    if(ok)closeSheet();
+    if(ok){if(old)closeSheet();else ocSheet({...data,id:"nueva"},true)}
   }
   if(f.id==="cfgForm"){collectCfgForm();await guard(()=>DB.setCfg(structuredClone(S.cfg)),"Ajustes guardados");render()}
 });
