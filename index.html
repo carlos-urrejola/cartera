@@ -47,15 +47,16 @@ temaAplicar(BOOT.tema);letraAplicar(BOOT.letra);
   --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
   --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --onmk:#fff;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;
   --bg:#121814; --surface:#1A221D; --surface-2:#243029; --ink:#E6EDE8; --muted:#9AAAA1; --line:#314038;
   --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70; --f4:#c98500; --f5:#d55181; --seq:#3987e5; --hmk:.8; --hm-hi:var(--ink);
-  --ok:#6CCB86; --ok-soft:#1B3524; --warn:#E8C067; --warn-soft:#3A3016; --bad:#F08A76; --bad-soft:#3D1F1A; --none:#9AAAA1; --none-soft:#26302A;}}
+  --ok:#6CCB86; --ok-soft:#1B3524; --warn:#E8C067; --warn-soft:#3A3016; --bad:#F08A76; --bad-soft:#3D1F1A; --none:#9AAAA1; --none-soft:#26302A; --onmk:#121814;}}
 :root[data-theme="dark"]{color-scheme:dark;
   --bg:#121814; --surface:#1A221D; --surface-2:#243029; --ink:#E6EDE8; --muted:#9AAAA1; --line:#314038;
   --beer:#C9812C; --kom:#2AA088; --focus:#2AA088; --f1:#3987e5; --f2:#d95926; --f3:#199e70; --f4:#c98500; --f5:#d55181; --seq:#3987e5; --hmk:.8; --hm-hi:var(--ink);
-  --ok:#6CCB86; --ok-soft:#1B3524; --warn:#E8C067; --warn-soft:#3A3016; --bad:#F08A76; --bad-soft:#3D1F1A; --none:#9AAAA1; --none-soft:#26302A;}
+  --ok:#6CCB86; --ok-soft:#1B3524; --warn:#E8C067; --warn-soft:#3A3016; --bad:#F08A76; --bad-soft:#3D1F1A; --none:#9AAAA1; --none-soft:#26302A; --onmk:#121814;}
 *{box-sizing:border-box}
 html{padding-top:env(safe-area-inset-top,0px)}
 [hidden]{display:none!important}
@@ -135,6 +136,25 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .meter{height:12px;border-radius:6px;background:var(--surface-2);display:flex;gap:2px;overflow:hidden}
 .meter span{height:100%;display:block}
 .meter .b{background:var(--beer)} .meter .k{background:var(--kom)}
+/* selector de marca en Índices y metas por marca */
+.mkseg{display:flex;gap:8px}
+.mkseg button{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 8px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);font:600 14px var(--body);color:var(--ink);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mkseg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.mkseg button[data-v="cerveza"][aria-pressed="true"]{background:var(--beer);border-color:var(--beer);color:var(--onmk)}
+.mkseg button[data-v="kombucha"][aria-pressed="true"]{background:var(--kom);border-color:var(--kom);color:var(--onmk)}
+.mkseg button[aria-pressed="true"] .sw{background:currentColor}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;align-items:start}
+.mcard{border-left:4px solid var(--mk)}
+.mcard.beer{--mk:var(--beer)} .mcard.kom{--mk:var(--kom)}
+.mrow{display:grid;gap:6px;padding-top:10px;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0;padding-top:0}
+.mrow .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.mrow .lab{font-weight:600;font-size:14px}
+.mbar{position:relative;height:12px;border-radius:6px;background:var(--surface-2)}
+.mbar>span{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--mk);max-width:100%}
+.mbar>i{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--ink);opacity:.7}
+.mkey{display:inline-block;width:0;height:12px;border-left:2px dashed var(--ink);opacity:.7;vertical-align:-2px;margin-right:4px}
+.mbajo{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .sem{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
@@ -374,6 +394,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 /* ---------- defaults (used until you save Ajustes) ---------- */
 const DEFAULT_CFG = {
   comL:200, pctK:30, imm:553553, horas:30, desc:19, grat:true, ret:15.25, meta:800000,
+  // Metas mensuales por marca (0 = sin meta). Solo las ve quien tiene ver_ingresos; las cuentas por marca no reciben esto
+  metas:{cerveza:{litros:0,neto:0,sueldo:0},kombucha:{cajas:0,neto:0,sueldo:0}},
   frec:{cerveza:14, kombucha:14},
   plazo:{cerveza:7, kombucha:0},
   tolPago:7,
@@ -693,7 +715,7 @@ function subItems(tab){
   if(tab==="ruta")return[["hoy","Hoy"],["manana","Mañana"]];
   if(tab==="ventas")return[...(can("registrar_ventas")?[["nueva","Registrar venta"]]:[]),["pendientes","Por cobrar"],["mes","Del mes"],["todas","Todas"]];
   if(tab==="barriles")return[["scan","Escanear"],["en_cliente","En clientes"],["lleno","Llenos"],["limpio","Limpios"],["vacio","Por lavar"],["todos","Todos"]];
-  if(tab==="indices")return[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","Armar gráfico"],...(can("ver_cobranza")&&ve("cobranza")?[["cobranza","Cobranza"]]:[]),...(can("ver_ingresos")?[["sueldo","Sueldo y meta"]]:[])].filter(([k])=>k==="cobranza"||k==="sueldo"||subOk("ver_indices",k));
+  if(tab==="indices")return[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","Armar gráfico"],...(can("ver_cobranza")&&ve("cobranza")?[["cobranza","Cobranza"]]:[]),...(verMetas()?[["metas","Metas por marca"]]:[]),...(can("ver_ingresos")?[["sueldo","Sueldo y meta"]]:[])].filter(([k])=>k==="cobranza"||k==="sueldo"||k==="metas"||subOk("ver_indices",k));
   return[];
 }
 function subActual(tab){
@@ -796,6 +818,7 @@ function vResumen(){
       <div class="legend"><span><i class="sw beer"></i>El Growler <b class="num">${money(r.liqB)}</b></span><span><i class="sw kom"></i>Kombucha <b class="num">${money(r.liqK)}</b></span></div>
       <div class="muted small">Growler: base ${c.horas} h + ${money(c.comL)}/L${c.grat?" + gratificación":""}. Kombucha: ${c.pctK}% sobre lo cobrado en el mes.</div>
       <div><button class="btn sm" data-act="drill" data-k="liquido">Ver desglose ›</button></div>
+      ${avisoMetas(S.mes)}
     </div>
   </section>`:""}
   <section class="kpis">
@@ -903,7 +926,9 @@ function vVentas(){
   <div class="card tbox">${vs.length?`<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Cantidad</th><th class="r">Total c/IVA</th><th>Pago</th><th class="r">Acciones</th></tr></thead><tbody>${vs.map(v=>ventaRow(v)).join("")}</tbody></table>`:`<div class="empty">${S.vFiltro==="pendientes"?"No hay facturas por cobrar.":"No hay ventas en este filtro."}</div>`}</div></div>`;
 }
 /* ---------- índices (dashboards) ---------- */
-S.ix={vista:"productos",periodo:"mes",marca:"todas",formato:"todos",quien:"todos",medida:"litros",modo:"juntos",zmodo:"mezcla"};
+S.ix={vista:"productos",periodo:"mes",marca:"todas",formato:"todos",quien:"todos",medida:"litros",modo:"juntos",zmodo:"mezcla",mesMeta:null};
+// la marca que estás trabajando en Índices queda recordada en este dispositivo
+try{const m=localStorage.getItem("cartera-ix-marca");if(m==="cerveza"||m==="kombucha")S.ix.marca=m}catch(e){}
 const MARCA_SW={cerveza:"beer",kombucha:"kom"};
 const FMT_SW={barril:"f1",lata355:"f2",lata470:"f3",caja:"f2",lata:"f3",otro:"f0"};
 function ixRango(p){
@@ -940,18 +965,19 @@ function hbars(filas,medida){
 const leyenda=items=>items.length>1?`<div class="legend">${items.map(([sw,t])=>`<span><i class="sw sw-${sw}"></i>${esc(t)}</span>`).join("")}</div>`:"";
 function vIndices(){
   const x=S.ix,sueldo=can("ver_ingresos"),plata=can("ver_cobranza");
-  const vistas=[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","✚ Armar gráfico"],...(plata&&ve("cobranza")?[["cobranza","Cobranza"]]:[]),...(sueldo?[["sueldo","Sueldo y meta"]]:[])].filter(([k])=>k==="cobranza"||k==="sueldo"||subOk("ver_indices",k));
+  const vistas=[["productos","Productos"],["tendencia","Tendencia"],["zonas","Zonas"],["clientes","Clientes"],["armar","✚ Armar gráfico"],...(plata&&ve("cobranza")?[["cobranza","Cobranza"]]:[]),...(verMetas()?[["metas","🎯 Metas por marca"]]:[]),...(sueldo?[["sueldo","Sueldo y meta"]]:[])].filter(([k])=>k==="cobranza"||k==="sueldo"||k==="metas"||subOk("ver_indices",k));
   if(!vistas.some(([k])=>k===x.vista))x.vista="productos";
+  if(miMarca()){x.marca=miMarca();S.ag.marca="todas"}
   if(x.medida==="neto"&&!plata)x.medida="litros";
   const opt=(v,t,cur)=>`<option value="${v}"${cur===v?" selected":""}>${esc(t)}</option>`;
   const equipo=S.equipo.length>1&&can("ver_todos_clientes");
-  const cuerpo={productos:ixProductos,tendencia:ixTendencia,zonas:ixZonas,clientes:ixClientes,armar:ixArmar,cobranza:ixCobranza,sueldo:ixSueldo}[x.vista];
+  const cuerpo={productos:ixProductos,tendencia:ixTendencia,zonas:ixZonas,clientes:ixClientes,armar:ixArmar,cobranza:ixCobranza,metas:ixMetas,sueldo:ixSueldo}[x.vista];
   return `<div class="stack"><h2>Índices</h2>
+    ${miMarca()?"":mkSelector()}
     <div class="seg" role="group" aria-label="Tablero">${vistas.map(([k,l])=>`<button data-act="ixv" data-v="${k}" aria-pressed="${x.vista===k}">${l}</button>`).join("")}</div>
-  ${x.vista==="sueldo"||x.vista==="cobranza"||x.vista==="armar"?cuerpo():`
+  ${x.vista==="sueldo"||x.vista==="cobranza"||x.vista==="armar"||x.vista==="metas"?cuerpo():`
   <div class="filters">
     ${x.vista==="tendencia"?"":`<select data-ix="periodo" aria-label="Período">${opt("mes","Este mes",x.periodo)}${opt("mesAnt","Mes anterior",x.periodo)}${opt("3m","Últimos 3 meses",x.periodo)}${opt("anio","Este año",x.periodo)}${opt("todo","Todo",x.periodo)}</select>`}
-    ${miMarca()?"":`<select data-ix="marca" aria-label="Marca">${opt("todas","Todas las marcas",x.marca)}${opt("cerveza","Cerveza",x.marca)}${opt("kombucha","Kombucha",x.marca)}</select>`}
     <select data-ix="formato" aria-label="Formato">${opt("todos","Todos los formatos",x.formato)}${fmtsVis().map(k=>opt(k,FORMATOS[k],x.formato)).join("")}</select>
     ${equipo?`<select data-ix="quien" aria-label="Vendedor">${opt("todos","Todo el equipo",x.quien)}${S.equipo.map(u=>opt(u.id,u.id===ME.user.id?"Solo yo":u.nombre,x.quien)).join("")}</select>`:""}
     <select data-ix="medida" aria-label="Medida">${opt("litros","Litros",x.medida)}${opt("unidades","Unidades",x.medida)}${plata?opt("neto","Neto $",x.medida):""}</select>
@@ -1125,16 +1151,16 @@ function ixClientes(){
 }
 /* cobranza: deuda por antigüedad y morosos */
 function ixCobranza(){
-  const t=today(),tol=S.cfg.tolPago;
-  const pend=S.ventas.filter(v=>!v.pagado).map(v=>({v,atr:days(v.vence||v.fecha,t),monto:(v.neto||0)*1.19}));
+  const t=today(),tol=S.cfg.tolPago,mk=S.ix.marca,VS=S.ventas.filter(v=>mk==="todas"||v.marca===mk);
+  const pend=VS.filter(v=>!v.pagado).map(v=>({v,atr:days(v.vence||v.fecha,t),monto:(v.neto||0)*1.19}));
   const porCobrar=pend.reduce((s,p)=>s+p.monto,0),venc=pend.filter(p=>p.atr>0),vencido=venc.reduce((s,p)=>s+p.monto,0);
-  const pagadas=S.ventas.filter(v=>v.pagado&&v.fechaPago&&v.fechaPago>=addDays(t,-90));
+  const pagadas=VS.filter(v=>v.pagado&&v.fechaPago&&v.fechaPago>=addDays(t,-90));
   const diasPago=pagadas.length?pagadas.reduce((s,v)=>s+Math.max(0,days(v.fecha,v.fechaPago)),0)/pagadas.length:null;
   const tramos=[["ok","✓ Por vencer",p=>p.atr<0],["warn",`! Vence hoy o hasta ${tol} días de atraso`,p=>p.atr>=0&&p.atr<=tol],["bad",`✕ ${tol+1} a 30 días de atraso`,p=>p.atr>tol&&p.atr<=30],["bad","✕ Más de 30 días de atraso",p=>p.atr>30]];
   const filas=tramos.map(([sw,lab,f])=>{const ps=pend.filter(f);return{lab,segs:[{k:sw,sw,nombre:lab,v:ps.reduce((s,p)=>s+p.monto,0)}],n:ps.length}});
   const morosos=[...new Set(venc.map(p=>p.v.clienteId))].map(id=>{const ps=venc.filter(p=>p.v.clienteId===id),cl=S.clientes.find(c=>c.id===id);
     return{id,cl,monto:ps.reduce((s,p)=>s+p.monto,0),n:ps.length,max:Math.max(...ps.map(p=>p.atr))}}).sort((a,b)=>b.monto-a.monto);
-  if(!pend.length&&!pagadas.length)return `<div class="card empty">No hay facturas por cobrar ni pagos recientes.</div>`;
+  if(!pend.length&&!pagadas.length)return `<div class="card empty">No hay facturas por cobrar ni pagos recientes${mk==="todas"?"":" de "+MK_NOM[mk]}.</div>`;
   return `<section class="kpis">
     <div class="kpi"><span class="lab">Por cobrar (con IVA)</span><span class="val">${money(porCobrar)}</span><span class="muted small">${pend.length} facturas</span></div>
     <div class="kpi"><span class="lab">Vencido</span><span class="val">${money(vencido)}</span><span class="muted small">${porCobrar?pctTxt(vencido/porCobrar):"0%"} de lo por cobrar</span></div>
@@ -1151,55 +1177,157 @@ function ixCobranza(){
 /* compacto para ejes: $850k, $1,2M */
 const moneyK=n=>n>=1e6?"$"+(Math.round(n/1e5)/10).toLocaleString("es-CL")+"M":n>=1e3?"$"+Math.round(n/1e3)+"k":"$"+Math.round(n);
 function pasoLindo(v){const p=10**Math.floor(Math.log10(v||1));return[1,2,2.5,5,10].map(k=>k*p).find(s=>s>=v)}
+/* ---------- marca que estás trabajando + metas por marca ---------- */
+const MK_NOM={cerveza:"El Growler",kombucha:"Animal Social"};
+function verMetas(){return can("ver_ingresos")&&!soloMira()}
+function mkSelector(){
+  const x=S.ix.marca,b=(v,t,sw)=>`<button data-act="ixmk" data-v="${v}" aria-pressed="${x===v}">${sw?`<i class="sw ${sw}"></i>`:""}${t}</button>`;
+  return `<div class="mkseg" role="group" aria-label="Marca que estás trabajando">${b("todas","Todas")}${b("cerveza","El Growler","beer")}${b("kombucha","Animal Social","kom")}</div>`;
+}
+const fmtMeta=(v,f)=>f==="L"?n1(v)+" L":f==="cajas"?n1(v)+(Math.round(v*10)/10===1?" caja":" cajas"):money(v);
+/* avance de cada meta del mes: lo que llevas, la proyección a fin de mes y si vas bajo */
+function metasMes(mes){
+  const c=S.cfg,M=c.metas||{},r=resumenMes(mes,"mias"),cur=today().slice(0,7);
+  const[y,mm]=mes.split("-").map(Number),diasMes=new Date(y,mm,0).getDate();
+  const estado=mes<cur?"pasado":mes>cur?"futuro":"actual";
+  const dia=estado==="actual"?Number(today().slice(8)):estado==="pasado"?diasMes:0;
+  const f=dia?diasMes/dia:0,quedan=estado==="actual"?diasMes-dia+1:0;
+  const rows=[];
+  const add=(mk,k,lab,val,proyV,fmt,extra)=>{
+    const meta=Number(M[mk]?.[k])||0;if(meta<=0)return;
+    const proy=estado==="actual"?proyV:val,rr=estado==="futuro"?0:proy/meta,falta=Math.max(0,meta-val);
+    let level,short;
+    if(val>=meta){level="ok";short="Cumplida"}
+    else if(estado==="futuro"){level="none";short="Aún no parte"}
+    else if(estado==="pasado"){level="bad";short="No llegó"}
+    else if(rr>=1){level="ok";short="Vas a llegar"}
+    else if(rr>=.85){level="warn";short="Algo bajo"}
+    else{level="bad";short="Vas bajo"}
+    rows.push({mk,k,lab,val,meta,proy,rr,falta,level,short,fmt,extra:falta>0&&extra?extra(falta):"",porDia:quedan&&falta?falta/quedan:0});
+  };
+  const plata=can("ver_cobranza");
+  add("cerveza","litros","Litros vendidos",r.litros,r.litros*f,"L",fl=>`≈ ${Math.ceil(fl/30)} ${Math.ceil(fl/30)===1?"barril":"barriles"} de 30 L`);
+  if(plata)add("cerveza","neto","Neto vendido",r.netoC,r.netoC*f,"$");
+  add("cerveza","sueldo","Sueldo líquido",r.liqB,liquido(r.litros*f,0).liqB,"$",fl=>{
+    if(!(c.comL>0))return"";const g=L=>liquido(r.litros+L,0).liqB;if(g(1e5)<r.liqB+fl)return"";
+    let lo=0,hi=1e5;for(let i=0;i<40;i++){const mid=(lo+hi)/2;g(mid)>=r.liqB+fl?hi=mid:lo=mid}return `≈ ${n1(Math.ceil(hi))} L más de cerveza`});
+  add("kombucha","cajas","Cajas vendidas",r.cajasK,r.cajasK*f,"cajas",fl=>`≈ ${n1(Math.ceil(fl*24))} latas`);
+  if(plata)add("kombucha","neto","Neto vendido",r.netoK,r.netoK*f,"$");
+  add("kombucha","sueldo","Sueldo líquido",r.liqK,liquido(0,r.cobradoK*f).liqK,"$",fl=>c.pctK>0?`≈ ${money(fl/((c.pctK/100)*(1-c.ret/100)))} neto por cobrar`:"");
+  return{rows,estado,dia,diasMes,quedan,r};
+}
+/* la meta donde vas más bajo (entre las marcas elegidas) */
+function metaMasBaja(rows){return rows.filter(x=>x.level!=="none").sort((a,b)=>a.rr-b.rr||rank[b.level]-rank[a.level])[0]||null}
+function avisoMetas(mes){
+  if(!verMetas())return"";
+  const D=metasMes(mes),low=metaMasBaja(D.rows);
+  if(!low)return"";
+  const txt=low.level==="ok"?"Vas bien en tus metas por marca":`Vas más bajo en ${MK_NOM[low.mk]} · ${low.lab.toLowerCase()} (${D.estado==="actual"?"proyectas ":""}${Math.round(low.rr*100)}%)`;
+  return `<div><button class="btn sm" style="white-space:normal;text-align:left;max-width:100%;height:auto;line-height:1.35" data-act="goIx" data-v="metas"><span class="sem ${low.level}" style="white-space:normal"><i aria-hidden="true">${SEM[low.level].i}</i>${esc(txt)}</span> ›</button></div>`;
+}
+function ixMetas(){
+  const c=S.cfg,mk=S.ix.marca,cur=today().slice(0,7),mes=S.ix.mesMeta||cur;
+  const D=metasMes(mes),rows=D.rows.filter(x=>mk==="todas"||x.mk===mk),marcas=mk==="todas"?["cerveza","kombucha"]:[mk];
+  const low=metaMasBaja(rows),edita=can("editar_ajustes"),plata=can("ver_cobranza");
+  const nav=`<div class="row spread"><div><h3>Metas de ${mesLabel(mes)}</h3><div class="muted small">${D.estado==="actual"?`Día ${D.dia} de ${D.diasMes} · quedan ${D.quedan} ${D.quedan===1?"día":"días"}`:D.estado==="pasado"?"Mes cerrado":"Mes que viene"} · solo tus ventas</div></div>
+    <div class="mnav"><button class="btn sm" data-act="mtMes" data-d="-1" aria-label="Mes anterior">‹</button><button class="btn sm" data-act="mtMes" data-d="0">Hoy</button><button class="btn sm" data-act="mtMes" data-d="1" aria-label="Mes siguiente">›</button></div></div>`;
+  // banner: dónde vas más bajo
+  let banner="";
+  if(low){
+    const otras=mk==="todas"?["cerveza","kombucha"].map(m=>{const b=metaMasBaja(rows.filter(x=>x.mk===m));return b?`<span class="row" style="gap:6px;flex-wrap:nowrap"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>${MK_NOM[m]} ${pill({level:b.level,short:Math.round(b.rr*100)+"%"})}</span>`:""}).filter(Boolean).join(""):"";
+    banner=low.level==="ok"
+      ?`<section class="card mbajo">${pill({level:"ok",short:D.estado==="actual"?"Vas bien":"Cumplido"})}<span style="flex:1">${D.estado==="actual"?"A este ritmo llegas a todas tus metas":"Cumpliste todas tus metas"}${mk==="todas"?"":" de "+MK_NOM[mk]}.</span>${otras?`<span class="row" style="gap:12px">${otras}</span>`:""}</section>`
+      :`<section class="card stack"><div class="mbajo"><div class="stack" style="gap:4px;flex:1;min-width:200px"><span class="muted small" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Donde vas más bajo</span>
+          <span class="row" style="gap:8px">${pill({level:low.level,short:low.short})}<b>${MK_NOM[low.mk]} · ${esc(low.lab)}</b></span>
+          <span class="muted small">${D.estado==="actual"?`Proyectas ${fmtMeta(low.proy,low.fmt)}, el ${Math.round(low.rr*100)}% de la meta de ${fmtMeta(low.meta,low.fmt)}.`:`Llegaste a ${fmtMeta(low.val,low.fmt)}, el ${Math.round(low.rr*100)}% de la meta.`}${low.falta>0?` Faltan ${fmtMeta(low.falta,low.fmt)}${low.porDia?` (≈ ${fmtMeta(low.porDia,low.fmt)} por día)`:""}.`:""}</span></div>
+        ${mk==="todas"?`<button class="btn sm" data-act="ixmk" data-v="${low.mk}">Ver solo ${MK_NOM[low.mk]} ›</button>`:""}</div>
+        ${otras?`<div class="row" style="gap:14px">${otras}</div>`:""}</section>`;
+  }
+  const fila=x=>{const pv=Math.min(100,x.val/x.meta*100),pp=Math.min(100,x.proy/x.meta*100);
+    return `<div class="mrow"><div class="top"><span class="lab">${esc(x.lab)}</span>${pill({level:x.level,short:x.short})}</div>
+      <div class="mbar" role="img" aria-label="${esc(x.lab)}: llevas ${fmtMeta(x.val,x.fmt)} de ${fmtMeta(x.meta,x.fmt)}${D.estado==="actual"?", proyección "+fmtMeta(x.proy,x.fmt):""}"><span style="width:${pv}%"></span>${D.estado==="actual"?`<i style="left:${pp}%"></i>`:""}</div>
+      <div class="top small"><span class="num"><b>${fmtMeta(x.val,x.fmt)}</b> de ${fmtMeta(x.meta,x.fmt)} · ${Math.round(x.val/x.meta*100)}%</span>${D.estado==="actual"?`<span class="muted">A fin de mes: <b class="num">${fmtMeta(x.proy,x.fmt)}</b></span>`:""}</div>
+      ${x.falta>0&&D.estado!=="futuro"?`<div class="muted small">Faltan ${fmtMeta(x.falta,x.fmt)}${x.porDia?` · ≈ ${fmtMeta(x.porDia,x.fmt)} por día`:""}${x.extra?` · ${x.extra}`:""}</div>`:""}</div>`};
+  const tarjeta=m=>{const rs=rows.filter(x=>x.mk===m),w=metaMasBaja(rs);
+    return `<section class="card stack mcard ${m==="cerveza"?"beer":"kom"}"><div class="row spread"><h3 class="row" style="gap:8px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>${MK_NOM[m]}</h3>${w?pill({level:w.level,short:w.level==="ok"?"Al día":w.level==="warn"?"Atención":w.level==="bad"?"Bajo":"Sin datos"}):""}</div>
+      ${rs.length?rs.map(fila).join(""):`<div class="muted small">Sin metas para ${MK_NOM[m]}.${edita?" Defínelas abajo.":""}</div>`}
+      ${m==="cerveza"&&rs.some(x=>x.k==="sueldo")?`<div class="muted small">El sueldo de El Growler incluye la base del part-time y la gratificación.</div>`:m==="kombucha"&&rs.some(x=>x.k==="sueldo")?`<div class="muted small">El sueldo de kombucha cuenta lo cobrado en el mes.</div>`:""}</section>`};
+  const M=c.metas||{},sumaS=(Number(M.cerveza?.sueldo)||0)+(Number(M.kombucha?.sueldo)||0);
+  const inp=(id,lab,val,step,hint)=>`<div class="field"><label for="${id}">${lab}</label><input id="${id}" type="number" inputmode="numeric" min="0" step="${step}" value="${Number(val)||0}">${hint?`<span class="muted small">${hint}</span>`:""}</div>`;
+  const form=edita?`<details class="card"${D.rows.length?"":" open"}><summary>✏️ ${D.rows.length?"Cambiar":"Definir"} metas por marca</summary>
+    <form id="metaForm" class="stack" style="margin-top:12px">
+      <div class="muted small">Metas de cada mes. Deja en 0 lo que no quieras medir.</div>
+      <div class="mgrid">
+        <div class="stack mcard beer" style="padding-left:12px"><h4 class="row" style="gap:8px;margin:0"><i class="sw beer"></i>El Growler</h4><div class="form">
+          ${inp("mtCL","Litros al mes",M.cerveza?.litros,"10")}${plata?inp("mtCN","Neto vendido al mes ($)",M.cerveza?.neto,"10000"):""}${inp("mtCS","Sueldo líquido al mes ($)",M.cerveza?.sueldo,"10000","Base + $/L + gratificación")}</div></div>
+        <div class="stack mcard kom" style="padding-left:12px"><h4 class="row" style="gap:8px;margin:0"><i class="sw kom"></i>Animal Social</h4><div class="form">
+          ${inp("mtKC","Cajas de 24 al mes",M.kombucha?.cajas,"1")}${plata?inp("mtKN","Neto vendido al mes ($)",M.kombucha?.neto,"10000"):""}${inp("mtKS","Sueldo líquido al mes ($)",M.kombucha?.sueldo,"10000",`${c.pctK}% de lo cobrado, menos boleta`)}</div></div>
+      </div>
+      ${sumaS?`<div class="muted small">Tus metas de sueldo suman ${money(sumaS)} · tu meta total (Ajustes) es ${money(c.meta)}.</div>`:""}
+      <div><button class="btn primary" type="submit">Guardar metas</button></div>
+    </form></details>`:`<div class="muted small">Las metas las define quien puede cambiar los Ajustes.</div>`;
+  return `<section class="card stack">${nav}
+    ${rows.length&&D.estado==="actual"?`<div class="legend"><span>${marcas.map(m=>`<i class="sw ${m==="cerveza"?"beer":"kom"}"></i>`).join("")}Lo que llevas</span><span><i class="mkey"></i>Dónde llegas a fin de mes a este ritmo</span></div>`:""}</section>
+    ${banner}
+    <div class="mgrid">${marcas.map(tarjeta).join("")}</div>
+    ${form}`;
+}
 function ixSueldo(){
-  const c=S.cfg,mes=today().slice(0,7);
+  const c=S.cfg,mes=today().slice(0,7),mk=S.ix.marca;
   const mias=[...S.ventas,...S.acts].filter(x=>x.creado_por===ME.user?.id).map(x=>(x.fecha||"").slice(0,7)).filter(Boolean).sort();
   let desde=mias[0]&&mias[0]<mes?mias[0]:mes;if(desde<shiftMes(mes,-11))desde=shiftMes(mes,-11);
   const meses=[];for(let m=desde;m<=mes;m=shiftMes(m,1))meses.push(m);
   const R=meses.map(m=>({m,...resumenMes(m,"mias")}));
-  const hoy=R[R.length-1];
+  // con una marca elegida, solo cuenta lo de esa marca y su propia meta de sueldo
+  const V=r=>mk==="cerveza"?r.liqB:mk==="kombucha"?r.liqK:r.total;
+  const meta=mk==="todas"?c.meta:(Number(c.metas?.[mk]?.sueldo)||0);
+  const verB=mk!=="kombucha",verK=mk!=="cerveza",nom=mk==="todas"?"":" · "+MK_NOM[mk];
+  const hoy=R[R.length-1],val=V(hoy);
   const [y,mm]=mes.split("-").map(Number),diasMes=new Date(y,mm,0).getDate(),dia=Number(today().slice(8));
-  const proy=liquido(hoy.litros*diasMes/dia,hoy.cobradoK*diasMes/dia).total;
-  const falta=Math.max(0,c.meta-hoy.total);
-  let lit=null;if(falta>0&&c.comL>0){let lo=0,hi=1e5;if(liquido(hoy.litros+hi,hoy.cobradoK).total>=c.meta){for(let i=0;i<40;i++){const mid=(lo+hi)/2;liquido(hoy.litros+mid,hoy.cobradoK).total>=c.meta?hi=mid:lo=mid}lit=Math.ceil(hi)}}
-  const kob=falta>0&&c.pctK>0?falta/((c.pctK/100)*(1-c.ret/100)):0;
+  const P=liquido(hoy.litros*diasMes/dia,hoy.cobradoK*diasMes/dia),proy=mk==="cerveza"?P.liqB:mk==="kombucha"?P.liqK:P.total;
+  const falta=meta?Math.max(0,meta-val):0;
+  let lit=null;if(falta>0&&c.comL>0&&verB){const g=L=>{const q=liquido(hoy.litros+L,hoy.cobradoK);return mk==="cerveza"?q.liqB:q.total};
+    if(g(1e5)>=meta){let lo=0,hi=1e5;for(let i=0;i<40;i++){const mid=(lo+hi)/2;g(mid)>=meta?hi=mid:lo=mid}lit=Math.ceil(hi)}}
+  const kob=falta>0&&c.pctK>0&&verK?falta/((c.pctK/100)*(1-c.ret/100)):0;
   const barrilesF=lit!==null?Math.ceil(lit/30):null;
-  const ok=hoy.total>=c.meta;
-  const top=Math.max(c.meta,...R.map(r=>r.total))*1.05,paso=pasoLindo(top/4),ymax=Math.ceil(top/paso)*paso;
+  const ok=meta>0&&val>=meta;
+  const top=(Math.max(meta,...R.map(V))||1)*1.05,paso=pasoLindo(top/4),ymax=Math.ceil(top/paso)*paso;
   const ticks=[];for(let v=0;v<=ymax+1;v+=paso)ticks.push(v);
   const pct=v=>v/ymax*100;
-  const cols=R.map(r=>{const tip=`${mesLabel(r.m)} · El Growler: ${money(r.liqB)} · Kombucha: ${money(r.liqK)} · Total: ${money(r.total)}`;
-    return `<div class="cc-slot" tabindex="0" data-tip="${esc(tip)}">${r.m===mes?`<span class="cc-cap" style="bottom:${pct(r.total)}%">${moneyK(r.total)}</span>`:""}<div class="cc-col">${r.liqK>0?`<i class="sw-kom" style="height:${pct(r.liqK)}%"></i>`:""}<i class="sw-beer" style="height:${pct(r.liqB)}%"></i></div></div>`}).join("");
+  const cols=R.map(r=>{const tip=`${mesLabel(r.m)}${verB?" · El Growler: "+money(r.liqB):""}${verK?" · Kombucha: "+money(r.liqK):""}${mk==="todas"?" · Total: "+money(r.total):""}`;
+    return `<div class="cc-slot" tabindex="0" data-tip="${esc(tip)}">${r.m===mes?`<span class="cc-cap" style="bottom:${pct(V(r))}%">${moneyK(V(r))}</span>`:""}<div class="cc-col">${verK&&r.liqK>0?`<i class="sw-kom" style="height:${pct(r.liqK)}%"></i>`:""}${verB?`<i class="sw-beer" style="height:${pct(r.liqB)}%"></i>`:""}</div></div>`}).join("");
+  const escala=Math.max(meta,val)||1;
   return `<section class="card hero" aria-label="Meta del mes">
-    <div><div class="muted small" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Llevas este mes</div>
-      <div class="big">${money(hoy.total)}</div>
-      <div style="margin-top:8px">${pill({level:ok?"ok":"warn"},"")} <span class="muted small">${ok?"Meta cumplida: "+money(c.meta):Math.round(hoy.total/c.meta*100)+"% de la meta de "+money(c.meta)}</span></div></div>
+    <div><div class="muted small" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Llevas este mes${esc(nom)}</div>
+      <div class="big">${money(val)}</div>
+      <div style="margin-top:8px">${meta?`${pill({level:ok?"ok":"warn"},"")} <span class="muted small">${ok?"Meta cumplida: "+money(meta):Math.round(val/meta*100)+"% de la meta de "+money(meta)}</span>`:`${pill({level:"none",short:"Sin meta"})} <button class="btn sm" data-act="goIx" data-v="metas">Definir meta de ${MK_NOM[mk]||"sueldo"} ›</button>`}</div></div>
     <div class="stack" style="gap:8px">
-      <div class="meter" role="img" aria-label="${Math.round(Math.min(1,hoy.total/c.meta)*100)}% de la meta"><span class="b" style="width:${Math.min(100,hoy.liqB/Math.max(c.meta,hoy.total)*100)}%"></span><span class="k" style="width:${Math.min(100,hoy.liqK/Math.max(c.meta,hoy.total)*100)}%"></span></div>
-      <div class="legend"><span><i class="sw beer"></i>El Growler <b class="num">${money(hoy.liqB)}</b></span><span><i class="sw kom"></i>Kombucha <b class="num">${money(hoy.liqK)}</b></span></div>
-      <div class="muted small">Solo tus ventas. Kombucha cuenta lo cobrado en el mes.</div>
+      <div class="meter" role="img" aria-label="${meta?Math.round(Math.min(1,val/meta)*100)+"% de la meta":"Sin meta"}">${verB?`<span class="b" style="width:${Math.min(100,hoy.liqB/escala*100)}%"></span>`:""}${verK?`<span class="k" style="width:${Math.min(100,hoy.liqK/escala*100)}%"></span>`:""}</div>
+      <div class="legend">${verB?`<span><i class="sw beer"></i>El Growler <b class="num">${money(hoy.liqB)}</b></span>`:""}${verK?`<span><i class="sw kom"></i>Kombucha <b class="num">${money(hoy.liqK)}</b></span>`:""}</div>
+      <div class="muted small">Solo tus ventas.${verK?" Kombucha cuenta lo cobrado en el mes.":""}${mk==="cerveza"?" Incluye la base del part-time.":""}</div>
     </div></section>
   <section class="kpis">
     <div class="kpi"><span class="lab">Proyección fin de mes</span><span class="val">${money(proy)}</span><span class="muted small">A este ritmo (día ${dia} de ${diasMes})</span></div>
-    <div class="kpi"><span class="lab">Te falta</span><span class="val">${ok?"✓ Nada":money(falta)}</span><span class="muted small">${ok?"Meta cumplida":"líquido para la meta"}</span></div>
+    ${meta?`<div class="kpi"><span class="lab">Te falta</span><span class="val">${ok?"✓ Nada":money(falta)}</span><span class="muted small">${ok?"Meta cumplida":"líquido para la meta"}</span></div>`:""}
     ${!ok&&lit!==null?`<div class="kpi"><span class="lab">Cerveza que falta</span><span class="val">${n1(lit)} L</span><span class="muted small">≈ ${barrilesF} barriles de 30 L</span></div>`:""}
-    ${!ok&&kob>0?`<div class="kpi"><span class="lab">O kombucha por cobrar</span><span class="val">${money(kob)}</span><span class="muted small">neto cobrado</span></div>`:""}
+    ${!ok&&kob>0?`<div class="kpi"><span class="lab">${mk==="todas"?"O kombucha por cobrar":"Kombucha por cobrar"}</span><span class="val">${money(kob)}</span><span class="muted small">neto cobrado</span></div>`:""}
   </section>
-  <section class="card stack"><div><h3>Sueldo líquido por mes</h3><div class="muted small">Estimado con tus ventas de cada mes, contra la meta de ${money(c.meta)}</div></div>
-    <div class="legend"><span><i class="sw beer"></i>El Growler</span><span><i class="sw kom"></i>Kombucha</span><span><i class="cc-key"></i>Meta</span></div>
+  <section class="card stack"><div><h3>Sueldo líquido por mes${esc(nom)}</h3><div class="muted small">Estimado con tus ventas de cada mes${meta?", contra la meta de "+money(meta):""}</div></div>
+    <div class="legend">${verB?`<span><i class="sw beer"></i>El Growler</span>`:""}${verK?`<span><i class="sw kom"></i>Kombucha</span>`:""}${meta?`<span><i class="cc-key"></i>Meta</span>`:""}</div>
     <div class="cc" role="img" aria-label="Sueldo líquido de los últimos ${R.length} meses">
       <div class="cc-plot">${ticks.map(v=>`<div class="cc-grid" style="bottom:${pct(v)}%"><span>${moneyK(v)}</span></div>`).join("")}
-        <div class="cc-meta" style="bottom:${pct(c.meta)}%"></div>
+        ${meta?`<div class="cc-meta" style="bottom:${pct(meta)}%"></div>`:""}
         <div class="cc-cols">${cols}</div></div>
       <div class="cc-x">${R.map(r=>`<span>${MESES[Number(r.m.slice(5))-1].slice(0,3)}</span>`).join("")}</div>
     </div></section>
-  <details class="card"><summary>Ver tabla</summary><div class="tbox" style="margin-top:10px"><table><thead><tr><th>Mes</th><th class="r">Litros</th><th class="r">El Growler</th><th class="r">Kombucha</th><th class="r">Total</th><th class="r">% meta</th></tr></thead><tbody>
-    ${[...R].reverse().map(r=>`<tr><td>${mesLabel(r.m)}</td><td class="r num">${n1(r.litros)}</td><td class="r num">${money(r.liqB)}</td><td class="r num">${money(r.liqK)}</td><td class="r num">${money(r.total)}</td><td class="r num">${Math.round(r.total/c.meta*100)}%</td></tr>`).join("")}
+  <details class="card"><summary>Ver tabla</summary><div class="tbox" style="margin-top:10px"><table><thead><tr><th>Mes</th>${verB?`<th class="r">Litros</th><th class="r">El Growler</th>`:""}${verK?`<th class="r">Cajas</th><th class="r">Kombucha</th>`:""}${mk==="todas"?`<th class="r">Total</th>`:""}${meta?`<th class="r">% meta</th>`:""}</tr></thead><tbody>
+    ${[...R].reverse().map(r=>`<tr><td>${mesLabel(r.m)}</td>${verB?`<td class="r num">${n1(r.litros)}</td><td class="r num">${money(r.liqB)}</td>`:""}${verK?`<td class="r num">${n1(r.cajasK)}</td><td class="r num">${money(r.liqK)}</td>`:""}${mk==="todas"?`<td class="r num">${money(r.total)}</td>`:""}${meta?`<td class="r num">${Math.round(V(r)/meta*100)}%</td>`:""}</tr>`).join("")}
   </tbody></table></div></details>`;
 }
 
 /* ---------- armar gráfico: tú eliges qué medir, cómo agrupar, cómo separar y qué filtros ---------- */
 S.ag={med:"litros",por:"zona",sep:"estilo",gran:"mes",periodo:"3m",marca:"todas",formato:"todos",zona:"todas",tipo:"todos",quien:"todos",vista:"barras",top:"10"};
+S.ag.marca=S.ix.marca;
 const AG_MED={litros:["Litros vendidos","ventas"],unidades:["Unidades vendidas","ventas"],neto:["Neto vendido $","ventas"],ventas:["N° de ventas","ventas"],clientes:["Clientes que compraron","ventas"],visitas:["Visitas","visitas"],muestras:["Muestras entregadas","muestras"]};
 // cómo se muestra cada medida: litros, unidades, plata o conteo
 const AG_FMT={litros:"litros",unidades:"unidades",neto:"neto",ventas:"cuenta",clientes:"cuenta",visitas:"cuenta",muestras:"cuenta"};
@@ -2519,6 +2647,7 @@ function mergeCfg(d){
   const D=structuredClone(DEFAULT_CFG);d=d||{};
   return{...D,...structuredClone(d),frec:{...D.frec,...(d.frec||{})},plazo:{...D.plazo,...(d.plazo||{})},frecVisita:{...D.frecVisita,...(d.frecVisita||{})},
     oc:{cerveza:{...D.oc.cerveza,...(d.oc?.cerveza||{})},kombucha:{...D.oc.kombucha,...(d.oc?.kombucha||{})}},
+    metas:{cerveza:{...D.metas.cerveza,...(d.metas?.cerveza||{})},kombucha:{...D.metas.kombucha,...(d.metas?.kombucha||{})}},
     zonas:d.zonas||D.zonas,zonasDia:{...D.zonasDia,...(d.zonasDia||{})},muestras:d.muestras||D.muestras,productos:migrarLatas(migrarProductos(d.productos)||D.productos),empaques:d.empaques||D.empaques,
     prefs:{permitir:{...D.prefs.permitir,...(d.prefs?.permitir||{})},defecto:{...D.prefs.defecto,...(d.prefs?.defecto||{})}}};
 }
@@ -2585,7 +2714,7 @@ function errMsg(e){
   return"No se pudo guardar: "+m;
 }
 function refresh(){
-  const editing=(S.tab==="ajustes"&&document.activeElement?.closest?.("#cfgForm"))||(S.tab==="equipo"&&document.activeElement?.closest?.(".userCard"));
+  const editing=(S.tab==="ajustes"&&document.activeElement?.closest?.("#cfgForm"))||(S.tab==="indices"&&document.activeElement?.closest?.("#metaForm"))||(S.tab==="equipo"&&document.activeElement?.closest?.(".userCard"));
   if(!editing)render();
   if(S.openDetail&&$("#modal").innerHTML)clientDetail(S.openDetail);
   else if($("#modal .drill")){const sh=$("#modal .sheet"),sc=sh?.scrollTop||0;drillSheet(S.drillK);const s2=$("#modal .sheet");if(s2)s2.scrollTop=sc}
@@ -2902,6 +3031,7 @@ function ctxIA(){
   else if(miMarca()==="cerveza")L.push(`Mes en curso (${mesLabel(t.slice(0,7))}): ${n1(r.litros)} L de cerveza en ${r.nC} ventas, ${r.visitas} visitas y ${r.activ} activaciones.${plata?` Neto vendido: ${money(r.netoC)}.`:""}`);
   else L.push(`Mes en curso (${mesLabel(t.slice(0,7))}): ${n1(r.litros)} L de cerveza en ${r.nC} ventas, ${n1(r.cajasK)} cajas de kombucha en ${r.nK} ventas, ${r.visitas} visitas y ${r.activ} activaciones.${plata?` Neto vendido: cerveza ${money(r.netoC)}, kombucha ${money(r.netoK)}.`:""}`);
   if(can("ver_ingresos"))L.push(`Sueldo líquido estimado del mes: ${money(r.total)}, meta ${money(S.cfg.meta)}.`);
+  if(verMetas()){const mt=metasMes(t.slice(0,7)).rows;if(mt.length)L.push(`Metas por marca este mes: ${mt.map(x=>`${MK_NOM[x.mk]} ${x.lab.toLowerCase()}: ${fmtMeta(x.val,x.fmt)} de ${fmtMeta(x.meta,x.fmt)}, proyección ${fmtMeta(x.proy,x.fmt)} (${x.short.toLowerCase()})`).join("; ")}.`)}
   if(plata){const p=S.ventas.filter(v=>!v.pagado),venc=p.filter(v=>days(v.vence||v.fecha,t)>0);
     L.push(`Por cobrar: ${money(p.reduce((s,v)=>s+(v.neto||0)*1.19,0))} con IVA en ${p.length} facturas; vencido ${money(venc.reduce((s,v)=>s+(v.neto||0)*1.19,0))}.`)}
   [[t,"HOY"],[man,"MAÑANA"]].forEach(([f,lab])=>{const p=planDia(f);
@@ -3171,6 +3301,9 @@ document.addEventListener("click",async e=>{
     case"rutaSem":S.rutaFecha=addDays(S.rutaFecha,Number(t.dataset.d));render();break;
     case"vf":S.vFiltro=t.dataset.v;render();break;
     case"ixv":S.ix.vista=t.dataset.v;render();break;
+    case"ixmk":S.ix.marca=t.dataset.v;S.ag.marca=t.dataset.v;try{localStorage.setItem("cartera-ix-marca",t.dataset.v)}catch(e){}render();break;
+    case"mtMes":S.ix.mesMeta=t.dataset.d==="0"?null:shiftMes(S.ix.mesMeta||today().slice(0,7),Number(t.dataset.d));render();break;
+    case"mtVer":S.ix.marca=t.dataset.v;S.ag.marca=t.dataset.v;try{localStorage.setItem("cartera-ix-marca",t.dataset.v)}catch(e){}S.tab="indices";S.ix.vista="metas";closeSheet();render();window.scrollTo(0,0);break;
     case"ixm":S.ix.modo=t.dataset.v;render();break;
     case"ixz":S.ix.zmodo=t.dataset.v;render();break;
     case"agVista":S.ag.vista=t.dataset.v;render();break;
@@ -3493,6 +3626,12 @@ document.addEventListener("submit",async e=>{
     },"Venta guardada");
     if(ok){if(old)closeSheet();else ocSheet({...data,id:"nueva"},true)}
   }
+  if(f.id==="metaForm"){
+    if(!can("editar_ajustes"))return toast("No tienes permiso para cambiar las metas");
+    const g=id=>Math.max(0,Number(document.getElementById(id)?.value)||0);
+    S.cfg={...S.cfg,metas:{cerveza:{litros:g("mtCL"),neto:g("mtCN"),sueldo:g("mtCS")},kombucha:{cajas:g("mtKC"),neto:g("mtKN"),sueldo:g("mtKS")}}};
+    await guard(()=>DB.setCfg(structuredClone(S.cfg)),"Metas guardadas");render();return;
+  }
   if(f.id==="cfgForm"){collectCfgForm();await guard(()=>DB.setCfg(structuredClone(S.cfg)),"Ajustes guardados");render()}
 });
 document.addEventListener("keydown",e=>{
@@ -3632,7 +3771,7 @@ const EN={
   "Guardar para todos":"Save for everyone","Guardado para todos":"Saved for everyone","Mi perfil":"My profile","Guardar nombre":"Save name",
   "Cambiar contraseña":"Change password","Cerrar sesión":"Sign out","Preferencias":"Preferences","Se guardan en este dispositivo":"Saved on this device",
   "Escribe tu nombre":"Enter your name","Nombre guardado":"Name saved",
-  "Índices":"Insights","Tablero":"Dashboard","Productos":"Products","Sueldo y meta":"Pay and goal","Período":"Period","Este mes":"This month",
+  "Índices":"Insights","Metas por marca":"Goals by brand","🎯 Metas por marca":"🎯 Goals by brand","Donde vas más bajo":"Where you are furthest behind","Guardar metas":"Save goals","Lo que llevas":"So far","Dónde llegas a fin de mes a este ritmo":"Where you end the month at this pace","Litros vendidos":"Liters sold","Neto vendido":"Net sold","Sueldo líquido":"Net pay","Cajas vendidas":"Cases sold","Cumplida":"Reached","Vas a llegar":"On track","Algo bajo":"A bit behind","Vas bajo":"Behind","No llegó":"Missed","Aún no parte":"Not started","Sin meta":"No goal","Animal Social":"Animal Social","Tablero":"Dashboard","Productos":"Products","Sueldo y meta":"Pay and goal","Período":"Period","Este mes":"This month",
   "Mes anterior":"Last month","Últimos 3 meses":"Last 3 months","Este año":"This year","Todo":"All time","Formato":"Format",
   "Todos los formatos":"All formats","Vendedor":"Seller","Solo yo":"Only me","Medida":"Measure","Unidades":"Units","Neto $":"Net $",
   "Barril 30 L":"30 L keg","Caja 24":"Box of 24","Lata":"Can","No hay ventas con estos filtros.":"No sales with these filters.",
