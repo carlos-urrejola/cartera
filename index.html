@@ -344,7 +344,7 @@ table.hm td.c:hover::after,table.hm td.c:focus-visible::after{content:"";positio
 .voz-card .btn.big{min-height:48px;padding:10px 16px;font-size:16px}
 .voz-estado{font-weight:600;display:flex;align-items:center;gap:8px}
 /* cuentas de marca: solo mirar (los botones que cambian datos no se muestran) */
-body.mk-sin-registrar .fab,body.mk-sin-visitas [data-act="newAct"],body.mk-sin-visitas [data-act="quickVisit"],body.mk-sin-visitas [data-act="editAct"],body.mk-sin-ventas [data-act="newSale"],body.mk-sin-editventa [data-act="editSale"],body.mk-sin-muestras [data-act="addMuLine"],body.mk-sin-pagos [data-act="pay"],body.mk-sin-pagos [data-act="unpay"],body.solo-mira [data-act="tareaEstado"],body.mk-sin-editcli [data-act="editClient"],body.mk-sin-crearcli [data-act="newClient"]{display:none!important}
+body.mk-sin-registrar .btn-registrar,body.mk-sin-visitas [data-act="newAct"],body.mk-sin-visitas [data-act="quickVisit"],body.mk-sin-visitas [data-act="editAct"],body.mk-sin-ventas [data-act="newSale"],body.mk-sin-editventa [data-act="editSale"],body.mk-sin-muestras [data-act="addMuLine"],body.mk-sin-pagos [data-act="pay"],body.mk-sin-pagos [data-act="unpay"],body.solo-mira [data-act="tareaEstado"],body.mk-sin-editcli [data-act="editClient"],body.mk-sin-crearcli [data-act="newClient"]{display:none!important}
 body.sin-rotacion [data-k^="recompra:"],body.sin-montos [data-k^="pago|"],body.sin-visitas [data-k^="visita|"]{display:none!important}
 /* en los formularios, una cuenta de marca no elige marca ni toca notas, frecuencias ni foto */
 body.solo-mira .field:has(#mC),body.solo-mira .field:has(#cFoto),body.solo-mira .field:has(#cNotas),body.solo-mira .field:has(#cProxT),body.solo-mira .field:has(#cFrecC),body.solo-mira .field:has(#cFrecK),body.solo-mira .field:has(#sMarca),body.solo-mira .field:has(#aMkC){display:none!important}
@@ -364,7 +364,6 @@ body.solo-mira .field:has(#mC),body.solo-mira .field:has(#cFoto),body.solo-mira 
   <div id="status"></div>
   <main id="view"></main>
 </div>
-<button class="btn primary fab" data-act="chooser">+ Registrar</button>
 <div id="vozCard" class="voz-card" role="status" aria-live="polite" hidden></div>
 <div class="nav-fondo" data-act="cerrarNav"></div>
 <nav class="tabs" id="navLateral" aria-label="Secciones">
@@ -777,10 +776,10 @@ function render(){
   {const b=document.body.classList,mk=soloMira();b.toggle("solo-mira",mk);
     b.toggle("mk-sin-visitas",mk&&!can("registrar_visitas"));b.toggle("mk-sin-ventas",mk&&!puedeSub("registrar_ventas","nuevas"));b.toggle("mk-sin-editventa",mk&&!puedeSub("registrar_ventas","editar"));b.toggle("mk-sin-pagos",mk&&!can("marcar_pagos"));
     b.toggle("mk-sin-crearcli",mk&&!puedeSub("editar_clientes","crear"));b.toggle("mk-sin-editcli",mk&&!puedeSub("editar_clientes","editar"));b.toggle("mk-sin-muestras",mk&&!puedeSub("registrar_visitas","muestras"));
-    b.toggle("mk-sin-registrar",mk&&!can("registrar_visitas")&&!puedeSub("registrar_ventas","nuevas")&&!puedeSub("editar_clientes","crear"));
+    b.toggle("mk-sin-registrar",mk&&!can("registrar_visitas")&&!puedeSub("registrar_ventas","nuevas"));
     b.toggle("sin-rotacion",!ve("rotacion"));b.toggle("sin-montos",!ve("cobranza"));b.toggle("sin-visitas",!ve("visitas"))}
   const st=$("#subtit");if(st)st.textContent=({kombucha:"Clientes de kombucha Animal Social",cerveza:"Clientes de cerveza El Growler"})[miMarca()]||"Clientes de cerveza El Growler y kombucha Animal Social";
-  $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span>${can("editar_clientes")?`<button class="btn redondo mas" data-act="newClient" aria-label="Nuevo cliente" title="Nuevo cliente">+</button>`:""}${iaOn()?`<button class="btn ia-boton" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨</button>`:""}<button class="btn redondo" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
+  $("#hdr").innerHTML=`<span class="muted small">${esc(ME.perfil?.nombre||"")}</span><button class="btn redondo mas btn-registrar" data-act="chooser" aria-label="Registrar" title="Registrar">+</button>${iaOn()?`<button class="btn ia-boton" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨</button>`:""}<button class="btn redondo" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
   $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
   const v=$("#view");
   if(S.dbState==="loading"){v.innerHTML=`<div class="empty">Cargando tu cartera…</div>`;return}
@@ -2775,7 +2774,7 @@ async function importarRespaldo(file){
 }
 
 /* ---------- pantalla de ingreso ---------- */
-function showApp(on){navMenu(false);document.querySelector(".app").hidden=!on;document.querySelector("nav.tabs").hidden=!on;$(".fab").hidden=!on;$("#auth").hidden=on;if(!on)$("#vozCard").hidden=true}
+function showApp(on){navMenu(false);document.querySelector(".app").hidden=!on;document.querySelector("nav.tabs").hidden=!on;$("#auth").hidden=on;if(!on)$("#vozCard").hidden=true}
 function authScreen(mode="login",msg=""){
   showApp(false);
   const cfgFalta=!SB;
@@ -3312,7 +3311,7 @@ document.addEventListener("click",async e=>{
   if(a==="closeBg"&&e.target!==t)return;
   switch(a){
     case"close":case"closeBg":closeSheet();break;
-    case"chooser":openSheet(`<div class="row spread"><h2>¿Qué quieres registrar?</h2><button class="btn sm" data-act="close">Cerrar</button></div><div class="choice"><button data-act="newAct"><b>Visita o activación</b><span class="muted small">Visitas, degustaciones, muestras entregadas, cobranza</span></button>${can("registrar_ventas")?`<button data-act="newSale"><b>Venta</b><span class="muted small">Barriles, cajas de latas o cajas de kombucha</span></button>`:""}${can("editar_clientes")?`<button data-act="newClient"><b>Cliente nuevo</b><span class="muted small">Un local para tu cartera o tu ruta</span></button>`:""}${verBarriles()?`<button data-act="scan"><b>🛢️ Barril</b><span class="muted small">Escanear o buscar un barril para ver dónde está o moverlo</span></button>`:""}</div>`);break;
+    case"chooser":openSheet(`<div class="row spread"><h2>¿Qué quieres registrar?</h2><button class="btn sm" data-act="close">Cerrar</button></div><div class="choice"><button data-act="newAct"><b>Visita o activación</b><span class="muted small">Visitas, degustaciones, muestras entregadas, cobranza</span></button>${can("registrar_ventas")?`<button data-act="newSale"><b>Venta</b><span class="muted small">Barriles, cajas de latas o cajas de kombucha</span></button>`:""}${verBarriles()?`<button data-act="scan"><b>🛢️ Barril</b><span class="muted small">Escanear o buscar un barril para ver dónde está o moverlo</span></button>`:""}</div>`);break;
     case"logout":closeSheet();await SB?.auth.signOut();break;
     case"altaPerfil":altaForm();break;
     case"eqTodas":{const f=document.getElementById("u-"+t.dataset.uid);if(!f)break;const sc=t.dataset.scope;
