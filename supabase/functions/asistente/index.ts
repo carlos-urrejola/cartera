@@ -57,12 +57,19 @@ Navegación ("navegar"): puedes mover la app cuando la persona pide ir, abrir o 
 
 Atajos ("botones"): hasta 3 atajos útiles para lo que respondiste. Tipos: "cliente" (abrir ficha), "como_llegar", "llamar", "whatsapp" (todos con ref) y "ruta" (con fecha). Usa SOLO refs que aparecen en los datos entre corchetes, como [c12]. Nunca inventes refs. Si no hay atajos útiles, devuelve una lista vacía. En "respuesta" no escribas las refs: nombra el local.
 
+Pendientes ("pendiente"): es la carpeta de mejoras de la app, que después se revisa con quien programa la app.
+- Anota (anotar = true) cuando NO puedes responder bien porque la app no guarda ese dato (tipo "dato"), cuando piden algo que la app no hace o no muestra, como un gráfico, filtro, aviso o pantalla (tipo "funcion"), o cuando la persona te pide "anota", "recuérdame que hay que" o "agrega a pendientes" (tipo "idea").
+- titulo: corto y concreto (máximo 80 caracteres), ej. "Registrar el stock que le queda a cada local". detalle: 1 a 3 frases con qué falta, para qué lo quiere y un ejemplo de la pregunta.
+- No anotes si ya está en PENDIENTES ABIERTOS (aunque esté con otras palabras), ni si la app ya lo hace y solo faltaban datos cargados, ni cosas que no son de la app.
+- Si anotas, dilo en una frase al final de "respuesta" (ej. "Lo dejé anotado en pendientes."). Si no, anotar = false.
+
 Modo voz: si MODO VOZ es "sí", la persona va manejando y la respuesta se va a escuchar, no a leer. Responde en 2 a 4 frases cortas, lo más importante primero, sin listas, sin negritas ni símbolos, con números dichos de forma simple.`;
 }
 
 const PESTANAS = ["resumen", "tareas", "ruta", "clientes", "ventas", "indices", "barriles", "ajustes"];
 const TIPOS_NAV = ["ninguno", "pestana", "ruta", "cliente", "clientes"];
 const TIPOS_BOTON = ["cliente", "como_llegar", "llamar", "whatsapp", "ruta"];
+const TIPOS_PEND = ["dato", "funcion", "idea"];
 const corto = (v: unknown, n: number) => String(v ?? "").slice(0, n);
 
 const ESQUEMA = {
@@ -93,8 +100,18 @@ const ESQUEMA = {
         required: ["tipo"],
       },
     },
+    pendiente: {
+      type: "object",
+      properties: {
+        anotar: { type: "boolean" },
+        tipo: { type: "string", enum: TIPOS_PEND },
+        titulo: { type: "string" },
+        detalle: { type: "string" },
+      },
+      required: ["anotar"],
+    },
   },
-  required: ["respuesta", "ficha", "navegar", "botones"],
+  required: ["respuesta", "ficha", "navegar", "botones", "pendiente"],
 };
 
 // Si un modelo está saturado (503) reintenta una vez y después prueba el siguiente.
@@ -154,11 +171,14 @@ Deno.serve(async (req) => {
   const contexto = limpiar(String(body.contexto || "")).slice(0, MAX_CONTEXTO);
 
   // Memoria: ficha consolidada + últimas consultas (RLS: solo las de esta persona)
-  const [{ data: mem }, { data: previas }, { data: perfil }] = await Promise.all([
+  const [{ data: mem }, { data: previas }, { data: perfil }, { data: pends }] = await Promise.all([
     sb.from("ia_memoria").select("ficha").maybeSingle(),
     sb.from("ia_consultas").select("data,creado").order("creado", { ascending: false }).limit(HISTORIAL),
     sb.from("perfiles").select("nombre").eq("id", user.id).maybeSingle(),
+    // si la tabla de pendientes aún no existe, simplemente no hay lista
+    sb.from("ia_pendientes").select("data").eq("usuario", user.id).order("creado", { ascending: false }).limit(60),
   ]);
+  const abiertos = (pends || []).filter((x) => x.data?.estado !== "hecho").map((x) => "- " + corto(x.data?.titulo, 100));
   const ficha = String(mem?.ficha || "");
 
   const contents: { role: string; parts: { text: string }[] }[] = [];
@@ -174,13 +194,14 @@ Deno.serve(async (req) => {
       text: `FICHA (lo que ya sabes de esta persona):\n${ficha || "(vacía todavía)"}\n\n` +
         `FECHA DE HOY: ${corto(body.fecha, 40) || "hoy"} (${/^\d{4}-\d{2}-\d{2}$/.test(String(body.hoy)) ? body.hoy : "sin fecha"})\n` +
         `MODO VOZ: ${body.voz ? "sí" : "no"}\n\n` +
+        `PENDIENTES ABIERTOS:\n${abiertos.join("\n") || "(ninguno)"}\n\n` +
         `DATOS DE LA CARTERA:\n${contexto || "(sin datos)"}\n\n` +
         `PREGUNTA:\n${pregunta}`,
     }],
   });
 
   // deno-lint-ignore no-explicit-any
-  let salida: { respuesta: string; ficha: string; navegar?: any; botones?: any[] }, modelo = "";
+  let salida: { respuesta: string; ficha: string; navegar?: any; botones?: any[]; pendiente?: any }, modelo = "";
   try {
     const { d, modelo: m } = await gemini(key, {
       systemInstruction: { parts: [{ text: instrucciones(perfil?.nombre || "") }] },
@@ -213,12 +234,29 @@ Deno.serve(async (req) => {
     .filter((b) => b && TIPOS_BOTON.includes(b.tipo)).slice(0, 3)
     .map((b) => ({ tipo: b.tipo, ref: corto(b.ref, 10), fecha: corto(b.fecha, 10) }));
 
+  // Pendiente para la carpeta de mejoras (sin teléfonos, RUT ni correos)
+  const pe = salida?.pendiente;
+  let respuestaFinal = respuesta;
+  let pendiente: { titulo: string; tipo: string } | null = null;
+  if (pe?.anotar && String(pe.titulo || "").trim()) {
+    const titulo = limpiar(String(pe.titulo)).trim().slice(0, 100);
+    const repetido = abiertos.some((a) => a.slice(2).toLowerCase() === titulo.toLowerCase());
+    if (!repetido) {
+      const tipo = TIPOS_PEND.includes(pe.tipo) ? pe.tipo : "idea";
+      const { error } = await sb.from("ia_pendientes").insert({
+        data: { titulo, tipo, detalle: limpiar(String(pe.detalle || "")).trim().slice(0, 600), origen: limpiar(pregunta).slice(0, 300), estado: "abierto", por: "ia" },
+      });
+      if (!error) pendiente = { titulo, tipo };
+      else respuestaFinal += " (Ojo: no pude guardarlo en pendientes.)";
+    }
+  }
+
   // Guardar en el cuaderno y actualizar la ficha (si falla, igual se entrega la respuesta)
   const [g1, g2] = await Promise.all([
-    sb.from("ia_consultas").insert({ data: { pregunta, respuesta, modelo, voz: !!body.voz } }),
+    sb.from("ia_consultas").insert({ data: { pregunta, respuesta: respuestaFinal, modelo, voz: !!body.voz } }),
     sb.from("ia_memoria").upsert({ usuario: user.id, ficha: fichaNueva }, { onConflict: "usuario" }),
   ]);
   const guardado = !g1.error && !g2.error;
 
-  return json({ respuesta, ficha: fichaNueva, navegar, botones, guardado, modelo });
+  return json({ respuesta: respuestaFinal, ficha: fichaNueva, navegar, botones, pendiente, guardado, modelo });
 });

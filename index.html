@@ -3052,7 +3052,7 @@ function menuSheet(){
    La app arma un resumen de lo que esta persona ya ve (sin teléfonos, RUT, correos ni direcciones)
    y se lo manda a la función "asistente" de Supabase, que guarda la clave de Gemini.
    Memoria: ia_consultas (cada pregunta y respuesta) e ia_memoria (ficha consolidada), solo del usuario. */
-const IA_VACIO=()=>({log:[],ficha:"",cargado:false,ocupado:false,err:"",refs:{},card:false,escuchando:false,parcial:""});
+const IA_VACIO=()=>({log:[],ficha:"",cargado:false,ocupado:false,err:"",refs:{},card:false,escuchando:false,parcial:"",pend:null,pendErr:""});
 S.ia=IA_VACIO();
 // nombre de la función del asistente en Supabase (Edge Functions)
 const IA_FUNCION="clever-api";
@@ -3135,6 +3135,7 @@ function iaBotones(bs){
   }).join("");
 }
 const iaBotonesHtml=bs=>{const h=iaBotones(bs);return h?`<div class="ia-btns">${h}</div>`:""};
+const iaAnotadoHtml=m=>m?.pendiente?`<div class="ia-btns"><button type="button" class="chip strong lnk" data-act="iaPendVer">📁 Anotado en pendientes: ${esc(m.pendiente.titulo)}</button></div>`:"";
 /* mueve la app según lo que pidió la persona (solo navegar: nunca cambia datos) */
 function iaIr(n){
   if(!n||!n.tipo||n.tipo==="ninguno")return false;
@@ -3152,7 +3153,7 @@ function iaPintar(){
   log.innerHTML=(aviso?`<div class="banner">${aviso}</div>`:"")+
     (I.log.length?I.log.map(m=>m.rol==="yo"?`<div class="ia-msg yo" data-notr>${esc(m.txt)}</div>`
       :m.cargando?`<div class="ia-msg ia pensando">Pensando…</div>`
-      :`<div class="ia-msg ia${m.error?" err":""}" data-notr>${m.error?esc(m.txt):iaFormato(m.txt)}${m.error?"":iaBotonesHtml(m.botones)}</div>`).join("")
+      :`<div class="ia-msg ia${m.error?" err":""}" data-notr>${m.error?esc(m.txt):iaFormato(m.txt)}${m.error?"":iaBotonesHtml(m.botones)+iaAnotadoHtml(m)}</div>`).join("")
     :(I.cargado||I.err?`<div class="muted small">Aún no le has preguntado nada. Prueba con una de las preguntas de abajo${SR_VOZ?" o toca 🎙️ y habla":""}.</div>`:`<div class="muted small">Cargando…</div>`));
   const fi=$("#iaFicha");if(fi)fi.innerHTML=I.ficha?`<div class="ia-ficha" data-notr>${esc(I.ficha)}</div>`:`<div class="muted">Todavía nada. Se va armando sola con tus preguntas.</div>`;
   const b=$("#iaEnviar");if(b){b.disabled=I.ocupado;b.textContent=I.ocupado?"…":"Preguntar"}
@@ -3186,13 +3187,19 @@ function iaSheet(){
       <div class="lbl small" style="font-weight:600;margin-top:10px">🧠 Lo que recuerda de ti</div><div id="iaFicha" class="small"></div>
       <div class="muted small" style="margin-top:8px">Se guarda en tu cuenta y solo tú la ves. Al preguntar, se envía a Gemini (Google) un resumen de tu cartera sin teléfonos, RUT, correos ni direcciones. En el plan gratis, Google puede usar lo enviado para mejorar sus productos.</div>
       <div class="row" style="margin-top:8px"><button class="btn sm danger" type="button" data-act="iaBorrar">Borrar memoria e historial</button></div></details>
+    <details class="card" id="iaPendBox"${S.ia.verPend?" open":""}><summary>📁 Pendientes para mejorar la app <span id="iaPendN" class="muted small"></span></summary>
+      <div class="muted small" style="margin-top:6px">Se anotan solos cuando el asistente no puede responder porque a la app le falta un dato o una función, o cuando le dices "anota que…". También puedes agregarlos tú. Después se revisan con Claude para ir mejorando la app.</div>
+      <form id="iaPendForm" class="row" style="flex-wrap:nowrap;margin-top:8px"><input id="iaPendIn" maxlength="100" placeholder="Ej: ver cuánto stock le queda a cada local" aria-label="Pendiente nuevo" style="flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><button class="btn sm" type="submit">Anotar</button></form>
+      <div id="iaPend" style="margin-top:8px"></div></details>
     <div id="iaLog" class="ia-log" aria-live="polite"></div>
     <div class="chips" id="iaRapidas">${IA_RAPIDAS().map((q,i)=>`<button type="button" class="chip strong lnk" data-act="iaRapida" data-v="${i}">${esc(q)}</button>`).join("")}</div>
     <form id="iaForm" class="ia-form"><textarea id="iaQ" rows="2" maxlength="1500" placeholder="${SR_VOZ?"Escribe o toca 🎙️ y habla…":"Escribe tu pregunta…"}" aria-label="Tu pregunta"></textarea>${SR_VOZ?`<button class="btn" type="button" id="iaMic" data-act="voz" aria-label="Hablar" title="Hablar">🎙️</button>`:""}<button class="btn primary" type="submit" id="iaEnviar">Preguntar</button></form>
   </div>`);
-  iaPintar();
-  if(window.innerWidth>700)$("#iaQ")?.focus();
+  iaPintar();iaPendPintar();
+  if(window.innerWidth>700&&!S.ia.verPend)$("#iaQ")?.focus();
   if(!S.ia.cargado)iaCargar();
+  if(!S.ia.pend)iaPendCargar();
+  if(S.ia.verPend){S.ia.verPend=false;setTimeout(()=>$("#iaPendBox")?.scrollIntoView({block:"start"}),50)}
 }
 async function iaEnviar(q,opt={}){
   q=String(q||"").trim();if(!q||S.ia.ocupado)return;
@@ -3215,7 +3222,8 @@ async function iaEnviar(q,opt={}){
   S.ia.log=S.ia.log.filter(m=>!m.cargando);
   let dicho="";
   if(res?.respuesta){
-    S.ia.log.push({rol:"ia",txt:res.respuesta,botones:res.botones||[],nuevo:true});
+    S.ia.log.push({rol:"ia",txt:res.respuesta,botones:res.botones||[],pendiente:res.pendiente||null,nuevo:true});
+    if(res.pendiente)iaPendCargar();
     if(typeof res.ficha==="string")S.ia.ficha=res.ficha;S.ia.err="";dicho=res.respuesta;
     if(res.guardado===false)toast("Respondió, pero no pudo guardarlo en la memoria");
     // si pidió ir a una pantalla, la app se mueve y la respuesta queda en la tarjeta de abajo
@@ -3225,12 +3233,56 @@ async function iaEnviar(q,opt={}){
   if(voz)hablar(dicho,()=>{if(vozPref("seguir")&&res?.respuesta&&(S.ia.card||$("#iaLog")))setTimeout(escuchar,350)});
   else if(window.innerWidth>700)$("#iaQ")?.focus();
 }
+/* ---------- carpeta de pendientes: lo que la app aún no tiene o no hace ---------- */
+const PEND_TIPO={dato:"Dato que falta",funcion:"Función nueva",idea:"Idea"};
+async function iaPendCargar(){
+  try{
+    const{data,error}=await SB.from("ia_pendientes").select("id,usuario,data,creado").order("creado",{ascending:false}).limit(200);
+    if(error)throw error;
+    S.ia.pend=data||[];S.ia.pendErr="";
+  }catch(e){const m=e?.message||"";S.ia.pend=[];S.ia.pendErr=/ia_pendientes|does not exist|schema cache/i.test(m)?"falta_sql":S.offline||/Failed to fetch/i.test(m)?"offline":"carga"}
+  iaPendPintar();
+}
+function iaPendPintar(){
+  const box=$("#iaPend");if(!box)return;const P=S.ia.pend;
+  const abiertos=(P||[]).filter(x=>x.data?.estado!=="hecho"),hechos=(P||[]).filter(x=>x.data?.estado==="hecho");
+  const n=$("#iaPendN");if(n)n.textContent=P?`(${abiertos.length})`:"";
+  const f=$("#iaPendForm");if(f)f.hidden=S.ia.pendErr==="falta_sql";
+  if(S.ia.pendErr){box.innerHTML=`<div class="banner">${S.ia.pendErr==="falta_sql"?"Falta activar la carpeta de pendientes: hay que pegar una vez su bloque SQL en Supabase (SQL Editor).":S.ia.pendErr==="offline"?"Sin conexión.":"No se pudo cargar la carpeta."}</div>`;return}
+  if(!P){box.innerHTML=`<div class="muted small">Cargando…</div>`;return}
+  const quien=x=>x.usuario&&x.usuario!==ME.user?.id?` · de ${esc(nombreDe(x.usuario)||"otra cuenta")}`:"";
+  const fila=(x,hecho)=>{const d=x.data||{};return `<div class="act" style="${hecho?"opacity:.6":""}"><div class="row spread" style="flex-wrap:nowrap;align-items:flex-start;gap:8px">
+      <div style="min-width:0"><b style="font-weight:600" data-notr>${esc(d.titulo||"(sin título)")}</b><div class="muted small">${esc(PEND_TIPO[d.tipo]||"Idea")} · ${fdate((x.creado||"").slice(0,10))}${d.por==="ia"?" · lo anotó el asistente":""}${quien(x)}</div></div>
+      <span class="row" style="gap:4px;flex-wrap:nowrap">${hecho?`<button class="btn sm" data-act="iaPendEstado" data-id="${x.id}" data-v="abierto">Reabrir</button>`:`<button class="btn sm" data-act="iaPendEstado" data-id="${x.id}" data-v="hecho" title="Marcar como hecho">✓</button>`}<button class="btn sm" data-act="iaPendBorrar" data-id="${x.id}" aria-label="Borrar pendiente" title="Borrar">✕</button></span></div>
+      ${d.detalle?`<div class="small" data-notr>${esc(d.detalle)}</div>`:""}${d.origen?`<div class="muted small" data-notr>Salió de: “${esc(d.origen)}”</div>`:""}</div>`};
+  box.innerHTML=(abiertos.length?`<div class="stack" style="gap:10px">${abiertos.map(x=>fila(x,false)).join("")}</div>`:`<div class="muted small">No hay pendientes. 👌</div>`)+
+    (hechos.length?`<details style="margin-top:10px"><summary class="small" style="cursor:pointer">Hechos (${hechos.length})</summary><div class="stack" style="gap:10px;margin-top:8px">${hechos.map(x=>fila(x,true)).join("")}</div></details>`:"");
+}
+async function iaPendAgregar(titulo){
+  titulo=iaLimpio(titulo).slice(0,100);if(!titulo){toast("Escribe qué hay que mejorar");return}
+  const{error}=await SB.from("ia_pendientes").insert({data:{titulo,tipo:"idea",detalle:"",origen:"",estado:"abierto",por:"manual"}});
+  if(error){toast(errMsg(error));return}
+  const i=$("#iaPendIn");if(i)i.value="";toast("Anotado en pendientes");iaPendCargar();
+}
+async function iaPendEstado(id,estado){
+  const x=(S.ia.pend||[]).find(y=>y.id===id);if(!x)return;
+  const{error}=await SB.from("ia_pendientes").update({data:{...x.data,estado,cerrado:estado==="hecho"?today():""}}).eq("id",id);
+  if(error){toast(errMsg(error));return}
+  toast(estado==="hecho"?"Marcado como hecho":"Pendiente reabierto");iaPendCargar();
+}
+async function iaPendBorrar(id){
+  const x=(S.ia.pend||[]).find(y=>y.id===id);if(!x)return;
+  if(!await confirmar("¿Borrar este pendiente?",`<b>${esc(x.data?.titulo||"")}</b>. Si ya se hizo, mejor márcalo como hecho.`,"Sí, borrar","Cancelar"))return;
+  const{error}=await SB.from("ia_pendientes").delete().eq("id",id);
+  if(error){toast(errMsg(error));return}
+  toast("Pendiente borrado");iaPendCargar();
+}
 async function iaBorrar(){
   if(!await confirmar("¿Borrar la memoria del asistente?","Se borran tus preguntas, sus respuestas y lo que recuerda de ti. Tus clientes y ventas no se tocan.","Sí, borrar","Cancelar"))return;
   try{
     const[a,b]=await Promise.all([SB.from("ia_consultas").delete().eq("usuario",ME.user.id),SB.from("ia_memoria").delete().eq("usuario",ME.user.id)]);
     if(a.error||b.error)throw a.error||b.error;
-    S.ia={...IA_VACIO(),cargado:true};iaPintar();toast("Memoria borrada");
+    S.ia={...IA_VACIO(),cargado:true,pend:S.ia.pend,pendErr:S.ia.pendErr};iaPintar();toast("Memoria borrada");
   }catch(e){toast(errMsg(e))}
 }
 
@@ -3282,7 +3334,7 @@ function vozPintar(){
   const ult=[...I.log].reverse().find(m=>m.rol==="ia"&&!m.cargando);
   const estado=I.escuchando?`<div class="voz-estado">🎙️ Escuchando…</div><div class="voz-txt" data-notr>${esc(I.parcial||"Habla ahora")}</div>`
     :I.ocupado?`<div class="voz-estado">⏳ Pensando…</div><div class="voz-txt muted" data-notr>${esc([...I.log].reverse().find(m=>m.rol==="yo")?.txt||"")}</div>`
-    :ult?`<div class="voz-txt${ult.error?" ":""}" data-notr${ult.error?' style="color:var(--bad)"':""}>${ult.error?esc(ult.txt):iaFormato(ult.txt)}</div>${ult.error?"":iaBotonesHtml(ult.botones)}`:"";
+    :ult?`<div class="voz-txt${ult.error?" ":""}" data-notr${ult.error?' style="color:var(--bad)"':""}>${ult.error?esc(ult.txt):iaFormato(ult.txt)}</div>${ult.error?"":iaBotonesHtml(ult.botones)+iaAnotadoHtml(ult)}`:"";
   card.innerHTML=`${estado}<div class="row" style="gap:8px;flex-wrap:nowrap">
     ${SR_VOZ?`<button type="button" class="btn primary big" style="flex:1" data-act="voz"${I.ocupado?" disabled":""}>${I.escuchando?"⏹ Listo, terminé":"🎙️ Hablar"}</button>`:""}
     ${window.speechSynthesis&&ult&&!I.escuchando&&!I.ocupado?`<button type="button" class="btn big" data-act="vozRepetir" aria-label="Repetir en voz alta">🔊</button>`:""}
@@ -3331,6 +3383,9 @@ document.addEventListener("click",async e=>{
     case"ia":iaSheet();break;
     case"iaRapida":iaEnviar(IA_RAPIDAS()[Number(t.dataset.v)]);break;
     case"iaBorrar":iaBorrar();break;
+    case"iaPendEstado":iaPendEstado(id,t.dataset.v);break;
+    case"iaPendBorrar":iaPendBorrar(id);break;
+    case"iaPendVer":if($("#iaPendBox")){$("#iaPendBox").open=true;$("#iaPendBox").scrollIntoView({block:"start",behavior:"smooth"})}else{S.ia.verPend=true;iaSheet()}break;
     case"voz":escuchar();break;
     case"vozCerrar":vozParar();S.ia.card=false;iaPintar();break;
     case"vozRepetir":{const u=[...S.ia.log].reverse().find(m=>m.rol==="ia"&&!m.cargando);if(u)hablar(u.txt);break}
@@ -3529,6 +3584,7 @@ document.addEventListener("submit",async e=>{
   if(f.classList.contains("userCard"))return;
   if(f.id==="altaForm"){await crearPerfil(f);return}
   if(f.id==="iaForm"){iaEnviar($("#iaQ").value);return}
+  if(f.id==="iaPendForm"){iaPendAgregar($("#iaPendIn").value);return}
   if(f.id==="perfilForm"){
     const nombre=$("#pfNombre").value.trim();if(!nombre){toast("Escribe tu nombre");return}
     if(await guard(()=>chk(SB.from("perfiles").update({nombre}).eq("id",ME.user.id)),"Nombre guardado"))menuSheet();
