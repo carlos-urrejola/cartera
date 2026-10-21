@@ -103,6 +103,8 @@ nav.tabs .nav-badge{margin-left:auto}
 nav.tabs .subnav .nav-badge{min-width:18px;height:18px;font-size:11px;padding:0 5px}
 .punto-nuevo{width:10px;height:10px;border-radius:50%;background:#E0352B;display:inline-block;flex:none;box-shadow:0 0 0 2px var(--surface)}
 .tarea.nueva{border-color:color-mix(in srgb,#E0352B 45%,var(--line))}
+.btn.banner-link{width:100%;justify-content:space-between;text-align:left;background:var(--warn-soft);color:var(--warn);border-color:var(--warn);font-weight:600;padding:10px 12px}
+.userCard.destaca{box-shadow:0 0 0 2px var(--warn);transition:box-shadow .3s}
 .navbtn .nav-badge{position:absolute;top:-7px;right:-7px;box-shadow:0 0 0 2px var(--bg)}
 @media (min-width:900px){body{padding-left:248px}}
 @media (max-width:899px){
@@ -767,6 +769,7 @@ function vResumen(){
   const muRows=Object.entries(r.mu).sort((a,b)=>b[1]-a[1]);
   const tHoy=tareasAbiertas().filter(x=>x.fecha<=today()),cHoy=new Set(tHoy.map(x=>x.c.id)).size;
   return `<div class="stack">
+  ${isAdmin()?S.perfiles.filter(p=>!p.activo).map(p=>`<button class="btn banner-link" data-act="irCuenta" data-id="${p.id}"><span>🔑 ${esc(p.nombre||p.email)} pidió acceso a la app · toca para revisarla</span><span>›</span></button>`).join(""):""}
   ${tHoy.length&&!soloMira()?`<button class="tbanner" data-tab="tareas"><span><b>📋 Hoy tienes ${tHoy.length} ${tHoy.length===1?"tarea":"tareas"}</b> <span class="muted small">en ${cHoy} ${cHoy===1?"cliente":"clientes"} · ${[...new Set(tHoy.map(x=>x.tipo))].map(k=>TAREA_ICO[k]).join(" ")}</span></span><span class="muted">Ver ›</span></button>`:""}
   <div class="row spread"><h2>Resumen de ${mesLabel(S.mes)}</h2>${S.equipo.length>1&&can("ver_todos_clientes")?`<div class="seg" role="group" aria-label="Ver"><button data-act="scope" data-v="todas" aria-pressed="${S.scope!=="mias"}">Todo el equipo</button><button data-act="scope" data-v="mias" aria-pressed="${S.scope==="mias"}">Solo lo mío</button></div>`:""}
     <div class="mnav"><button class="btn sm" data-act="mes" data-d="-1" aria-label="Mes anterior">‹</button><button class="btn sm" data-act="mes" data-d="0">Hoy</button><button class="btn sm" data-act="mes" data-d="1" aria-label="Mes siguiente">›</button></div></div>
@@ -2663,7 +2666,7 @@ function vEquipo(){
     const permOff=adm||!!p.marca||yo;
     const perm=k=>{const x=PERMISOS.find(y=>y[0]===k);if(!x)return"";const[,t,h]=x;
       return `<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-perm="${k}" ${adm||p.permisos?.[k]?"checked":""} ${permOff?"disabled":""} style="margin-top:3px"><span><b style="font-weight:600">${t}</b>${h?`<br><span class="muted small">${h}</span>`:""}</span></label>`};
-    return `<form class="card stack userCard" data-uid="${p.id}">
+    return `<form class="card stack userCard" id="u-${p.id}" data-uid="${p.id}">
       <div class="row spread" style="flex-wrap:nowrap;align-items:flex-start"><div style="min-width:0"><b>${esc(p.nombre||"(sin nombre)")}</b>${yo?` <span class="chip">tú</span>`:""}<div class="muted small" style="overflow-wrap:anywhere">${esc(p.email||"")}${!p.marca||adm?` · ${nCl} ${nCl===1?"cliente":"clientes"} a cargo`:""}</div></div>${pill(est)}</div>
       <div class="chips">${eqResumen(p)}</div>
       ${yo?`<div class="muted small">Tu cuenta es la de administrador: ve y modifica todo, y no se puede quitar ese rol a sí misma.</div>`:`
@@ -2681,7 +2684,7 @@ function vEquipo(){
     </form>`};
   return `<div class="stack"><div class="row spread"><div><h2>Equipo</h2><div class="muted small">${act} ${act===1?"cuenta activa":"cuentas activas"}${pend?` · ${pend} sin acceso`:""}</div></div><button class="btn primary sm" type="button" data-act="altaPerfil">+ Crear perfil</button></div>
     ${conMarca?"":`<div class="banner">Para crear perfiles que vean solo una marca, primero hay que pegar una vez el bloque SQL de marcas en Supabase (SQL Editor).</div>`}
-    ${pend?`<div class="banner">${pend} ${pend===1?"cuenta no tiene":"cuentas no tienen"} acceso. Ábrela y marca "Acceso a la app" para habilitarla.</div>`:""}
+    ${ps.filter(p=>!p.activo).map(p=>`<button class="btn banner-link" type="button" data-act="irCuenta" data-id="${p.id}"><span>! ${esc(p.nombre||p.email)} no tiene acceso · toca para habilitarla</span><span>›</span></button>`).join("")}
     ${[...ps].sort((a,b)=>(b.id===ME.user.id)-(a.id===ME.user.id)||(a.activo-b.activo)||(a.nombre||"").localeCompare(b.nombre||"")).map(card).join("")}
     ${ps.length<2?`<div class="card empty small">Aún no hay otras cuentas. Toca <b>+ Crear perfil</b> para sumar a alguien, o pídele que toque "Crear cuenta" en la app: aparecerá aquí sin acceso hasta que lo habilites.</div>`:""}
     <div class="muted small">Nadie puede cambiarse sus propios permisos: solo tú, desde aquí. Los permisos también se aplican en la base de datos, no solo en la pantalla.</div>
@@ -3059,6 +3062,8 @@ document.addEventListener("click",async e=>{
     case"chooser":openSheet(`<div class="row spread"><h2>¿Qué quieres registrar?</h2><button class="btn sm" data-act="close">Cerrar</button></div><div class="choice"><button data-act="newAct"><b>Visita o activación</b><span class="muted small">Visitas, degustaciones, muestras entregadas, cobranza</span></button>${can("registrar_ventas")?`<button data-act="newSale"><b>Venta</b><span class="muted small">Barriles, cajas de latas o cajas de kombucha</span></button>`:""}${can("editar_clientes")?`<button data-act="newClient"><b>Cliente nuevo</b><span class="muted small">Un local para tu cartera o tu ruta</span></button>`:""}${verBarriles()?`<button data-act="scan"><b>🛢️ Barril</b><span class="muted small">Escanear o buscar un barril para ver dónde está o moverlo</span></button>`:""}</div>`);break;
     case"logout":closeSheet();await SB?.auth.signOut();break;
     case"altaPerfil":altaForm();break;
+    case"irCuenta":{navMenu(false);closeSheet();S.tab="equipo";S.eqAbierto.add(id);render();
+      const c=document.getElementById("u-"+id);if(c){c.scrollIntoView({behavior:"smooth",block:"start"});c.classList.add("destaca");setTimeout(()=>c.classList.remove("destaca"),2500);c.querySelector('[data-k="activo"]')?.focus({preventScroll:true})}break}
     case"alClaveNueva":$("#alClave").value=claveAzar();break;
     case"altaCopiar":try{await navigator.clipboard.writeText($("#altaMsg").textContent);toast("Mensaje copiado")}catch(err){toast("No se pudo copiar: selecciónalo y cópialo a mano")}break;
     case"ocCopiar":try{await navigator.clipboard.writeText($("#ocMsg").textContent);toast("OC copiada")}catch(err){toast("No se pudo copiar: selecciónala y cópiala a mano")}break;
