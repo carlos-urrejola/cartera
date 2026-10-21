@@ -417,6 +417,7 @@ const DEFAULT_CFG = {
 };
 const FORMATOS={barril:"Barril 30 L",lata355:"Lata 355 ml",lata470:"Lata 470 ml",caja:"Caja 24",lata:"Lata",otro:"Otro"};
 const FMT_VENTA=["barril","lata355","lata470","otro"];
+const fmtsVis=()=>miMarca()?FMT_VENTA.filter(f=>S.cfg.productos.some(p=>(p.formato||infoDeNombre(p.nombre).formato)===f)):FMT_VENTA;
 const TIPOS=["Bar","Restorán","Botillería","Almacén","Minimarket","Cafetería","Hotel","Evento","Otro"];
 const ESTADOS={prospecto:"Prospecto",activo:"Activo",pausado:"Pausado"};
 const IMPORT={A:"A · Clave",B:"B · Importante",C:"C · Ocasional"};
@@ -802,7 +803,7 @@ function vResumen(){
   <section class="kpis">
     ${soloMira()&&!ve("ruta")?"":`<button class="kpi kpi-btn" data-act="drill" data-k="ruta"><span class="lab">Ruta de hoy</span><span class="val">${pend} por visitar</span><span class="muted small">Ver ruta de ${DIAS_L[wday(today())]} ›</span></button>`}
     ${ve("visitas")?`<button class="kpi kpi-btn" data-act="drill" data-k="visitas"><span class="lab">Visitas del mes</span><span class="val">${r.visitas}</span><span class="muted small">${r.activ} activaciones</span></button>
-    ${ve("muestras")?`<button class="kpi kpi-btn" data-act="drill" data-k="muestras"><span class="lab">Muestras del mes</span><span class="val">${n1(r.muC+r.muK)}</span><span class="muted small"><i class="sw beer"></i> ${n1(r.muC)} cerveza · <i class="sw kom"></i> ${n1(r.muK)} kombucha</span></button>`:""}
+    ${ve("muestras")?`<button class="kpi kpi-btn" data-act="drill" data-k="muestras"><span class="lab">Muestras del mes</span><span class="val">${n1(r.muC+r.muK)}</span><span class="muted small">${miMarca()?"entregadas este mes":`<i class="sw beer"></i> ${n1(r.muC)} cerveza · <i class="sw kom"></i> ${n1(r.muK)} kombucha`}</span></button>`:""}
     <button class="kpi kpi-btn" data-act="drill" data-k="conversion"><span class="lab">Conversión 60 días</span><span class="val">${cv.total?Math.round(cv.conv/cv.total*100)+"%":"—"}</span><span class="muted small">${cv.conv} de ${cv.total} activados compraron</span></button>`:""}
     ${verBarriles()&&S.barriles.length?(()=>{const e=S.barriles.filter(b=>b.estado==="en_cliente"),a=e.filter(b=>semBarril(b).level==="bad").length;return `<button class="kpi kpi-btn" data-tab="barriles"><span class="lab">🛢️ Barriles en clientes</span><span class="val">${e.length}</span><span class="muted small">${a?`✕ ${a} pasados de ${S.cfg.barrilDias} días`:"✓ Todos en plazo"}</span></button>`})():""}
   </section>
@@ -856,7 +857,7 @@ function vClientes(){
   return `<div class="stack"><div class="row spread"><h2>Clientes (${cs.length})</h2>${can("editar_clientes")?`<button class="btn" data-act="newClient">+ Nuevo cliente</button>`:""}</div>
   <div class="filters">
     <input id="q" type="search" placeholder="Buscar por nombre, RUT, dueño, zona o dirección" value="${esc(S.q)}" aria-label="Buscar">
-    <select id="fMarca" aria-label="Marca">${opt("todas","Todas las marcas",S.fMarca)}${opt("cerveza","Cerveza",S.fMarca)}${opt("kombucha","Kombucha",S.fMarca)}</select>
+    ${miMarca()?"":`<select id="fMarca" aria-label="Marca">${opt("todas","Todas las marcas",S.fMarca)}${opt("cerveza","Cerveza",S.fMarca)}${opt("kombucha","Kombucha",S.fMarca)}</select>`}
     <select id="fZona" aria-label="Zona">${opt("todas","Todas las zonas",S.fZona)}${S.cfg.zonas.map(z=>opt(z,z,S.fZona)).join("")}${opt("—","Sin zona",S.fZona)}</select>
     <select id="fSem" aria-label="Estado">${opt("todos","Todos",S.fSem)}${opt("bad","Atrasados",S.fSem)}${opt("warn","! Con algo por atender",S.fSem)}${opt("ok","✓ Al día",S.fSem)}${opt("imp:A","Importancia A",S.fSem)}${opt("imp:B","Importancia B",S.fSem)}${opt("imp:C","Importancia C",S.fSem)}${opt("estado:prospecto","Prospectos",S.fSem)}${opt("estado:pausado","Pausados",S.fSem)}${opt("ficha","Ficha incompleta",S.fSem)}</select>
   </div>
@@ -944,8 +945,8 @@ function vIndices(){
   ${x.vista==="sueldo"||x.vista==="cobranza"||x.vista==="armar"?cuerpo():`
   <div class="filters">
     ${x.vista==="tendencia"?"":`<select data-ix="periodo" aria-label="Período">${opt("mes","Este mes",x.periodo)}${opt("mesAnt","Mes anterior",x.periodo)}${opt("3m","Últimos 3 meses",x.periodo)}${opt("anio","Este año",x.periodo)}${opt("todo","Todo",x.periodo)}</select>`}
-    <select data-ix="marca" aria-label="Marca">${opt("todas","Todas las marcas",x.marca)}${opt("cerveza","Cerveza",x.marca)}${opt("kombucha","Kombucha",x.marca)}</select>
-    <select data-ix="formato" aria-label="Formato">${opt("todos","Todos los formatos",x.formato)}${FMT_VENTA.map(k=>opt(k,FORMATOS[k],x.formato)).join("")}</select>
+    ${miMarca()?"":`<select data-ix="marca" aria-label="Marca">${opt("todas","Todas las marcas",x.marca)}${opt("cerveza","Cerveza",x.marca)}${opt("kombucha","Kombucha",x.marca)}</select>`}
+    <select data-ix="formato" aria-label="Formato">${opt("todos","Todos los formatos",x.formato)}${fmtsVis().map(k=>opt(k,FORMATOS[k],x.formato)).join("")}</select>
     ${equipo?`<select data-ix="quien" aria-label="Vendedor">${opt("todos","Todo el equipo",x.quien)}${S.equipo.map(u=>opt(u.id,u.id===ME.user.id?"Solo yo":u.nombre,x.quien)).join("")}</select>`:""}
     <select data-ix="medida" aria-label="Medida">${opt("litros","Litros",x.medida)}${opt("unidades","Unidades",x.medida)}${plata?opt("neto","Neto $",x.medida):""}</select>
   </div>${cuerpo()}`}</div>`;
@@ -1210,7 +1211,7 @@ const AG_IDEAS=[
 const agFuente=()=>AG_MED[S.ag.med][1];
 const agLetra=()=>({ventas:"v",visitas:"a",muestras:"m"})[agFuente()];
 const agEquipo=()=>S.equipo.length>1&&can("ver_todos_clientes");
-function agDims(){const l=agLetra();return Object.keys(AG_DIM).filter(k=>AG_DIM[k][1].includes(l)&&(k!=="quien"||agEquipo()))}
+function agDims(){const l=agLetra();return Object.keys(AG_DIM).filter(k=>AG_DIM[k][1].includes(l)&&(k!=="quien"||agEquipo())&&(k!=="marca"||!miMarca()))}
 /* conteos (ventas, clientes) no se pueden separar por algo que cambia dentro de una misma venta o cliente */
 function agSeps(){
   const m=S.ag.med,base=agDims().filter(k=>k!=="tiempo"&&k!=="cliente"&&k!=="resultado"&&k!==S.ag.por);
@@ -1379,8 +1380,8 @@ function ixArmar(){
     </div>
     <details id="agF"${S.agF||nFiltros?" open":""}><summary class="small" style="cursor:pointer;font-weight:600">Filtros y cantidad${nFiltros?` · ${nFiltros} ${nFiltros===1?"activo":"activos"}`:""}</summary>
     <div class="agsel" style="margin-top:10px">
-      ${f!=="visitas"?sel("marca","Marca",opt("todas","Todas las marcas",a.marca)+opt("cerveza","Cerveza",a.marca)+opt("kombucha","Kombucha",a.marca)):""}
-      ${f==="ventas"?sel("formato","Formato",opt("todos","Todos los formatos",a.formato)+FMT_VENTA.map(k=>opt(k,FORMATOS[k],a.formato)).join("")):""}
+      ${f!=="visitas"&&!miMarca()?sel("marca","Marca",opt("todas","Todas las marcas",a.marca)+opt("cerveza","Cerveza",a.marca)+opt("kombucha","Kombucha",a.marca)):""}
+      ${f==="ventas"?sel("formato","Formato",opt("todos","Todos los formatos",a.formato)+fmtsVis().map(k=>opt(k,FORMATOS[k],a.formato)).join("")):""}
       ${sel("zona","Zona",opt("todas","Todas las zonas",a.zona)+zonas.map(z=>opt(z,z,a.zona)).join("")+opt("Sin zona","Sin zona",a.zona))}
       ${sel("tipo","Tipo de local",opt("todos","Todos los tipos",a.tipo)+tipos.map(t=>opt(t,t,a.tipo)).join("")+opt("Sin tipo","Sin tipo",a.tipo))}
       ${agEquipo()?sel("quien","Vendedor",opt("todos","Todo el equipo",a.quien)+S.equipo.map(u=>opt(u.id,u.id===ME.user?.id?"Solo yo":u.nombre,a.quien)).join("")):""}
@@ -1566,7 +1567,7 @@ function dSem(tipo,cid){
         return `<div class="drow" style="cursor:default"><span>${pill({level:lv,short:d>0?"Vence "+enDias(d):d===0?"Vence hoy":"Vencida "+enDias(d)})}</span><span><b style="font-weight:600">${v.factura?"Factura "+esc(v.factura):"Venta del "+fdate(v.fecha)}</b><div class="sub">Vence el ${fdate(v.vence||v.fecha)} · ${itemsTexto(v.items,v.marca,false)}</div></span><span style="text-align:right"><span class="num small">${money((v.neto||0)*1.19)}</span>${can("ver_cobranza")||v.creado_por===ME.user?.id?`<br><button class="btn sm" data-act="pay" data-id="${v.id}">Marcar pagada</button>`:""}</span></div>`}).join("")}</section>`:"")+
       (pg.nombre||pg.tel||pg.email?`<section class="card">${contactoBloque("Quién paga",pg)}</section>`:"")+
       (dp!==null?`<div class="small">Este cliente suele pagar <b>${n1(dp)} días</b> después de la compra.</div>`:"")+
-      regla(`Verde: sin deuda o dentro del plazo. Amarillo: vence hoy o lleva hasta ${S.cfg.tolPago} días de atraso. Rojo: más de ${S.cfg.tolPago} días de atraso. Plazos: cerveza ${S.cfg.plazo.cerveza} días, kombucha ${S.cfg.plazo.kombucha||"contra entrega"}${S.cfg.plazo.kombucha?" días":""}.`)+
+      regla(`Verde: sin deuda o dentro del plazo. Amarillo: vence hoy o lleva hasta ${S.cfg.tolPago} días de atraso. Rojo: más de ${S.cfg.tolPago} días de atraso. ${miMarca()?`Plazo de pago: ${S.cfg.plazo[miMarca()]?S.cfg.plazo[miMarca()]+" días":"contra entrega"}`:`Plazos: cerveza ${S.cfg.plazo.cerveza} días, kombucha ${S.cfg.plazo.kombucha||"contra entrega"}${S.cfg.plazo.kombucha?" días":""}`}.`)+
       (pend.length&&wa(msg)?acciones(`<a class="btn primary" href="${wa(msg)}" target="_blank" rel="noopener">Recordar por WhatsApp</a>`):"");
   }
   else if(tipo==="visita"){
@@ -2215,11 +2216,11 @@ function saleForm(clienteId,ventaId){
   <form id="saleForm" class="form" data-id="${ventaId||""}">
    <div class="field full"><label for="sCli">Cliente</label><select id="sCli" required><option value="">Elige un cliente</option>${clientOptions(cid)}</select></div>
    <div class="field full"><span class="lbl">Marca</span><div class="seg" role="group"><button type="button" data-act="sMarca" data-v="cerveza" aria-pressed="${marca==="cerveza"}">Cerveza El Growler</button><button type="button" data-act="sMarca" data-v="kombucha" aria-pressed="${marca==="kombucha"}">Kombucha</button></div><input type="hidden" id="sMarca" value="${marca}"></div>
-   <div class="field full"><span class="lbl">1 · Pedido</span><span class="muted small">Elige estilo y formato. La cantidad va en barriles o en latas.</span>
+   <div class="field full"><span class="lbl">1 · Pedido</span><span class="muted small">${miMarca()==="kombucha"?"Elige la variedad. La cantidad va en latas.":"Elige estilo y formato. La cantidad va en barriles o en latas."}</span>
      <div id="lines" class="stack" style="gap:8px"></div>
      <div class="row"><button type="button" class="btn sm" data-act="addLine">+ Producto</button></div></div>
    <div class="field full"><span class="lbl">Descuento general (opcional)</span><span class="muted small">Se aplica sobre el total, después de los descuentos por producto.</span>${descBox(v?.descGeneral,"sDescG")}</div>
-   <div class="field full"><span class="lbl">2 · Empaque</span><span class="muted small">Lo que sale físicamente: cajas, barriles o latas sueltas. Tiene que cuadrar con el pedido.</span>
+   <div class="field full"><span class="lbl">2 · Empaque</span><span class="muted small">${miMarca()==="kombucha"?"Lo que sale físicamente: cajas o latas sueltas. Tiene que cuadrar con el pedido.":"Lo que sale físicamente: cajas, barriles o latas sueltas. Tiene que cuadrar con el pedido."}</span>
      <div id="packs" class="stack" style="gap:8px"></div>
      <div class="row"><button type="button" class="btn sm" data-act="addPack">+ Empaque</button><button type="button" class="btn sm" data-act="sugPack">Sugerir empaque</button></div></div>
    <div class="full card stack" id="sCheck" style="gap:8px"></div>
@@ -2312,7 +2313,7 @@ function calcVenta(){
 /* ---------- empaque y chequeo cruzado ---------- */
 function addPack(p=null){
   const r=document.createElement("div");r.className="line";
-  const es=[...S.cfg.empaques];if(p&&!es.some(e=>e.id===p.id))es.push(p);
+  const es=S.cfg.empaques.filter(e=>!miMarca()||fmtsVis().includes(e.formato));if(p&&!es.some(e=>e.id===p.id))es.push(p);
   if(p)r.dataset.orig=JSON.stringify(p);
   let sel=p?.id;
   if(!sel){const f=readLines()[0]?.formato;sel=(es.find(e=>e.formato===f&&Number(e.unidades)>1)||es.find(e=>e.formato===f)||es[0])?.id}
@@ -2540,6 +2541,7 @@ async function loadAll(){
     const{data:dm,error:de}=await SB.rpc("datos_marca");if(de)throw de;
     S.clientes=(dm?.clientes||[]).map(fromCliente);S.ventas=(dm?.ventas||[]).map(r=>normVenta(fromHijo(r)));S.acts=(dm?.actividades||[]).map(fromHijo);
     S.cfg=mergeCfg(dm?.config);S.cfg.productos=S.cfg.productos.filter(p=>p.marca===mk);S.cfg.muestras=S.cfg.muestras.filter(m=>m.marca===mk);
+    {const fs=new Set(S.cfg.productos.map(p=>p.formato||infoDeNombre(p.nombre).formato));S.cfg.empaques=S.cfg.empaques.filter(e=>fs.has(e.formato))}
     if(mk!=="cerveza"){S.barriles=[];S.barrilErr=null}
   }
   S.perfiles=isAdmin()?((await SB.from("perfiles").select("*").order("creado")).data||[]):[];
@@ -2885,11 +2887,14 @@ function ctxIA(){
   L.push(`Hoy: ${DIAS_L[wday(t)]} ${fdate(t)} (${t}). Mañana: ${DIAS_L[wday(man)]} ${fdate(man)} (${man}).`);
   L.push(`Pestañas que esta persona puede abrir: ${visibleTabs().filter(x=>x!=="equipo").join(", ")}. Zonas: ${S.cfg.zonas.join(", ")}.`);
   L.push("Zonas que se visitan cada día: "+WEEK_ORDER.map(w=>`${DIAS_L[w]}: ${(S.cfg.zonasDia[String(w)]||[]).join(", ")||"—"}`).join(" · "));
-  L.push(`Frecuencia de visita por importancia: A cada ${S.cfg.frecVisita.A} días, B cada ${S.cfg.frecVisita.B}, C cada ${S.cfg.frecVisita.C}. Recompra esperada: cerveza cada ${S.cfg.frec.cerveza} días, kombucha cada ${S.cfg.frec.kombucha}.`);
+  L.push(`Frecuencia de visita por importancia: A cada ${S.cfg.frecVisita.A} días, B cada ${S.cfg.frecVisita.B}, C cada ${S.cfg.frecVisita.C}. ${miMarca()?`Recompra esperada: cada ${S.cfg.frec[miMarca()]} días.`:`Recompra esperada: cerveza cada ${S.cfg.frec.cerveza} días, kombucha cada ${S.cfg.frec.kombucha}.`}`);
   const est=mk=>[...new Set(S.cfg.productos.filter(p=>p.marca===mk).map(estiloDe))].join(", ");
-  L.push(`Catálogo · cerveza El Growler: ${est("cerveza")} · kombucha Animal Social: ${est("kombucha")}.`);
+  if(miMarca())L.push(`IMPORTANTE: esta cuenta es solo de ${MARCA_TXT[miMarca()]}. Habla únicamente de ${MARCA_TXT[miMarca()]} y de nada más: no menciones, sugieras ni compares con otros productos o marcas. Catálogo: ${est(miMarca())}.`);
+  else L.push(`Catálogo · cerveza El Growler: ${est("cerveza")} · kombucha Animal Social: ${est("kombucha")}.`);
   const r=resumenMes(t.slice(0,7),"todas");
-  L.push(`Mes en curso (${mesLabel(t.slice(0,7))}): ${n1(r.litros)} L de cerveza en ${r.nC} ventas, ${n1(r.cajasK)} cajas de kombucha en ${r.nK} ventas, ${r.visitas} visitas y ${r.activ} activaciones.${plata?` Neto vendido: cerveza ${money(r.netoC)}, kombucha ${money(r.netoK)}.`:""}`);
+  if(miMarca()==="kombucha")L.push(`Mes en curso (${mesLabel(t.slice(0,7))}): ${n1(r.cajasK)} cajas de kombucha en ${r.nK} ventas, ${r.visitas} visitas y ${r.activ} activaciones.${plata?` Neto vendido: ${money(r.netoK)}.`:""}`);
+  else if(miMarca()==="cerveza")L.push(`Mes en curso (${mesLabel(t.slice(0,7))}): ${n1(r.litros)} L de cerveza en ${r.nC} ventas, ${r.visitas} visitas y ${r.activ} activaciones.${plata?` Neto vendido: ${money(r.netoC)}.`:""}`);
+  else L.push(`Mes en curso (${mesLabel(t.slice(0,7))}): ${n1(r.litros)} L de cerveza en ${r.nC} ventas, ${n1(r.cajasK)} cajas de kombucha en ${r.nK} ventas, ${r.visitas} visitas y ${r.activ} activaciones.${plata?` Neto vendido: cerveza ${money(r.netoC)}, kombucha ${money(r.netoK)}.`:""}`);
   if(can("ver_ingresos"))L.push(`Sueldo líquido estimado del mes: ${money(r.total)}, meta ${money(S.cfg.meta)}.`);
   if(plata){const p=S.ventas.filter(v=>!v.pagado),venc=p.filter(v=>days(v.vence||v.fecha,t)>0);
     L.push(`Por cobrar: ${money(p.reduce((s,v)=>s+(v.neto||0)*1.19,0))} con IVA en ${p.length} facturas; vencido ${money(venc.reduce((s,v)=>s+(v.neto||0)*1.19,0))}.`)}
