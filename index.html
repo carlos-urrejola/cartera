@@ -145,6 +145,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .list{display:flex;flex-direction:column;gap:8px}
 .item{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;cursor:pointer;text-align:left;width:100%}
 .item:hover{border-color:var(--muted)}
+.nlist{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.nrow{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:13px 14px;background:none;border:0;border-bottom:1px solid var(--line);font:inherit;font-size:16px;font-weight:500;color:var(--ink);text-align:left;cursor:pointer}
+.nrow:last-child{border-bottom:0}
+.nrow:hover{background:var(--surface-2)}
 .item .name{font-weight:600;font-size:16px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);display:inline-flex;align-items:center;gap:5px}
@@ -837,6 +841,8 @@ function vRuta(){
   </div>`;
 }
 
+/* listado de clientes: solo el nombre; al tocarlo se abre la ficha con todos los datos */
+const nombreRow=cl=>`<button class="nrow" data-act="openClient" data-id="${cl.id}"><span>${esc(cl.nombre)}</span><span class="muted" aria-hidden="true">›</span></button>`;
 function clientRow(cl){
   const marcas=(cl.marcas||[]).map(m=>`<span class="chip"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>${m==="cerveza"?"Cerveza":"Kombucha"}</span>`).join("");
   return `<button class="item" data-act="openClient" data-id="${cl.id}">
@@ -861,7 +867,7 @@ function vClientes(){
     <select id="fZona" aria-label="Zona">${opt("todas","Todas las zonas",S.fZona)}${S.cfg.zonas.map(z=>opt(z,z,S.fZona)).join("")}${opt("—","Sin zona",S.fZona)}</select>
     <select id="fSem" aria-label="Estado">${opt("todos","Todos",S.fSem)}${opt("bad","Atrasados",S.fSem)}${opt("warn","! Con algo por atender",S.fSem)}${opt("ok","✓ Al día",S.fSem)}${opt("imp:A","Importancia A",S.fSem)}${opt("imp:B","Importancia B",S.fSem)}${opt("imp:C","Importancia C",S.fSem)}${opt("estado:prospecto","Prospectos",S.fSem)}${opt("estado:pausado","Pausados",S.fSem)}${opt("ficha","Ficha incompleta",S.fSem)}</select>
   </div>
-  <div class="list">${cs.length?cs.map(clientRow).join(""):`<div class="empty">${S.clientes.length?"Ningún cliente coincide con el filtro.":"Aún no tienes clientes. Parte agregando bares, botillerías o almacenes que quieras visitar como prospectos."}${can("editar_clientes")?`<button class="btn primary" data-act="newClient">+ Agregar cliente</button>`:""}</div>`}</div></div>`;
+  <div class="list">${cs.length?`<div class="nlist">${cs.map(nombreRow).join("")}</div>`:`<div class="empty">${S.clientes.length?"Ningún cliente coincide con el filtro.":"Aún no tienes clientes. Parte agregando bares, botillerías o almacenes que quieras visitar como prospectos."}${can("editar_clientes")?`<button class="btn primary" data-act="newClient">+ Agregar cliente</button>`:""}</div>`}</div></div>`;
 }
 function ventaRow(v,withClient=true){
   const cl=S.clientes.find(c=>c.id===v.clienteId);
