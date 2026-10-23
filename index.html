@@ -411,6 +411,7 @@ const DEFAULT_CFG = {
   frec:{cerveza:14, kombucha:14},
   plazo:{cerveza:7, kombucha:0},
   tolPago:7,
+  avisoVence:3, maxImpagas:3,
   barrilDias:30, barrilFresco:60,
   // A quién se le manda la orden de compra (OC) por WhatsApp en cada marca
   oc:{cerveza:{nombre:"",tel:""},kombucha:{nombre:"",tel:""}},
@@ -461,7 +462,11 @@ const FORMATOS={barril:"Barril 30 L",lata355:"Lata 355 ml",lata470:"Lata 470 ml"
 const FMT_VENTA=["barril","lata355","lata470","otro"];
 const fmtsVis=()=>miMarca()?FMT_VENTA.filter(f=>S.cfg.productos.some(p=>(p.formato||infoDeNombre(p.nombre).formato)===f)):FMT_VENTA;
 const TIPOS=["Bar","Restorán","Botillería","Almacén","Minimarket","Cafetería","Hotel","Evento","Otro"];
-const ESTADOS={prospecto:"Prospecto",activo:"Activo",pausado:"Pausado"};
+const ESTADOS={prospecto:"Prospecto",activo:"Activo",pausado:"Pausado",inactivo:"Inactivo"};
+/* cliente inactivo: por qué dejó de serlo (queda guardado en su ficha) */
+const MOTIVOS_INACT=["Dejó de comprar","Cerró el local","Cambió de RUT o razón social","Cambió de dueño","Se fue con la competencia","Problemas de pago","Otro"];
+const fueraDeRuta=c=>c.estado==="pausado"||c.estado==="inactivo";
+const inactTexto=c=>[c.motivoInactivo,c.fechaInactivo&&"desde "+fdate(c.fechaInactivo)].filter(Boolean).join(" · ");
 const IMPORT={A:"A · Clave",B:"B · Importante",C:"C · Ocasional"};
 const TIPOS_ACT=["Visita","Activación / degustación","Entrega de muestras","Cobranza","Reparto","Llamada / WhatsApp","Evento"];
 const PRESENCIAL=new Set(["Visita","Activación / degustación","Entrega de muestras","Cobranza","Reparto","Evento"]);
@@ -624,6 +629,35 @@ function semCompra(c,marca){
   return{level:d<=f?"ok":d<=f*1.5?"warn":"bad",text:`Última compra hace ${d} días (esperado cada ${f})`,short:d+" días",dias:d};
 }
 const semRecompra=c=>worst((c.marcas||[]).map(m=>semCompra(c,m)));
+/* condición de pago del cliente para una marca: contado o crédito a N días, con línea de crédito opcional.
+   Si el cliente no la tiene definida, se usa el plazo general de Ajustes. */
+function condPago(c,mk){
+  const p=c?.pago?.[mk];
+  if(p?.tipo==="contado")return{tipo:"contado",dias:0,linea:0,propia:true};
+  if(p?.tipo==="credito")return{tipo:"credito",dias:Math.max(0,Number(p.dias)||0),linea:Math.max(0,Number(p.linea)||0),propia:true};
+  const d=Number(S.cfg.plazo?.[mk])||0;
+  return{tipo:d?"credito":"contado",dias:d,linea:0,propia:false};
+}
+const condTexto=(cp,plata=true)=>(cp.tipo==="contado"?"Contado":`Crédito a ${cp.dias} ${cp.dias===1?"día":"días"}`)+(cp.linea&&plata?` · línea ${money(cp.linea)}`:"")+(cp.propia?"":" (general)");
+const venceDe=(c,mk,fecha)=>addDays(fecha||today(),condPago(c,mk).dias);
+/* Condiciones para crear un pedido nuevo (documento "Información pedidos y pagos"):
+   a) sin facturas vencidas; b) no más de 3 facturas impagas no vencidas; c) no superar la línea de crédito,
+   salvo autorización; d) la deuda debe quedar regularizada el día anterior (AM): lo pagado hoy cuenta recién mañana. */
+function condPedido(cid,mk,nuevo=0,excluir=null){
+  const c=S.clientes.find(x=>x.id===cid);if(!c||!mk)return null;
+  const t=today(),cp=condPago(c,mk),max=Number(S.cfg.maxImpagas)||3;
+  const imp=ventasDe(cid).filter(v=>v.marca===mk&&v.id!==excluir&&(!v.pagado||v.fechaPago===t));
+  const venc=imp.filter(v=>days(v.vence||v.fecha,t)>0),noVenc=imp.filter(v=>days(v.vence||v.fecha,t)<=0),hoy=imp.filter(v=>v.pagado);
+  const deuda=imp.reduce((s,v)=>s+totalV(v),0),fac=n=>n===1?"factura":"facturas";
+  const reglas=[
+    {ok:!venc.length,t:venc.length?`Tiene ${venc.length} ${fac(venc.length)} ${venc.length===1?"vencida":"vencidas"} (${money(venc.reduce((s,v)=>s+totalV(v),0))})`:"Sin facturas vencidas"},
+    {ok:noVenc.length<=max,t:`${noVenc.length} ${fac(noVenc.length)} por pagar sin vencer (máximo ${max})`},
+    cp.linea?{ok:deuda+nuevo<=cp.linea,t:`Deuda ${money(deuda)}${nuevo?` + este pedido ${money(nuevo)}`:""} de una línea de ${money(cp.linea)}`}
+            :{ok:true,none:true,t:"Sin línea de crédito asignada"}
+  ];
+  return{c,cp,reglas,ok:reglas.every(r=>r.ok),hoy,deuda};
+}
+const condPill=r=>r?pill({level:r.ok?"ok":"bad",short:r.ok?"Puede pedir":"No cumple"}):"";
 function deudaDe(cid){const t=today();return ventasDe(cid).filter(v=>!v.pagado).map(v=>({v,atraso:days(v.vence||v.fecha,t)}))}
 function semPago(c){
   const ds=deudaDe(c.id);
@@ -632,6 +666,8 @@ function semPago(c){
   const monto=ds.reduce((s,d)=>s+totalV(d.v),0);
   if(max>S.cfg.tolPago)return{level:"bad",text:`Factura vencida hace ${max} días · ${money(monto)} por cobrar`,short:`Vencida ${max} d`};
   if(max>=0)return{level:"warn",text:max===0?`Vence hoy · ${money(monto)}`:`Vencida hace ${max} días · ${money(monto)}`,short:max===0?"Vence hoy":`Vencida ${max} d`};
+  const falta=-max,av=Number(S.cfg.avisoVence??3);
+  if(falta<=av)return{level:"warn",text:`Vence ${falta===1?"mañana":"en "+falta+" días"} · ${money(monto)} por cobrar`,short:falta===1?"Vence mañana":`Vence en ${falta} d`};
   return{level:"ok",text:`${money(monto)} por cobrar, dentro de plazo`,short:"En plazo"};
 }
 function semSeg(c){
@@ -699,7 +735,7 @@ function planDia(fecha){
   const w=String(wday(fecha)), zonasHoy=S.cfg.zonasDia[w]||[];
   const isToday=fecha===today();
   const out=[];
-  S.clientes.filter(c=>c.estado!=="pausado"&&(!S.rutaDe||(ownerOf(c)||ME.user?.id)===S.rutaDe)).forEach(c=>{
+  S.clientes.filter(c=>!fueraDeRuta(c)&&(!S.rutaDe||(ownerOf(c)||ME.user?.id)===S.rutaDe)).forEach(c=>{
     const why=[];
     if(c.proxFecha===fecha)why.push({t:c.proxTexto?"Agendado: "+c.proxTexto:"Agendado",k:"agenda"});
     else if(isToday&&c.proxFecha&&c.proxFecha<fecha)why.push({t:"Atrasado: "+(c.proxTexto||"seguimiento"),k:"agenda"});
@@ -815,7 +851,7 @@ function vResumen(){
   const cv=conversion();
   const al=[];
   S.clientes.filter(x=>x.estado!=="pausado").forEach(cl=>{
-    [["Pago",semPago(cl)],["Recompra",semRecompra(cl)],["Seguimiento",semSeg(cl)],["Visita",semVisita(cl)]].filter(([k])=>!soloMira()||(k==="Pago"?ve("cobranza"):k==="Recompra"?ve("rotacion"):k==="Visita"?ve("visitas"):true)).forEach(([k,s])=>{if(s.level==="bad"||(s.level==="warn"&&k!=="Visita"))al.push({cl,k,s})});
+    [["Pago",semPago(cl)],["Recompra",semRecompra(cl)],["Seguimiento",semSeg(cl)],["Visita",semVisita(cl)]].filter(([k])=>cl.estado!=="inactivo"||k==="Pago").filter(([k])=>!soloMira()||(k==="Pago"?ve("cobranza"):k==="Recompra"?ve("rotacion"):k==="Visita"?ve("visitas"):true)).forEach(([k,s])=>{if(s.level==="bad"||(s.level==="warn"&&k!=="Visita"))al.push({cl,k,s})});
   });
   al.sort((a,b)=>rank[b.s.level]-rank[a.s.level]||impOf(a.cl).localeCompare(impOf(b.cl)));
   const muRows=Object.entries(r.mu).sort((a,b)=>b[1]-a[1]);
@@ -885,9 +921,10 @@ const nombreRow=cl=>`<button class="nrow" data-act="openClient" data-id="${cl.id
 function clientRow(cl){
   const marcas=(cl.marcas||[]).map(m=>`<span class="chip"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>${m==="cerveza"?"Cerveza":"Kombucha"}</span>`).join("");
   return `<button class="item" data-act="openClient" data-id="${cl.id}">
-    <div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${impBadge(cl)}<span class="name">${esc(cl.nombre)}</span>${cl.demo?`<span class="chip">Ejemplo</span>`:""}</span><span class="chip">${esc(ESTADOS[cl.estado]||"")}</span></div>
+    <div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${impBadge(cl)}<span class="name">${esc(cl.nombre)}</span>${cl.demo?`<span class="chip">Ejemplo</span>`:""}</span><span class="chip${cl.estado==="inactivo"?" strong":""}">${esc(ESTADOS[cl.estado]||"")}</span></div>
     <div class="chips">${marcas}${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${cl.zona?`<span class="chip">${esc(cl.zona)}</span>`:""}${can("ver_todos_clientes")&&ownerOf(cl)&&S.equipo.length>1?`<span class="chip">A cargo: ${esc(nombreDe(ownerOf(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.estado==="activo"&&(!soloMira()||(can("editar_clientes")&&ve("contactos")))&&faltantes(cl).length?`<span class="chip strong">! Ficha incompleta</span>`:""}</div>
-    <div class="chips">${pill(semVisita(cl),"Visita")}${pill(semRecompra(cl),"Recompra")}${pill(semPago(cl),"Pago")}${pill(semSeg(cl),"Seguimiento")}</div></button>`;
+    ${cl.estado==="inactivo"?`<div class="chips">${pill({level:"none",short:cl.motivoInactivo||"Sin motivo"},"Inactivo")}${deudaDe(cl.id).length&&ve("cobranza")?pill(semPago(cl),"Pago"):""}</div>`
+      :`<div class="chips">${pill(semVisita(cl),"Visita")}${pill(semRecompra(cl),"Recompra")}${pill(semPago(cl),"Pago")}${pill(semSeg(cl),"Seguimiento")}</div>`}</button>`;
 }
 function vClientes(){
   let cs=[...S.clientes];
@@ -904,7 +941,7 @@ function vClientes(){
     <input id="q" type="search" placeholder="Buscar por nombre, RUT, dueño, zona o dirección" value="${esc(S.q)}" aria-label="Buscar">
     ${miMarca()?"":`<select id="fMarca" aria-label="Marca">${opt("todas","Todas las marcas",S.fMarca)}${opt("cerveza","Cerveza",S.fMarca)}${opt("kombucha","Kombucha",S.fMarca)}</select>`}
     <select id="fZona" aria-label="Zona">${opt("todas","Todas las zonas",S.fZona)}${S.cfg.zonas.map(z=>opt(z,z,S.fZona)).join("")}${opt("—","Sin zona",S.fZona)}</select>
-    <select id="fSem" aria-label="Estado">${opt("todos","Todos",S.fSem)}${opt("bad","Atrasados",S.fSem)}${opt("warn","! Con algo por atender",S.fSem)}${opt("ok","✓ Al día",S.fSem)}${opt("imp:A","Importancia A",S.fSem)}${opt("imp:B","Importancia B",S.fSem)}${opt("imp:C","Importancia C",S.fSem)}${opt("estado:prospecto","Prospectos",S.fSem)}${opt("estado:pausado","Pausados",S.fSem)}${opt("ficha","Ficha incompleta",S.fSem)}</select>
+    <select id="fSem" aria-label="Estado">${opt("todos","Todos",S.fSem)}${opt("bad","Atrasados",S.fSem)}${opt("warn","! Con algo por atender",S.fSem)}${opt("ok","✓ Al día",S.fSem)}${opt("imp:A","Importancia A",S.fSem)}${opt("imp:B","Importancia B",S.fSem)}${opt("imp:C","Importancia C",S.fSem)}${opt("estado:prospecto","Prospectos",S.fSem)}${opt("estado:pausado","Pausados",S.fSem)}${opt("estado:inactivo","Inactivos",S.fSem)}${opt("ficha","Ficha incompleta",S.fSem)}</select>
   </div>
   <div class="list">${cs.length?`<div class="nlist">${cs.map(nombreRow).join("")}</div>`:`<div class="empty">${S.clientes.length?"Ningún cliente coincide con el filtro.":"Aún no tienes clientes. Parte agregando bares, botillerías o almacenes que quieras visitar como prospectos."}${can("editar_clientes")?`<button class="btn primary" data-act="newClient">+ Agregar cliente</button>`:""}</div>`}</div></div>`;
 }
@@ -926,6 +963,7 @@ function compraItem(v,n){
       <div><b>#${n}</b> <span class="muted">· ${fdate(v.fecha)}</span> <i class="sw ${v.marca==="cerveza"?"beer":"kom"}"></i>${v.factura?` <span class="muted small">· Factura ${esc(v.factura)}</span>`:""}</div>
       <div style="text-align:right"><span class="num small">${v.marca==="cerveza"?n1(v.litros)+" L":n1(v.cajas)+" cajas"}${can("ver_cobranza")?" · "+money(totalV(v)):""}</span></div></div>
     <div class="small">${itemsTexto(v.items,v.marca)}</div>${bVentaLinea(v)}
+    ${v.autorizado&&ve("cobranza")?`<div class="small muted">⚠️ Pedido autorizado sin cumplir condiciones: ${esc(v.autorizado.nota||"")}${v.autorizado.por?` (${esc(v.autorizado.por)})`:""}</div>`:""}
     ${descTexto(v)&&can("ver_cobranza")?`<div class="small muted">🏷️ Descuentos: ${descTexto(v)}</div>`:""}${empaqueTexto(v)?`<div class="small muted">📦 Empaque: ${empaqueTexto(v)}</div>`:""}
     <div class="row spread">${ve("cobranza")?pill(s):"<span></span>"}${puede?`<span class="row" style="gap:6px">${v.pagado?`<button class="btn sm" data-act="unpay" data-id="${v.id}">Deshacer pago</button>`:`<button class="btn sm" data-act="pay" data-id="${v.id}">Marcar pagada</button>`}${soloMira()?"":`<button class="btn sm" data-act="waVenta" data-id="${v.id}">📤 Enviar</button>`}<button class="btn sm" data-act="editSale" data-id="${v.id}">Editar</button></span>`:""}</div>
   </div>`;
@@ -1578,8 +1616,10 @@ function generarTareas(){
     const pend=ventasDe(c.id).filter(v=>!v.pagado);
     if(pend.length&&can("ver_cobranza")||pend.some(v=>v.creado_por===ME.user?.id)){
       const primero=pend.map(v=>v.vence||v.fecha).sort()[0],monto=pend.reduce((s,v)=>s+totalV(v),0),atr=days(primero,t);
-      if(primero)add(primero,"cobrar",c,`Cobrar ${money(monto)}`,`${pend.length} ${pend.length===1?"factura":"facturas"}${atr>0?` · la más antigua vencida hace ${atr} días`:atr===0?" · vence hoy":""}${pagoDe(c).tel||c.telDueno||c.telefono?"":" · sin teléfono"}`,atr>S.cfg.tolPago?3:2);
+      const av=Number(S.cfg.avisoVence??3),fT=atr<0?(addDays(primero,-av)<t?t:addDays(primero,-av)):primero;
+      if(primero)add(fT,"cobrar",c,atr<0?`Recordar pago de ${money(monto)}: vence el ${fdate(primero)}`:`Cobrar ${money(monto)}`,`${pend.length} ${pend.length===1?"factura":"facturas"}${atr>0?` · la más antigua vencida hace ${atr} días`:atr===0?" · vence hoy":` · vence en ${-atr} ${atr===-1?"día":"días"}`}`+(c.marcas||[]).map(mk=>pend.some(v=>v.marca===mk)?` · ${mk}: ${condTexto(condPago(c,mk),false)}`:"").join("")+`${pagoDe(c).tel||c.telDueno||c.telefono?"":" · sin teléfono"}`,atr>S.cfg.tolPago?3:2);
     }
+    if(c.estado==="inactivo")return; // a un inactivo solo se le cobra lo pendiente
     // recompra según la frecuencia real (o la configurada si aún no hay suficientes compras)
     (c.marcas||[]).forEach(mk=>{
       const vs=ventasDe(c.id).filter(v=>v.marca===mk);if(!vs.length||c.estado==="prospecto")return;
@@ -1763,7 +1803,7 @@ function dEstilo(mk,e){
   const porZona=[...new Set(L.map(r=>r.zona))].map(z=>({lab:z,act:z!=="Sin zona"?"drill":null,arg:"zona:"+z,segs:[{k:mk,sw:MARCA_SW[mk],nombre:mk,v:sumM(L.filter(r=>r.zona===z),"litros")}]})).sort((a,b)=>b.segs[0].v-a.segs[0].v);
   const meses=[];for(let i=5;i>=0;i--)meses.push(shiftMes(today().slice(0,7),-i));
   const porMes=meses.map(m=>({lab:mesLabel(m),segs:[{k:mk,sw:MARCA_SW[mk],nombre:mk,v:sumM(L.filter(r=>r.mes===m),"litros")}]}));
-  const candidatos=S.clientes.filter(c=>c.estado!=="pausado"&&(c.marcas||[]).includes(mk)&&!ventasDe(c.id).some(v=>(v.items||[]).some(it=>infoItem(it).estilo===e)));
+  const candidatos=S.clientes.filter(c=>!fueraDeRuta(c)&&(c.marcas||[]).includes(mk)&&!ventasDe(c.id).some(v=>(v.items||[]).some(it=>infoItem(it).estilo===e)));
   return dHdr(e,`${mk==="cerveza"?"Cerveza":"Kombucha"} · últimos 6 meses`)+
    `<section class="kpis"><div class="kpi"><span class="lab">Litros</span><span class="val">${n1(sumM(L,"litros"))} L</span></div><div class="kpi"><span class="lab">Clientes que lo compran</span><span class="val">${ids.length}</span></div></section>
    ${porCli.length?`<section class="card stack"><h3>Quién lo compra</h3>${hbars(porCli,"litros")}</section><section class="card stack"><h3>En qué zonas</h3>${hbars(porZona,"litros")}</section><section class="card stack"><div class="row spread"><h3>En el tiempo</h3>${granSeg()}</div>${tendencia(lineasDesde("0000").filter(r=>r.marca===mk&&r.estilo===e),"litros")}</section>`:`<div class="empty">Nadie lo ha comprado en los últimos 6 meses.</div>`}
@@ -1901,6 +1941,8 @@ function vAjustes(){
     ${f("plazoC","Plazo de pago cerveza (días)",c.plazo.cerveza)}
     ${f("plazoK","Plazo de pago kombucha (días)",c.plazo.kombucha,"1","0 = contra entrega")}
     ${f("tolPago","Días de atraso para pasar a rojo",c.tolPago)}
+    ${f("avisoVence","Avisar antes del vencimiento (días)",c.avisoVence??3,"1","La factura se pone en amarillo y aparece la tarea de recordar el pago")}
+    ${f("maxImpagas","Pedido nuevo: máximo de facturas impagas sin vencer",c.maxImpagas??3,"1","Condición b) del documento de pedidos y pagos")}
     ${f("barrilDias","Barriles: días máximo en el cliente",c.barrilDias,"1","Verde hasta este plazo, amarillo hasta 1,5 veces, luego rojo")}
     ${f("barrilFresco","Barriles llenos: revisar frescura después de (días)",c.barrilFresco)}
   </div></section>
@@ -2246,11 +2288,13 @@ function clientDetail(id){
   const muTot={};as.forEach(a=>(a.muestras||[]).forEach(m=>{muTot[m.nombre]=(muTot[m.nombre]||0)+m.cant}));
   openSheet(`<div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${btnVolver()}${impBadge(cl)}<h2>${esc(cl.nombre)}</h2></span><button class="btn sm" data-act="close">Cerrar</button></div>
   <div class="chips"><span class="chip">${esc(ESTADOS[cl.estado]||"")}</span><span class="chip">${esc(IMPORT[impOf(cl)])}</span>${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${lnkZona(cl.zona)}${cl.demo?`<span class="chip">Ejemplo</span>`:""}${can("ver_todos_clientes")&&ownerOf(cl)&&S.equipo.length>1?`<span class="chip">A cargo: ${esc(nombreDe(ownerOf(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.horario?`<span class="chip">🕑 ${esc(cl.horario)}</span>`:""}</div>
+  ${cl.estado==="inactivo"?`<div class="banner row spread"><span>Inactivo${cl.fechaInactivo?" desde "+fdate(cl.fechaInactivo):""}. Motivo: ${esc(cl.motivoInactivo||"sin indicar")}${cl.detalleInactivo?`<br><span data-notr style="font-weight:500">${esc(cl.detalleInactivo)}</span>`:""}</span>${can("editar_clientes")?`<button class="btn sm" data-act="editClient" data-id="${id}">Cambiar estado</button>`:""}</div>`:""}
   ${cl.estado==="activo"&&(!soloMira()||(can("editar_clientes")&&ve("contactos")))&&faltantes(cl).length?`<div class="banner row spread"><span>Ficha incompleta. Falta: ${esc(faltantes(cl).join(", "))}.</span>${can("editar_clientes")?`<button class="btn sm" data-act="editClient" data-id="${id}">Completar</button>`:""}</div>`:""}
   <div class="stack" style="gap:6px">
    ${ve("visitas")?`<div class="row spread"><span>Visita</span>${pill(semVisita(cl))}</div>`:""}
    ${(ve("rotacion")?(cl.marcas||[]):[]).map(m=>`<div class="row spread"><span class="row" style="gap:6px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>Recompra ${m}</span>${pill(semCompra(cl,m))}</div>`).join("")}
-   ${ve("cobranza")?`<div class="row spread"><span>Pago</span>${pill(semPago(cl))}</div>`:""}<div class="row spread"><span>Seguimiento</span>${pill(semSeg(cl))}</div></div>
+   ${ve("cobranza")?`<div class="row spread"><span>Pago</span>${pill(semPago(cl))}</div>`+(cl.estado==="inactivo"?"":(cl.marcas||[]).map(m=>{const r=condPedido(cl.id,m);
+      return `<div class="row spread"><span class="row" style="gap:6px"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>Pedido nuevo ${m} <span class="muted small">· ${esc(condTexto(r.cp,ve("montos")))}</span></span>${condPill(r)}</div>${r.ok?"":`<div class="small muted" style="margin:-2px 0 2px">${r.reglas.filter(x=>!x.ok).map(x=>"✕ "+esc(x.t)).join(" · ")}</div>`}`}).join("")):""}<div class="row spread"><span>Seguimiento</span>${pill(semSeg(cl))}</div></div>
   <div class="row"><button class="btn primary" data-act="newAct" data-id="${id}">+ Visita / activación</button>${can("registrar_ventas")?`<button class="btn" data-act="newSale" data-id="${id}">+ Venta</button>`:""}${can("editar_clientes")?`<button class="btn" data-act="editClient" data-id="${id}">Editar</button>`:""}${soloMira()?(wa?`<a class="btn" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`:""):`<button class="btn" data-act="waCliente" data-id="${id}">💬 WhatsApp</button>`}${can("eliminar")?`<button class="btn danger" data-act="delClient" data-id="${id}">🗑 Eliminar</button>`:""}</div>
   <div class="card stack" style="gap:6px">
    ${contactoBloque("Quién hace los pedidos",{nombre:cl.contacto||"",tel:cl.telefono||"",email:cl.emailPedidos||""})}
@@ -2282,6 +2326,13 @@ function clientForm(id){
    <div class="field full"><label for="cNombre">Nombre del local *</label><input id="cNombre" required data-cap autocapitalize="words" value="${esc(cl.nombre)}"><span class="muted small">Los nombres y direcciones se guardan con mayúscula inicial en cada palabra.</span></div>
    <div class="field"><label for="cTipo">Tipo de local</label><select id="cTipo"><option value="">—</option>${TIPOS.map(t=>`<option value="${t}"${sel(cl.tipo,t)}>${t}</option>`).join("")}</select></div>
    <div class="field"><label for="cEstado">Estado</label><select id="cEstado">${Object.entries(ESTADOS).map(([k,v])=>`<option value="${k}"${sel(cl.estado,k)}>${v}</option>`).join("")}</select></div>
+   <div class="full form inactBox card" style="padding:12px"${cl.estado==="inactivo"?"":" hidden"}>
+     <div class="field"><label for="cMotInact">¿Por qué queda inactivo? *</label><select id="cMotInact"><option value="">Elige el motivo</option>${[...new Set([...MOTIVOS_INACT,...(cl.motivoInactivo?[cl.motivoInactivo]:[])])].map(m=>`<option value="${esc(m)}"${sel(cl.motivoInactivo,m)}>${esc(m)}</option>`).join("")}</select></div>
+     <div class="field"><label for="cFecInact">Inactivo desde</label><input id="cFecInact" type="date" value="${esc(cl.fechaInactivo||today())}"></div>
+     <div class="field full"><label for="cDetInact">Detalle</label><input id="cDetInact" value="${esc(cl.detalleInactivo)}" placeholder="Ej: ahora compra a otra cervecería, nuevo RUT 77.111.222-3…" autocomplete="off"></div>
+     <div class="full muted small cRutHint"${cl.motivoInactivo==="Cambió de RUT o razón social"?"":" hidden"}>Para el RUT o la razón social nuevos, crea un cliente nuevo: esta ficha queda inactiva y conserva su historial de compras.</div>
+     <div class="full muted small">Un cliente inactivo sale de la ruta, de las tareas y de las alertas. Si tiene facturas por cobrar, la cobranza sigue apareciendo.</div>
+   </div>
    <div class="field"><label for="cImp">Importancia</label><select id="cImp">${Object.entries(IMPORT).map(([k,v])=>`<option value="${k}"${sel(impOf(cl),k)}>${v}</option>`).join("")}</select></div>
    <div class="field"><label for="cZona">Zona</label><select id="cZona"><option value="">—</option>${zonas.map(z=>`<option value="${esc(z)}"${sel(cl.zona,z)}>${esc(z)}</option>`).join("")}</select></div>
    ${can("ver_todos_clientes")&&S.equipo.length>1?`<div class="field"><label for="cAsig">A cargo de</label><select id="cAsig">${S.equipo.map(u=>`<option value="${u.id}"${(id?ownerOf(cl):ME.user.id)===u.id?" selected":""}>${esc(u.nombre)}</option>`).join("")}</select></div>`:""}
@@ -2317,6 +2368,16 @@ function clientForm(id){
    <div class="field pagoCampo"${cl.pagoMismo?" hidden":""}><label for="cContactoPago">Nombre y cargo</label><input id="cContactoPago" data-cap autocapitalize="words" value="${esc(cl.contactoPago)}" placeholder="Ej: Luis Pérez, Administración" autocomplete="off"></div>
    <div class="field pagoCampo"${cl.pagoMismo?" hidden":""}><label for="cTelPago">Teléfono</label><input id="cTelPago" type="tel" value="${esc(cl.telPago)}" placeholder="9 1234 5678" autocomplete="off"></div>
    <div class="field full pagoCampo"${cl.pagoMismo?" hidden":""}><label for="cEmailPago">Email</label><input id="cEmailPago" type="email" data-cap="min" value="${esc(cl.emailPago)}" placeholder="pagos@local.cl" autocomplete="off"></div>
+   <h3 class="full" style="margin-top:6px">Condición de pago</h3>
+   ${["cerveza","kombucha"].map(mk=>{const p=cl.pago?.[mk],d=Number(S.cfg.plazo?.[mk])||0,tipo=p?.tipo||(d?"credito":"contado"),dias=p?.dias??(d||30);
+     return `<div class="full card form pagoMk" data-mk="${mk}" style="padding:12px"${(cl.marcas||[]).includes(mk)?"":" hidden"}>
+       <div class="field full"><span class="lbl"><i class="sw ${mk==="cerveza"?"beer":"kom"}"></i> ${mk==="cerveza"?"Cerveza El Growler":"Kombucha Animal Social"}</span>
+         <div class="seg" role="group" aria-label="Forma de pago"><button type="button" data-act="pagoTipo" data-mk="${mk}" data-v="contado" aria-pressed="${tipo==="contado"}">Contado</button><button type="button" data-act="pagoTipo" data-mk="${mk}" data-v="credito" aria-pressed="${tipo==="credito"}">Crédito</button></div>
+         <input type="hidden" id="cPagoT-${mk}" value="${tipo}"></div>
+       <div class="field pagoCred-${mk}"${tipo==="credito"?"":" hidden"}><label for="cPagoD-${mk}">Paga a cuántos días</label><input id="cPagoD-${mk}" type="number" min="1" step="1" inputmode="numeric" value="${esc(dias)}"></div>
+       ${ve("montos")?`<div class="field pagoCred-${mk}"${tipo==="credito"?"":" hidden"}><label for="cPagoL-${mk}">Línea de crédito ($, con impuestos)</label><input id="cPagoL-${mk}" type="number" min="0" step="1000" inputmode="numeric" value="${p?.linea||""}" placeholder="Sin límite"></div>`:""}
+       <div class="full muted small">${tipo==="contado"?"Paga al recibir: la factura vence el mismo día del pedido.":"La factura vence esa cantidad de días después del pedido."}</div>
+     </div>`}).join("")}
    <h3 class="full" style="margin-top:6px">Dueño</h3>
    <div class="field"><label for="cDueno">Nombre del dueño</label><input id="cDueno" data-cap autocapitalize="words" value="${esc(cl.dueno)}" autocomplete="off"></div>
    <div class="field"><label for="cRutDueno">RUT del dueño</label><input id="cRutDueno" value="${esc(cl.rutDueno)}" placeholder="12.345.678-9" autocomplete="off"></div>
@@ -2382,9 +2443,11 @@ function saleForm(clienteId,ventaId){
      <div id="packs" class="stack" style="gap:8px"></div>
      <div class="row"><button type="button" class="btn sm" data-act="addPack">+ Empaque</button><button type="button" class="btn sm" data-act="sugPack">Sugerir empaque</button></div></div>
    <div class="full card stack" id="sCheck" style="gap:8px"></div>
+   <div class="full card stack" id="sCond" style="gap:8px"${v?" hidden":""}></div>
+   <div class="full stack sAutBox" style="gap:6px" hidden><div class="checks"><label><input type="checkbox" id="sAut"> Pedido autorizado igual (excepción)</label></div><input id="sAutNota" placeholder="Quién lo autorizó y por qué" autocomplete="off" style="padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"></div>
    <div class="field full"><span class="lbl">3 · Despacho</span><div class="checks"><label><input type="checkbox" id="sDesp" ${!v||(v.items||[]).some(it=>infoItem(it).formato==="despacho")?"checked":""}> Cobrar despacho</label></div><span class="muted small" id="sDespInfo"></span></div>
    <div class="field"><label for="sFecha">Fecha de venta</label><input id="sFecha" type="date" value="${f}"></div>
-   <div class="field"><label for="sVence">Vence el pago</label><input id="sVence" type="date" value="${v?.vence||addDays(f,S.cfg.plazo[marca])}"></div>
+   <div class="field"><label for="sVence">Vence el pago</label><input id="sVence" type="date" value="${v?.vence||venceDe(cl,marca,f)}"><span class="muted small" id="sCondPago"></span></div>
    <div class="field"><label for="sFact">N° factura</label><input id="sFact" value="${esc(v?.factura)}"></div>
    <div class="field" style="justify-content:flex-end"><div class="checks"><label><input type="checkbox" id="sPag" ${v?.pagado?"checked":""}> Ya está pagada</label></div></div>
    <div class="field full"><label for="sNota">Nota</label><input id="sNota" value="${esc(v?.nota)}"></div>
@@ -2518,6 +2581,20 @@ function sugerirEmpaque(silencio=false){
   if(sinEmp.length&&!silencio)toast("No hay empaque para "+sinEmp.join(", ")+". Agrégalo en Ajustes → Empaques");
   saleTotals();
 }
+/* condiciones del cliente para este pedido; devuelve si se puede guardar */
+function saleCond(nuevo){
+  const box=$("#sCond"),aut=$("#saleForm .sAutBox"),info=$("#sCondPago");if(!box)return true;
+  const cid=$("#sCli").value,mk=$("#sMarca").value,cl=S.clientes.find(c=>c.id===cid),editando=!!$("#saleForm").dataset.id;
+  if(info)info.textContent=cl?"Condición: "+condTexto(condPago(cl,mk),ve("montos")):"";
+  if(editando||!cl||!ve("cobranza")){box.hidden=true;aut.hidden=true;return true}
+  const r=condPedido(cid,mk,nuevo);box.hidden=false;
+  box.innerHTML=`<div class="row spread"><h3>Condiciones para pedido nuevo</h3>${pill({level:r.ok?"ok":"bad",short:r.ok?"Puede hacer el pedido":"No cumple las condiciones"})}</div>
+    ${r.reglas.map(x=>`<div class="row" style="gap:8px;flex-wrap:nowrap;align-items:flex-start">${pill({level:x.none?"none":x.ok?"ok":"bad",short:x.none?"–":x.ok?"Cumple":"No cumple"})}<span class="small">${esc(x.t)}</span></div>`).join("")}
+    ${r.hoy.length?`<div class="small muted">Pagó hoy ${r.hoy.length} ${r.hoy.length===1?"factura":"facturas"}: según la regla, la deuda debe quedar al día el día anterior (en la mañana), así que cuenta recién desde mañana.</div>`:""}
+    ${r.ok?"":`<div class="small">Para pedir tiene que regularizar su deuda el día anterior, en horario AM. La línea de crédito solo se puede superar con autorización previa.</div>`}`;
+  aut.hidden=r.ok;
+  return r.ok||($("#sAut").checked&&!!$("#sAutNota").value.trim());
+}
 function saleTotals(){
   if(!$("#sTot"))return;
   const m=$("#sMarca").value,c=calcVenta(),packs=readPacks(),x=cruce(c.it,packs);
@@ -2549,7 +2626,8 @@ function saleTotals(){
     ${x.filas.length?`<div class="tbox"><table><thead><tr><th>Formato</th><th class="r">Pedido</th><th class="r">Empacado</th><th>Estado</th></tr></thead><tbody>
     ${x.filas.map(r=>`<tr><td>${esc(FORMATOS[r.f]||r.f)}</td><td class="r num">${n1(r.ped)}</td><td class="r"><span class="num">${n1(r.emp)}</span>${r.ps.length?`<div class="muted small">${r.ps.map(p=>`${p.cant} × ${esc(p.nombre)}`).join(" + ")}</div>`:""}</td><td>${estado(r)}</td></tr>`).join("")}
     </tbody></table></div>`:""}`;
-  const b=$("#sGuardar");if(b){b.disabled=!x.ok;b.title=x.ok?"":"El pedido y el empaque tienen que cuadrar";b.style.opacity=x.ok?"":".5"}
+  const okCond=saleCond(totalV({...c,marca:m,items:[...c.it,...(c.dsp||[])],imp:null}));
+  const b=$("#sGuardar");if(b){const ok=x.ok&&okCond;b.disabled=!ok;b.title=!x.ok?"El pedido y el empaque tienen que cuadrar":okCond?"":"El cliente no cumple las condiciones para un pedido nuevo";b.style.opacity=ok?"":".5"}
 }
 /* texto de lo que se llevó en una venta (con descuentos) */
 function itemsTexto(items,marca,conLink=true){
@@ -2920,8 +2998,8 @@ function exportarCSV(){
     ...[...S.ventas].sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")).map(v=>{const sub=v.subtotal??(v.items||[]).reduce((s,it)=>s+(it.cant||0)*(it.netoU||0),0);
       return[v.fecha,cn(v.clienteId),v.marca,sinHtml(itemsTexto(v.items,v.marca,false)),v.litros,v.cajas,Math.round(sub),Math.round(sub-(v.neto||0)),sinHtml(descTexto(v)),Math.round(v.neto),impDe(v).iva,impDe(v).ila,Math.round(totalV(v)),sinHtml(empaqueTexto(v)),v.vence,v.pagado?"sí":"no",v.fechaPago,v.factura,nombreDe(v.creado_por)]})];
   descargar(`ventas-${today()}.csv`,"﻿"+csv(ventas),"text/csv");
-  const cl=[["Nombre","Estado","Importancia","Tipo","Zona","Marcas","Asignado a","Contacto pedidos","Teléfono pedidos","Email pedidos","Contacto pagos","Teléfono pagos","Email pagos","Dirección","Comuna","Región","Horario","Próxima acción","Qué hacer","Notas","Razón social","RUT empresa","Giro","Dirección de facturación","Email","Dueño","RUT dueño","Teléfono dueño","Email dueño"],
-    ...S.clientes.map(c=>[c.nombre,c.estado,impOf(c),c.tipo,c.zona,(c.marcas||[]).join(" + "),nombreDe(ownerOf(c)),c.contacto,c.telefono,c.emailPedidos,pagoDe(c).nombre,pagoDe(c).tel,pagoDe(c).email,c.direccion,c.comuna,c.region,c.horario,c.proxFecha,c.proxTexto,c.notas,c.razonSocial,c.rutEmpresa,c.giro,c.dirFacturacion,c.email,c.dueno,c.rutDueno,c.telDueno,c.emailDueno])];
+  const cl=[["Nombre","Estado","Motivo inactivo","Inactivo desde","Detalle inactivo","Pago cerveza","Pago kombucha","Importancia","Tipo","Zona","Marcas","Asignado a","Contacto pedidos","Teléfono pedidos","Email pedidos","Contacto pagos","Teléfono pagos","Email pagos","Dirección","Comuna","Región","Horario","Próxima acción","Qué hacer","Notas","Razón social","RUT empresa","Giro","Dirección de facturación","Email","Dueño","RUT dueño","Teléfono dueño","Email dueño"],
+    ...S.clientes.map(c=>[c.nombre,c.estado,c.motivoInactivo,c.fechaInactivo,c.detalleInactivo,(c.marcas||[]).includes("cerveza")?condTexto(condPago(c,"cerveza")):"",(c.marcas||[]).includes("kombucha")?condTexto(condPago(c,"kombucha")):"",impOf(c),c.tipo,c.zona,(c.marcas||[]).join(" + "),nombreDe(ownerOf(c)),c.contacto,c.telefono,c.emailPedidos,pagoDe(c).nombre,pagoDe(c).tel,pagoDe(c).email,c.direccion,c.comuna,c.region,c.horario,c.proxFecha,c.proxTexto,c.notas,c.razonSocial,c.rutEmpresa,c.giro,c.dirFacturacion,c.email,c.dueno,c.rutDueno,c.telDueno,c.emailDueno])];
   setTimeout(()=>descargar(`clientes-${today()}.csv`,"﻿"+csv(cl),"text/csv"),400);
   if(S.barriles.length){const br=[["Código","Estado","Estilo","Lote","Embarrilado","Cliente","Factura","Entregado","Días en cliente","Litros","Notas"],
     ...[...S.barriles].sort(bOrden).map(b=>[b.codigo,B_EST[b.estado]||b.estado,b.estilo,b.lote,b.fechaEmbarrilado,b.clienteNombre,b.factura,b.fechaEntrega,b.estado==="en_cliente"&&b.fechaEntrega?days(b.fechaEntrega,today()):"",b.litros,b.notas])];
@@ -3273,7 +3351,7 @@ function ctxIA(){
     const top=[...new Set(it.map(x=>x.estilo))].map(e=>[e,it.filter(x=>x.estilo===e).reduce((s,x)=>s+x.l,0)]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([e,l])=>`${e} ${n1(l)} L`).join(", ");
     const ua=actsDe(c.id).filter(a=>!esTarea(a)&&a.nota).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")).pop();
     const notas=iaLimpio([c.notas,ua?`última visita ${fdate(ua.fecha)}: ${ua.nota}`:""].filter(Boolean).join(" · ")).slice(0,220);
-    L.push(`- [${refDe(c)}] ${c.nombre} | ${c.tipo||"—"} | ${c.zona||"sin zona"}${c.comuna?"/"+c.comuna:""} | ${ESTADOS[c.estado]||c.estado||"—"} | ${impOf(c)} | ${(c.marcas||[]).join("+")||"—"} | visita: ${semVisita(c).text} | recompra: ${semRecompra(c).text||"—"} | ${plata?`pago: ${semPago(c).text} | `:""}seguimiento: ${semSeg(c).text} | ${comp} | ${top||"—"}${notas?` | notas: ${notas}`:""}`);
+    L.push(`- [${refDe(c)}] ${c.nombre} | ${c.tipo||"—"} | ${c.zona||"sin zona"}${c.comuna?"/"+c.comuna:""} | ${ESTADOS[c.estado]||c.estado||"—"}${c.estado==="inactivo"?` (${inactTexto(c)||"sin motivo"})`:""} | ${impOf(c)} | ${(c.marcas||[]).join("+")||"—"} | visita: ${semVisita(c).text} | recompra: ${semRecompra(c).text||"—"} | ${plata?`pago: ${semPago(c).text} | `:""}seguimiento: ${semSeg(c).text} | ${comp} | ${top||"—"}${notas?` | notas: ${notas}`:""}`);
   });
   const txt=L.join("\n");
   return txt.length>58000?txt.slice(0,58000)+"\n(…lista recortada por tamaño)":txt;
@@ -3650,7 +3728,10 @@ document.addEventListener("click",async e=>{
     case"sugPack":sugerirEmpaque();break;
     case"addEmp":collectCfgForm();S.cfg.empaques.push({id:"e"+Date.now().toString(36),nombre:"Nuevo empaque",formato:"lata355",unidades:12});render();break;
     case"delEmp":collectCfgForm();S.cfg.empaques.splice(Number(t.dataset.i),1);render();break;
-    case"sMarca":{$("#sMarca").value=t.dataset.v;t.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===t));$("#lines").innerHTML="";$("#packs").innerHTML="";addLine();addPack();$("#sVence").value=addDays($("#sFecha").value||today(),S.cfg.plazo[t.dataset.v]);saleTotals();break}
+    case"pagoTipo":{const mk=t.dataset.mk,v=t.dataset.v;$("#cPagoT-"+mk).value=v;t.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===t));
+      document.querySelectorAll(".pagoCred-"+mk).forEach(x=>x.hidden=v!=="credito");
+      const n=t.closest(".pagoMk").querySelector(".full.muted.small");if(n)n.textContent=v==="contado"?"Paga al recibir: la factura vence el mismo día del pedido.":"La factura vence esa cantidad de días después del pedido.";break}
+    case"sMarca":{$("#sMarca").value=t.dataset.v;t.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===t));$("#lines").innerHTML="";$("#packs").innerHTML="";addLine();addPack();if(!$("#saleForm").dataset.id)$("#sVence").value=venceDe(S.clientes.find(c=>c.id===$("#sCli").value),t.dataset.v,$("#sFecha").value);saleTotals();break}
     case"pay":if(!await confirmarPago(id,true))return;await guard(()=>DB.update("ventas",id,{pagado:true,fechaPago:today()}),"Venta marcada como pagada");break;
     case"unpay":if(!await confirmarPago(id,false))return;await guard(()=>DB.update("ventas",id,{pagado:false,fechaPago:""}),"Pago deshecho");break;
     case"delSale":if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Toca otra vez para eliminar";return}
@@ -3683,7 +3764,7 @@ document.addEventListener("input",e=>{
   if(e.target.classList?.contains("wa-txt")){const b=document.getElementById(e.target.id+"Btn");if(b)b.href=waUrl(e.target.dataset.waTel,e.target.value)}
   if(e.target.id==="bq"){S.bq=e.target.value;const pos=e.target.selectionStart;render();const q=$("#bq");q.focus();q.setSelectionRange(pos,pos)}
   if(e.target.closest("#bNuevoForm")){if(e.target.id==="bnPre")$("#bnDesde").value=bSiguiente(e.target.value);bNuevoPrev()}
-  if(e.target.id==="sFecha"&&!$("#saleForm").dataset.id)$("#sVence").value=addDays(e.target.value||today(),S.cfg.plazo[$("#sMarca").value]);
+  if(e.target.id==="sFecha"&&!$("#saleForm").dataset.id)$("#sVence").value=venceDe(S.clientes.find(c=>c.id===$("#sCli").value),$("#sMarca").value,e.target.value);
 });
 document.addEventListener("toggle",e=>{if(e.target.id==="agF")S.agF=e.target.open;if(e.target.classList?.contains("perm-sub")){const u=e.target.dataset.subk;e.target.open?S.eqSubAbierto.add(u):S.eqSubAbierto.delete(u)}if(e.target.classList?.contains("eqDet")){const u=e.target.dataset.uid;e.target.open?S.eqAbierto.add(u):S.eqAbierto.delete(u)}},true);
 document.addEventListener("change",e=>{
@@ -3692,6 +3773,9 @@ document.addEventListener("change",e=>{
   if(e.target.id==="cFoto"&&e.target.files[0]){$("#cFotoQuitar").value="";$("#cFotoNom").textContent="Foto lista: se sube al guardar"}
   if(e.target.closest?.("#clientForm")){const el=e.target;
     if(el.id==="cRegion"){const c=$("#cComuna");c.innerHTML=comunaOpts(el.value,"");c.disabled=!el.value}
+    if(el.id==="cEstado")$("#clientForm .inactBox").hidden=el.value!=="inactivo";
+    if(el.id==="cMotInact")$("#clientForm .cRutHint").hidden=el.value!=="Cambió de RUT o razón social";
+    if(el.id==="mC"||el.id==="mK")$(`#clientForm .pagoMk[data-mk="${el.id==="mC"?"cerveza":"kombucha"}"]`).hidden=!el.checked;
     if(el.id==="cPagoMismo")document.querySelectorAll("#clientForm .pagoCampo").forEach(x=>x.hidden=el.checked);
     if(el.dataset.cap!==undefined)el.value=el.dataset.cap==="min"?el.value.trim().toLowerCase():capitalizar(el.value);
     if(el.id==="cRutEmp"||el.id==="cRutDueno"){const r=rutLimpio(el.value);if(r)el.value=r}
@@ -3704,7 +3788,8 @@ document.addEventListener("change",e=>{
   }
   // al elegir el cliente de la venta, si compra una sola marca se muestran solo sus productos
   if(e.target.id==="sCli"){const cl=S.clientes.find(c=>c.id===e.target.value),mk=cl?.marcas?.length===1?cl.marcas[0]:null;
-    if(mk&&mk!==$("#sMarca").value)document.querySelector(`#saleForm [data-act="sMarca"][data-v="${mk}"]`)?.click()}
+    if(mk&&mk!==$("#sMarca").value)document.querySelector(`#saleForm [data-act="sMarca"][data-v="${mk}"]`)?.click();
+    if(!$("#saleForm").dataset.id)$("#sVence").value=venceDe(cl,$("#sMarca").value,$("#sFecha").value);saleTotals()}
   if(e.target.id==="tareasDe"){S.tareasDe=e.target.value;render()}
   if(e.target.id==="aCli"&&$("#aMkC")){const cl=S.clientes.find(c=>c.id===e.target.value),mk=(cl?.marcas||[]).length===1?cl.marcas:[];$("#aMkC").checked=mk.includes("cerveza");$("#aMkK").checked=mk.includes("kombucha")}
   if(e.target.id==="vozLeer"){vozGuardar("leer",e.target.checked);if(!e.target.checked)try{speechSynthesis.cancel()}catch(err){}}
@@ -3736,7 +3821,7 @@ function collectCfgForm(){
   const zonasDia={};WEEK_ORDER.forEach(w=>zonasDia[String(w)]=[]);
   document.querySelectorAll("[data-zd]").forEach(cb=>{if(cb.checked&&zonas.includes(cb.dataset.z))zonasDia[cb.dataset.zd].push(cb.dataset.z)});
   const rows=(sel,keys)=>[...document.querySelectorAll(sel+" tr")].map(tr=>{const o={};keys.forEach(k=>o[k]=tr.querySelector(`[data-k="${k}"]`).value);return o});
-  S.cfg={...S.cfg,comL:g("comL"),horas:g("horas"),imm:g("imm"),desc:g("desc"),pctK:g("pctK"),ret:g("ret"),meta:g("meta"),grat:$("#grat").checked,tolPago:g("tolPago"),barrilDias:g("barrilDias")||30,barrilFresco:g("barrilFresco")||60,
+  S.cfg={...S.cfg,comL:g("comL"),horas:g("horas"),imm:g("imm"),desc:g("desc"),pctK:g("pctK"),ret:g("ret"),meta:g("meta"),grat:$("#grat").checked,tolPago:g("tolPago"),avisoVence:Math.max(0,g("avisoVence")),maxImpagas:Math.max(0,g("maxImpagas")),barrilDias:g("barrilDias")||30,barrilFresco:g("barrilFresco")||60,
     frec:{cerveza:g("frecC")||14,kombucha:g("frecK")||14},plazo:{cerveza:g("plazoC")||0,kombucha:g("plazoK")||0},
     frecVisita:{A:g("fvA")||7,B:g("fvB")||14,C:g("fvC")||30},zonas,zonasDia,
     oc:{cerveza:{nombre:($("#ocNomC")?.value||"").trim(),tel:($("#ocTelC")?.value||"").trim()},kombucha:{nombre:($("#ocNomK")?.value||"").trim(),tel:($("#ocTelK")?.value||"").trim()}},
@@ -3848,6 +3933,10 @@ document.addEventListener("submit",async e=>{
       frec:{cerveza:Number(val("cFrecC"))||null,kombucha:Number(val("cFrecK"))||null},proxFecha:val("cProxF"),proxTexto:val("cProxT"),notas:val("cNotas")};
     if($("#cAsig"))data.asignado_a=$("#cAsig").value;
     if(!data.nombre){toast("Falta el nombre del local");return}
+    if(data.estado==="inactivo"){
+      if(!val("cMotInact")){toast("Elige por qué queda inactivo");$("#cMotInact").focus();return}
+      Object.assign(data,{motivoInactivo:val("cMotInact"),fechaInactivo:val("cFecInact")||today(),detalleInactivo:val("cDetInact")});
+    }else Object.assign(data,{motivoInactivo:"",fechaInactivo:"",detalleInactivo:""});
     const rutEmp=rutLimpio(val("cRutEmp")),rutDueno=rutLimpio(val("cRutDueno"));
     if(rutEmp===null){toast("El RUT de la empresa no es válido");$("#cRutEmp").focus();return}
     if(rutDueno===null){toast("El RUT del dueño no es válido");$("#cRutDueno").focus();return}
@@ -3860,6 +3949,16 @@ document.addEventListener("submit",async e=>{
     Object.assign(data,{razonSocial:cap("cRazon"),rutEmpresa:rutEmp,giro:cap("cGiro"),dirFacturacion:cap("cDirFact"),email:min("cEmail"),dueno:cap("cDueno"),rutDueno,telDueno:val("cTelDueno"),emailDueno:min("cEmailDueno"),
       recepcion:val("cRecep"),gps});
     if(!marcas.length){toast("Marca al menos una: cerveza o kombucha");return}
+    const pago={...(S.clientes.find(c=>c.id===f.dataset.id)?.pago||{})};
+    for(const mk of marcas){
+      const tipo=$("#cPagoT-"+mk)?.value;if(!tipo)continue;
+      if(tipo==="contado"){pago[mk]={tipo};continue}
+      const dias=Math.round(Number(val("cPagoD-"+mk)));
+      if(!(dias>=1)){toast(`Indica a cuántos días paga la ${mk==="cerveza"?"cerveza":"kombucha"}`);$("#cPagoD-"+mk).focus();return}
+      const lineaIn=$("#cPagoL-"+mk);
+      pago[mk]={tipo,dias,linea:lineaIn?(Math.max(0,Math.round(Number(lineaIn.value)||0))||null):(pago[mk]?.linea??null)};
+    }
+    data.pago=pago;
     const id=f.dataset.id;
     const prev=id?{...S.clientes.find(c=>c.id===id)}:{};delete prev.id;
     // antes de guardar: revisar comuna y región (y lo que falte) cuando el cliente es nuevo, cambia de dirección o pasa a activo
@@ -3914,6 +4013,11 @@ document.addEventListener("submit",async e=>{
       litros:Math.round(c.litros*100)/100,cajas:m==="kombucha"?Math.round(latas/24*100)/100:0,subtotal:Math.round((c.sub+c.dm)*100)/100,descItems:Math.round(c.descItems),descGeneral:c.dg,neto:c.neto,empaque:packs,
       pagado:pag,fechaPago:pag?(old?.fechaPago||today()):""};
     data.imp=impDe({...data,imp:null});
+    if(!old&&ve("cobranza")){const r=condPedido(cid,m,totalV(data));
+      if(r&&!r.ok){
+        if(!($("#sAut").checked&&$("#sAutNota").value.trim())){toast("El cliente no cumple las condiciones: marca la autorización y anota quién la dio");$("#sCond").scrollIntoView({block:"center"});return}
+        data.autorizado={nota:$("#sAutNota").value.trim(),por:ME.perfil?.nombre||"",fecha:today(),falta:r.reglas.filter(x=>!x.ok).map(x=>x.t)};
+      }}
     const ok=await guard(async()=>{
       if(old)await DB.set("ventas",old.id,data);else await DB.add("ventas",data);
       const cl=S.clientes.find(c=>c.id===cid);
@@ -3979,6 +4083,20 @@ const EN={
   "Cerveza":"Beer","A cargo":"Assigned to","+ Nuevo cliente":"+ New customer","Buscar por nombre, contacto, zona o dirección":"Search by name, contact, zone or address",
   "Buscar":"Search","Marca":"Brand","Zona":"Zone","Estado":"Status","Todas las marcas":"All brands","Todas las zonas":"All zones","Todos":"All","Todas":"All",
   "✕ Con algo atrasado":"✕ Something overdue","! Con algo por atender":"! Something to handle","✓ Al día":"✓ Up to date",
+  "Condición de pago":"Payment terms","Contado":"Cash","Crédito":"Credit","Paga a cuántos días":"Pays after how many days","Línea de crédito ($, con impuestos)":"Credit line ($, incl. taxes)",
+  "Sin límite":"No limit","Paga al recibir: la factura vence el mismo día del pedido.":"Pays on delivery: the invoice is due the same day as the order.",
+  "La factura vence esa cantidad de días después del pedido.":"The invoice is due that many days after the order.","Condiciones para pedido nuevo":"Conditions for a new order",
+  "Puede hacer el pedido":"Can place the order","No cumple las condiciones":"Doesn't meet the conditions","Cumple":"Meets","No cumple":"Doesn't meet","Puede pedir":"Can order",
+  "Sin facturas vencidas":"No overdue invoices","Sin línea de crédito asignada":"No credit line assigned","Pedido autorizado igual (excepción)":"Order authorized anyway (exception)",
+  "Quién lo autorizó y por qué":"Who authorized it and why","Vence mañana":"Due tomorrow","Avisar antes del vencimiento (días)":"Warn before due date (days)",
+  "Pedido nuevo: máximo de facturas impagas sin vencer":"New order: max unpaid invoices not yet due",
+  "Para pedir tiene que regularizar su deuda el día anterior, en horario AM. La línea de crédito solo se puede superar con autorización previa.":"To order, they must settle their debt the day before, in the morning. The credit line can only be exceeded with prior authorization.",
+  "Inactivo":"Inactive","Inactivos":"Inactive","¿Por qué queda inactivo? *":"Why is it inactive? *","Elige el motivo":"Choose the reason","Inactivo desde":"Inactive since","Detalle":"Details",
+  "Dejó de comprar":"Stopped buying","Cerró el local":"Business closed","Cambió de RUT o razón social":"Changed RUT or legal name","Cambió de dueño":"Changed owner",
+  "Se fue con la competencia":"Went to a competitor","Problemas de pago":"Payment problems","Sin motivo":"No reason","Cambiar estado":"Change status","Elige por qué queda inactivo":"Choose why it is inactive",
+  "Ej: ahora compra a otra cervecería, nuevo RUT 77.111.222-3…":"E.g.: now buys from another brewery, new RUT 77.111.222-3…",
+  "Para el RUT o la razón social nuevos, crea un cliente nuevo: esta ficha queda inactiva y conserva su historial de compras.":"For the new RUT or legal name, create a new customer: this record stays inactive and keeps its purchase history.",
+  "Un cliente inactivo sale de la ruta, de las tareas y de las alertas. Si tiene facturas por cobrar, la cobranza sigue apareciendo.":"An inactive customer leaves the route, tasks and alerts. If it has unpaid invoices, collections still show up.",
   "Importancia A":"Importance A","Importancia B":"Importance B","Importancia C":"Importance C","Prospectos":"Prospects","Pausados":"Paused",
   "Ningún cliente coincide con el filtro.":"No customer matches the filter.",
   "Aún no tienes clientes. Parte agregando bares, botillerías o almacenes que quieras visitar como prospectos.":"You don't have customers yet. Start by adding bars, liquor stores or grocery stores you want to visit as prospects.",
@@ -4200,6 +4318,9 @@ const EN={
 const EN_UNIT={lata:"can",latas:"cans",litro:"liter",litros:"liters"};
 const EN_U2={barril:"keg",barriles:"kegs",lata:"can",latas:"cans",unidad:"unit",unidades:"units"};
 const EN_RX=[
+  [/^Vence en (\d+) d$/,m=>`Due in ${m[1]} d`],[/^Vence en (\d+) días$/,m=>`Due in ${m[1]} days`],[/^Crédito a (\d+) días?(.*)$/,m=>`Credit at ${m[1]} days${m[2].replace(" (general)"," (default)").replace("línea","line")}`],
+  [/^Pedido nuevo (cerveza|kombucha)$/,m=>`New ${m[1]==="cerveza"?"beer":"kombucha"} order`],[/^Condición: (.+)$/,m=>`Terms: ${m[1].replace("Contado","Cash").replace("Crédito a","Credit at").replace("días","days").replace("línea","line")}`],
+  [/^Inactivo(?: desde (\S+))?\. Motivo: (.+)$/,m=>`Inactive${m[1]?" since "+m[1]:""}. Reason: ${m[2]}`],[/^Inactivo \((\d+)\)$/,m=>`Inactive (${m[1]})`],
   [/^Ficha incompleta\. Falta: (.+)\.$/,m=>`Incomplete record. Missing: ${m[1]}.`],[/^Falta: (.+)\.$/,m=>`Missing: ${m[1]}.`],
   [/^Sin conexión\. Estás viendo los datos guardados (?:el (\S+) a las (\S+))?; no puedes hacer cambios hasta recuperar señal\.$/,m=>`Offline. You're viewing data saved${m[1]?` on ${m[1]} at ${m[2]}`:""}; you can't make changes until you have signal again.`],
   [/^Última compra hace (\S+) días \(esperado cada (\S+)\)$/,m=>`Last purchase ${m[1]} days ago (expected every ${m[2]})`],
