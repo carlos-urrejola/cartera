@@ -923,7 +923,7 @@ function clientRow(cl){
   const marcas=(cl.marcas||[]).map(m=>`<span class="chip"><i class="sw ${m==="cerveza"?"beer":"kom"}"></i>${m==="cerveza"?"Cerveza":"Kombucha"}</span>`).join("");
   return `<button class="item" data-act="openClient" data-id="${cl.id}">
     <div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${impBadge(cl)}<span class="name">${esc(cl.nombre)}</span>${cl.demo?`<span class="chip">Ejemplo</span>`:""}</span><span class="chip${cl.estado==="inactivo"?" strong":""}">${esc(ESTADOS[cl.estado]||"")}</span></div>
-    <div class="chips">${marcas}${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${cl.zona?`<span class="chip">${esc(cl.zona)}</span>`:""}${vendedorDe(cl)&&(S.equipo.length>1||cl.vendedor)?`<span class="chip">Vendedor: ${esc(vendedorDe(cl))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.estado==="activo"&&(!soloMira()||(can("editar_clientes")&&ve("contactos")))&&faltantes(cl).length?`<span class="chip strong">! Ficha incompleta</span>`:""}</div>
+    <div class="chips">${marcas}${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${cl.zona?`<span class="chip">${esc(cl.zona)}</span>`:""}${vendedorDe(cl)&&(S.equipo.length>1||cl.vendedor)?`<span class="chip">Vendedor: ${esc(vendedorDe(cl))}</span>`:""}${carteraDe(cl)&&!miMarca()?`<span class="chip strong">${esc(duenoNombre(carteraDe(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.estado==="activo"&&(!soloMira()||(can("editar_clientes")&&ve("contactos")))&&faltantes(cl).length?`<span class="chip strong">! Ficha incompleta</span>`:""}</div>
     ${cl.estado==="inactivo"?`<div class="chips">${pill({level:"none",short:cl.motivoInactivo||"Sin motivo"},"Inactivo")}${deudaDe(cl.id).length&&ve("cobranza")?pill(semPago(cl),"Pago"):""}</div>`
       :`<div class="chips">${pill(semVisita(cl),"Visita")}${pill(semRecompra(cl),"Recompra")}${pill(semPago(cl),"Pago")}${pill(semSeg(cl),"Seguimiento")}</div>`}</button>`;
 }
@@ -2288,7 +2288,7 @@ function clientDetail(id){
   const deuda=deudaDe(id).reduce((s,d)=>s+totalV(d.v),0);
   const muTot={};as.forEach(a=>(a.muestras||[]).forEach(m=>{muTot[m.nombre]=(muTot[m.nombre]||0)+m.cant}));
   openSheet(`<div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${btnVolver()}${impBadge(cl)}<h2>${esc(cl.nombre)}</h2></span><button class="btn sm" data-act="close">Cerrar</button></div>
-  <div class="chips"><span class="chip">${esc(ESTADOS[cl.estado]||"")}</span><span class="chip">${esc(IMPORT[impOf(cl)])}</span>${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${lnkZona(cl.zona)}${cl.demo?`<span class="chip">Ejemplo</span>`:""}${vendedorDe(cl)&&(S.equipo.length>1||cl.vendedor)?`<span class="chip">Vendedor: ${esc(vendedorDe(cl))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.horario?`<span class="chip">🕑 ${esc(cl.horario)}</span>`:""}</div>
+  <div class="chips"><span class="chip">${esc(ESTADOS[cl.estado]||"")}</span><span class="chip">${esc(IMPORT[impOf(cl)])}</span>${cl.tipo?`<span class="chip">${esc(cl.tipo)}</span>`:""}${lnkZona(cl.zona)}${cl.demo?`<span class="chip">Ejemplo</span>`:""}${vendedorDe(cl)&&(S.equipo.length>1||cl.vendedor)?`<span class="chip">Vendedor: ${esc(vendedorDe(cl))}</span>`:""}${carteraDe(cl)&&!miMarca()?`<span class="chip strong">${esc(duenoNombre(carteraDe(cl)))}</span>`:""}${(cl.diasVisita||[]).length?`<span class="chip">Visita: ${cl.diasVisita.map(d=>DIAS[d]).join(", ")}</span>`:""}${cl.horario?`<span class="chip">🕑 ${esc(cl.horario)}</span>`:""}</div>
   ${cl.estado==="inactivo"?`<div class="banner row spread"><span>Inactivo${cl.fechaInactivo?" desde "+fdate(cl.fechaInactivo):""}. Motivo: ${esc(cl.motivoInactivo||"sin indicar")}${cl.detalleInactivo?`<br><span data-notr style="font-weight:500">${esc(cl.detalleInactivo)}</span>`:""}</span>${can("editar_clientes")?`<button class="btn sm" data-act="editClient" data-id="${id}">Cambiar estado</button>`:""}</div>`:""}
   ${cl.estado==="activo"&&(!soloMira()||(can("editar_clientes")&&ve("contactos")))&&faltantes(cl).length?`<div class="banner row spread"><span>Ficha incompleta. Falta: ${esc(faltantes(cl).join(", "))}.</span>${can("editar_clientes")?`<button class="btn sm" data-act="editClient" data-id="${id}">Completar</button>`:""}</div>`:""}
   <div class="stack" style="gap:6px">
@@ -2319,7 +2319,7 @@ function clientDetail(id){
 }
 
 function clientForm(id){
-  const cl=id?S.clientes.find(c=>c.id===id):{estado:"prospecto",marcas:[S.cartera||miMarca()||"cerveza"],importancia:"B",cartera:miMarca()||S.cartera||""};
+  const cl=id?original("clientes",id):{estado:"prospecto",marcas:[S.cartera||miMarca()||"cerveza"],importancia:"B",cartera:miMarca()||""};
   const sel=(v,o)=>v===o?" selected":"";
   const zonas=[...S.cfg.zonas];if(cl.zona&&!zonas.includes(cl.zona))zonas.push(cl.zona);
   openSheet(`<div class="row spread"><h2>${id?"Editar cliente":"Nuevo cliente"}</h2><button class="btn sm" data-act="close">Cerrar</button></div>
@@ -2339,7 +2339,7 @@ function clientForm(id){
    ${(()=>{const vid=cl.vendedorId||(cl.vendedor?"":(id?ownerOf(cl):ME.user?.id))||"",otro=!!cl.vendedor&&!cl.vendedorId,eq=S.equipo.length?S.equipo:[{id:ME.user?.id,nombre:ME.perfil?.nombre||"Yo"}];
      return `<div class="field"><label for="cVend">Vendedor</label><select id="cVend">${eq.map(u=>`<option value="${u.id}"${!otro&&vid===u.id?" selected":""}>${esc(u.nombre)}${u.id===ME.user?.id?" (tú)":""}</option>`).join("")}<option value="__otro"${otro?" selected":""}>Otro (sin cuenta en la app)</option></select></div>
      <div class="field cVendOtro"${otro?"":" hidden"}><label for="cVendNom">Nombre del vendedor</label><input id="cVendNom" data-cap autocapitalize="words" value="${esc(otro?cl.vendedor:"")}" placeholder="Ej: vendedor de Santiago" autocomplete="off"></div>`})()}
-   ${isAdmin()&&carterasOpc().length>1?`<div class="field"><label for="cCartera">Cartera</label><select id="cCartera" data-notr>${carterasOpc().map(k=>`<option value="${esc(k)}"${k===carteraDe(cl)?" selected":""}>${esc(carteraNombre(k))}</option>`).join("")}</select><span class="muted small">Los clientes de otra cartera no se mezclan con los tuyos en la ruta, tareas, resumen, sueldo ni índices.</span></div>`:""}
+   ${isAdmin()?`<div class="field"><label for="cCartera">Cliente de</label><select id="cCartera" data-notr>${VISTAS.map(k=>`<option value="${esc(k)}"${k===carteraDe(cl)?" selected":""}>${esc(k?duenoNombre(k):"Mío (yo le vendo)")}</option>`).join("")}</select><span class="muted small">Los del equipo de una marca no aparecen en Mi cartera ni en tu sueldo; sí en la cartera de esa marca.</span></div>`:""}
    <div class="field full"><span class="lbl">Le vendo</span><div class="checks"><label><input type="checkbox" id="mC" ${(cl.marcas||[]).includes("cerveza")?"checked":""}> Cerveza El Growler</label><label><input type="checkbox" id="mK" ${(cl.marcas||[]).includes("kombucha")?"checked":""}> Kombucha Animal Social</label></div></div>
    <div class="field full"><span class="lbl">Días fijos de visita (opcional)</span><div class="checks">${WEEK_ORDER.map(w=>`<label><input type="checkbox" data-dv="${w}" ${(cl.diasVisita||[]).map(String).includes(String(w))?"checked":""}> ${DIAS[w]}</label>`).join("")}</div></div>
    <div class="field"><label for="cHorario">Mejor horario</label><input id="cHorario" value="${esc(cl.horario)}" placeholder="Ej: 11 a 13 h, abre 18:00"></div>
@@ -2401,7 +2401,7 @@ function clientOptions(cid){return [...S.clientes].sort((a,b)=>a.nombre.localeCo
 
 function actForm(clienteId,actId){
   if(!S.clientes.length){toast("Primero agrega un cliente");clientForm();return}
-  const a=actId?S.acts.find(x=>x.id===actId):null;
+  const a=actId?original("acts",actId):null;
   const cid=a?.clienteId||clienteId||"";
   const cl=S.clientes.find(c=>c.id===cid);
   openSheet(`<div class="row spread"><h2>${a?"Editar visita":"Registrar visita o activación"}</h2><button class="btn sm" data-act="close">Cerrar</button></div>
@@ -2935,30 +2935,49 @@ async function loadAll(){
   guardarTodo();
 }
 /* ---------- carteras ----------
-   "" = la cartera principal (la tuya). "kombucha" / "cerveza" = la cartera del equipo de esa marca
-   (clientes que agregan Raimundo y la gente que trabaje con él). Cada vista muestra una sola cartera
-   a la vez: la ruta, las tareas, el resumen, el sueldo, los índices y el asistente no se mezclan. */
+   Cada cliente es de alguien (data.cartera): "" = tuyo; "kombucha" / "cerveza" = del equipo de esa marca
+   (lo que agregan Raimundo o la gente de El Growler). Lo que ves arriba en el selector son vistas:
+   · Mi cartera: tus clientes, con todo (cerveza y kombucha).
+   · Cartera Animal Social: todos los clientes que compran kombucha, tuyos y del equipo, y SOLO los datos de
+     kombucha (ventas, visitas y muestras). Nada de cerveza.
+   · Cartera El Growler: lo mismo con la cerveza.
+   Ruta, tareas, resumen, índices y asistente usan la vista elegida. El sueldo y la meta solo se ven en Mi cartera.
+   Una cuenta por marca no tiene selector: ve directamente su marca (ya viene filtrada desde la base). */
 const MARCA_CORTA={kombucha:"Animal Social",cerveza:"El Growler"};
 const carteraDe=c=>c?.cartera||"";
-function carteraNombre(k){
-  const mk=miMarca();
-  if(!k)return mk?"Cartera Valdivia (Carlos)":"Mi cartera";
-  return mk===k?"Mi cartera":"Cartera "+(MARCA_CORTA[k]||k);
-}
-function carterasOpc(){
-  const t=S.todo?.clientes||S.clientes,mk=miMarca(),set=new Set(t.map(carteraDe));
-  if(mk)set.add(mk);else set.add("");
-  if(isAdmin())(S.perfiles||[]).forEach(p=>{if(p.marca&&p.rol!=="admin")set.add(p.marca)});
-  return [...set].sort((a,b)=>(a===(mk||"")?-1:b===(mk||"")?1:a.localeCompare(b)));
+const VISTAS=["","kombucha","cerveza"];
+function carteraNombre(k){return !k?"Mi cartera":"Cartera "+(MARCA_CORTA[k]||k)}
+const duenoNombre=k=>!k?"Mío":"Equipo "+(MARCA_CORTA[k]||k);
+function carterasOpc(){const mk=miMarca();return mk?[mk]:VISTAS}
+/* ¿una visita es de esta marca? (igual que en la base: marca anotada, local de una sola marca o muestras de ella) */
+function actDeMarca(a,c,k){
+  if(esTarea(a))return true;
+  if(Array.isArray(a.marcas)&&a.marcas.length)return a.marcas.includes(k);
+  return ((c?.marcas||[]).length===1&&c.marcas[0]===k)||(a.muestras||[]).some(m=>m.marca===k);
 }
 function filtrarCartera(){
   if(!S.todo)return;
-  const op=carterasOpc();
+  const T=S.todo,mk=miMarca();
+  if(mk){S.cartera=mk;S.clientes=T.clientes;S.ventas=T.ventas;S.acts=T.acts;return}
   if(S.cartera==null){try{S.cartera=localStorage.getItem("cartera-ver-"+(ME.user?.id||""))}catch(e){}}
-  if(S.cartera==null||!op.includes(S.cartera))S.cartera=op[0]??"";
-  const k=S.cartera,cs=S.todo.clientes.filter(c=>carteraDe(c)===k),ids=new Set(cs.map(c=>c.id));
-  S.clientes=cs;S.ventas=S.todo.ventas.filter(v=>ids.has(v.clienteId));S.acts=S.todo.acts.filter(a=>ids.has(a.clienteId));
+  if(!VISTAS.includes(S.cartera))S.cartera="";
+  const k=S.cartera;
+  if(!k){
+    const cs=T.clientes.filter(c=>!carteraDe(c)),ids=new Set(cs.map(c=>c.id));
+    S.clientes=cs;S.ventas=T.ventas.filter(v=>ids.has(v.clienteId));S.acts=T.acts.filter(a=>ids.has(a.clienteId));return;
+  }
+  const deMarca=c=>(!carteraDe(c)||carteraDe(c)===k)&&((c.marcas||[]).includes(k)||T.ventas.some(v=>v.clienteId===c.id&&v.marca===k));
+  const orig=new Map(T.clientes.map(c=>[c.id,c]));
+  // en la vista de una marca, cada cliente se muestra como si solo comprara esa marca
+  const cs=T.clientes.filter(deMarca).map(c=>({...c,marcas:[k]})),ids=new Set(cs.map(c=>c.id));
+  S.clientes=cs;
+  S.ventas=T.ventas.filter(v=>ids.has(v.clienteId)&&v.marca===k);
+  S.acts=T.acts.filter(a=>ids.has(a.clienteId)&&actDeMarca(a,orig.get(a.clienteId),k)).map(a=>esTarea(a)?a:{...a,muestras:(a.muestras||[]).filter(m=>m.marca===k)});
 }
+/* ¿este cliente se ve en la vista actual? */
+function enVista(c,k=S.cartera){if(miMarca())return true;if(!k)return !carteraDe(c);return (!carteraDe(c)||carteraDe(c)===k)&&(c.marcas||[]).includes(k)}
+/* para editar o guardar siempre se usa el registro completo (con todas sus marcas), no la vista filtrada */
+const original=(col,id)=>(S.todo?.[col]||S[col]||[]).find(x=>x.id===id);
 function guardarTodo(){S.todo={clientes:S.clientes,ventas:S.ventas,acts:S.acts};filtrarCartera()}
 function cambiarCartera(k){
   S.cartera=k;try{localStorage.setItem("cartera-ver-"+(ME.user?.id||""),k)}catch(e){}
@@ -2991,7 +3010,7 @@ const DB={
   // cuenta de marca: el servidor revisa permiso, marca y que no toque lo que no ve
   marca:(col,id,data)=>{if(!["clientes","ventas","actividades"].includes(col))return Promise.reject(new Error("Tu cuenta no puede cambiar esto"));
     const r=rowFor(col,data);return chk(SB.rpc("marca_guardar",{p_tabla:col,p_id:id||null,p_cliente:r.cliente_id||null,p_data:r.data}))},
-  update:(col,id,patch)=>{const cur=S[LOCAL[col]].find(x=>x.id===id);if(!cur)throw new Error("Registro no encontrado");return DB.set(col,id,{...cur,...patch})},
+  update:(col,id,patch)=>{const cur=original(LOCAL[col],id);if(!cur)throw new Error("Registro no encontrado");return DB.set(col,id,{...cur,...patch})},
   delete:(col,id)=>soloMira()?Promise.reject(new Error("Tu cuenta no puede borrar")):chk(SB.from(TBL[col]).delete().eq("id",id)),
   setCfg:cfg=>chk(SB.from("config").update({data:cfg}).eq("id",1))
 };
@@ -3035,8 +3054,8 @@ function exportarCSV(){
     ...[...S.ventas].sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")).map(v=>{const sub=v.subtotal??(v.items||[]).reduce((s,it)=>s+(it.cant||0)*(it.netoU||0),0);
       return[v.fecha,cn(v.clienteId),v.marca,sinHtml(itemsTexto(v.items,v.marca,false)),v.litros,v.cajas,Math.round(sub),Math.round(sub-(v.neto||0)),sinHtml(descTexto(v)),Math.round(v.neto),impDe(v).iva,impDe(v).ila,Math.round(totalV(v)),sinHtml(empaqueTexto(v)),v.vence,v.pagado?"sí":"no",v.fechaPago,v.factura,nombreDe(v.creado_por)]})];
   descargar(`ventas-${today()}.csv`,"﻿"+csv(ventas),"text/csv");
-  const cl=[["Nombre","Estado","Motivo inactivo","Inactivo desde","Detalle inactivo","Pago cerveza","Pago kombucha","Importancia","Tipo","Zona","Marcas","Asignado a","Vendedor","Cartera","Contacto pedidos","Teléfono pedidos","Email pedidos","Contacto pagos","Teléfono pagos","Email pagos","Dirección","Comuna","Región","Horario","Próxima acción","Qué hacer","Notas","Razón social","RUT empresa","Giro","Dirección de facturación","Email","Dueño","RUT dueño","Teléfono dueño","Email dueño"],
-    ...S.clientes.map(c=>[c.nombre,c.estado,c.motivoInactivo,c.fechaInactivo,c.detalleInactivo,(c.marcas||[]).includes("cerveza")?condTexto(condPago(c,"cerveza")):"",(c.marcas||[]).includes("kombucha")?condTexto(condPago(c,"kombucha")):"",impOf(c),c.tipo,c.zona,(c.marcas||[]).join(" + "),nombreDe(ownerOf(c)),vendedorDe(c),carteraNombre(carteraDe(c)),c.contacto,c.telefono,c.emailPedidos,pagoDe(c).nombre,pagoDe(c).tel,pagoDe(c).email,c.direccion,c.comuna,c.region,c.horario,c.proxFecha,c.proxTexto,c.notas,c.razonSocial,c.rutEmpresa,c.giro,c.dirFacturacion,c.email,c.dueno,c.rutDueno,c.telDueno,c.emailDueno])];
+  const cl=[["Nombre","Estado","Motivo inactivo","Inactivo desde","Detalle inactivo","Pago cerveza","Pago kombucha","Importancia","Tipo","Zona","Marcas","Asignado a","Vendedor","Cliente de","Contacto pedidos","Teléfono pedidos","Email pedidos","Contacto pagos","Teléfono pagos","Email pagos","Dirección","Comuna","Región","Horario","Próxima acción","Qué hacer","Notas","Razón social","RUT empresa","Giro","Dirección de facturación","Email","Dueño","RUT dueño","Teléfono dueño","Email dueño"],
+    ...S.clientes.map(c=>[c.nombre,c.estado,c.motivoInactivo,c.fechaInactivo,c.detalleInactivo,(c.marcas||[]).includes("cerveza")?condTexto(condPago(c,"cerveza")):"",(c.marcas||[]).includes("kombucha")?condTexto(condPago(c,"kombucha")):"",impOf(c),c.tipo,c.zona,(c.marcas||[]).join(" + "),nombreDe(ownerOf(c)),vendedorDe(c),duenoNombre(carteraDe(c)),c.contacto,c.telefono,c.emailPedidos,pagoDe(c).nombre,pagoDe(c).tel,pagoDe(c).email,c.direccion,c.comuna,c.region,c.horario,c.proxFecha,c.proxTexto,c.notas,c.razonSocial,c.rutEmpresa,c.giro,c.dirFacturacion,c.email,c.dueno,c.rutDueno,c.telDueno,c.emailDueno])];
   setTimeout(()=>descargar(`clientes-${today()}.csv`,"﻿"+csv(cl),"text/csv"),400);
   if(S.barriles.length){const br=[["Código","Estado","Estilo","Lote","Embarrilado","Cliente","Factura","Entregado","Días en cliente","Litros","Notas"],
     ...[...S.barriles].sort(bOrden).map(b=>[b.codigo,B_EST[b.estado]||b.estado,b.estilo,b.lote,b.fechaEmbarrilado,b.clienteNombre,b.factura,b.fechaEntrega,b.estado==="en_cliente"&&b.fechaEntrega?days(b.fechaEntrega,today()):"",b.litros,b.notas])];
@@ -3195,7 +3214,7 @@ function vEquipo(){
           return `<div class="stack" style="gap:6px">${paso("¿Qué cartera ve?")}
             ${conMarca?`<select id="mk-${p.id}" data-k="marca" aria-label="Qué cartera ve" ${adm?"disabled":""} style="padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><option value="">Toda la cartera (cerveza y kombucha)</option><option value="kombucha"${mk==="kombucha"?" selected":""}>Solo kombucha Animal Social</option><option value="cerveza"${mk==="cerveza"?" selected":""}>Solo cerveza El Growler</option></select>`:`<div class="muted small">Toda la cartera (para separar por marca falta el SQL de marcas).</div>`}
             ${mk&&!adm?`<span class="muted small">Todo lo que vea o modifique es solo de la ${mkTxt}. Nunca ve nada de la otra marca, ni tus notas, comisiones o sueldo, y no puede borrar.</span>`:""}
-            ${mk&&!adm?`<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-perm="ver_cartera_principal" ${p.permisos?.ver_cartera_principal?"checked":""} style="margin-top:3px"><span><b style="font-weight:600">También ve tus clientes de ${mkTxt}</b><br><span class="muted small">Si no, solo ve la cartera ${esc(MARCA_CORTA[mk]||mk)}: los clientes que agregan esta persona y su equipo. Esos clientes tú los ves aparte, en el selector de cartera de arriba.</span></span></label>`:""}</div>
+            ${mk&&!adm?`<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-perm="ver_cartera_principal" ${p.permisos?.ver_cartera_principal?"checked":""} style="margin-top:3px"><span><b style="font-weight:600">También ve tus clientes de ${mkTxt}</b><br><span class="muted small">Si no, solo ve los clientes que agregan esta persona y su equipo. En cualquier caso solo ve datos de ${mkTxt}. Tú ves todo junto en "Cartera ${esc(MARCA_CORTA[mk]||mk)}", arriba.</span></span></label>`:""}</div>
           ${adm?`<div class="muted small">Un administrador ve y modifica todo.</div>`:mk?`
             <div class="stack" style="gap:6px"><div class="row spread">${paso(`¿Qué puede ver de la ${mkTxt}?`)}${todas("ver")}</div>${MARCA_VER.map(x=>casilla(x,"ver")).join("")}</div>
             <div class="stack" style="gap:6px"><div class="row spread">${paso(`¿Qué puede modificar de la ${mkTxt}?`)}${todas("mod")}</div>${MARCA_MOD.map(x=>casilla(x,"mod")).join("")}</div>
@@ -3975,9 +3994,9 @@ document.addEventListener("submit",async e=>{
     {const v=val("cVend");
       if(v==="__otro"){if(!cap("cVendNom")){toast("Escribe el nombre del vendedor");$("#cVendNom").focus();return}Object.assign(data,{vendedorId:"",vendedor:cap("cVendNom")})}
       else{Object.assign(data,{vendedorId:v,vendedor:nombreDe(v)||(v===ME.user?.id?ME.perfil?.nombre||"":"")});if(can("ver_todos_clientes")&&!miMarca())data.asignado_a=v}
-      const prevC=S.clientes.find(c=>c.id===f.dataset.id);
+      const prevC=original("clientes",f.dataset.id);
       data.cartera=$("#cCartera")?$("#cCartera").value:prevC?carteraDe(prevC):(miMarca()||S.cartera||"");
-      if(data.cartera&&!marcas.includes(data.cartera)){toast(`Un cliente de la ${carteraNombre(data.cartera)} tiene que comprar ${data.cartera}: márcala en "Le vendo"`);return}}
+      if(data.cartera&&!marcas.includes(data.cartera)){toast(`Un cliente del ${duenoNombre(data.cartera)} tiene que comprar ${data.cartera}: márcala en "Le vendo"`);return}}
     if(!data.nombre){toast("Falta el nombre del local");return}
     if(data.estado==="inactivo"){
       if(!val("cMotInact")){toast("Elige por qué queda inactivo");$("#cMotInact").focus();return}
@@ -3995,7 +4014,7 @@ document.addEventListener("submit",async e=>{
     Object.assign(data,{razonSocial:cap("cRazon"),rutEmpresa:rutEmp,giro:cap("cGiro"),dirFacturacion:cap("cDirFact"),email:min("cEmail"),dueno:cap("cDueno"),rutDueno,telDueno:val("cTelDueno"),emailDueno:min("cEmailDueno"),
       recepcion:val("cRecep"),gps});
     if(!marcas.length){toast("Marca al menos una: cerveza o kombucha");return}
-    const pago={...(S.clientes.find(c=>c.id===f.dataset.id)?.pago||{})};
+    const pago={...(original("clientes",f.dataset.id)?.pago||{})};
     for(const mk of marcas){
       const tipo=$("#cPagoT-"+mk)?.value;if(!tipo)continue;
       if(tipo==="contado"){pago[mk]={tipo};continue}
@@ -4006,7 +4025,7 @@ document.addEventListener("submit",async e=>{
     }
     data.pago=pago;
     const id=f.dataset.id;
-    const prev=id?{...S.clientes.find(c=>c.id===id)}:{};delete prev.id;
+    const prev=id?{...original("clientes",id)}:{};delete prev.id;
     // antes de guardar: revisar comuna y región (y lo que falte) cuando el cliente es nuevo, cambia de dirección o pasa a activo
     const falta=faltantes(data);
     if(!id||(prev.comuna||"")!==data.comuna||(prev.region||"")!==data.region||(prev.direccion||"")!==data.direccion||(falta.length&&data.estado==="activo"&&prev.estado!=="activo")){
@@ -4025,7 +4044,7 @@ document.addEventListener("submit",async e=>{
     }
     if(prev.foto&&prev.foto!==data.foto)SB.storage.from("fotos").remove([prev.foto]).catch(()=>{});
     const ok=await guard(()=>id?DB.set("clientes",id,{...prev,...data}):DB.add("clientes",{...data,creado:today()}),"Cliente guardado");
-    if(ok){if(!id&&carteraDe(data)!==S.cartera)cambiarCartera(carteraDe(data));if(id)clientDetail(id);else closeSheet()}
+    if(ok){if(!id&&!enVista(data))cambiarCartera(carteraDe(data)||(data.marcas.includes(S.cartera)?S.cartera:""));if(id)clientDetail(id);else closeSheet()}
   }
   if(f.id==="actForm"){
     const cid=val("aCli");if(!cid){toast("Elige el cliente");return}
@@ -4130,7 +4149,8 @@ const EN={
   "Buscar":"Search","Marca":"Brand","Zona":"Zone","Estado":"Status","Todas las marcas":"All brands","Todas las zonas":"All zones","Todos":"All","Todas":"All",
   "✕ Con algo atrasado":"✕ Something overdue","! Con algo por atender":"! Something to handle","✓ Al día":"✓ Up to date",
   "Vendedor":"Salesperson","Otro (sin cuenta en la app)":"Other (no app account)","Nombre del vendedor":"Salesperson's name","Ej: vendedor de Santiago":"E.g.: Santiago salesperson",
-  "Cartera":"Portfolio","Mi cartera":"My portfolio","Qué cartera ves":"Which portfolio you see","Escribe el nombre del vendedor":"Write the salesperson's name",
+  "Cartera":"Portfolio","Cliente de":"Customer of","Mío (yo le vendo)":"Mine (I sell to them)","Mío":"Mine",
+  "Los del equipo de una marca no aparecen en Mi cartera ni en tu sueldo; sí en la cartera de esa marca.":"A brand team's customers don't show in My portfolio or your pay; they do in that brand's portfolio.","Mi cartera":"My portfolio","Qué cartera ves":"Which portfolio you see","Escribe el nombre del vendedor":"Write the salesperson's name",
   "Los clientes de otra cartera no se mezclan con los tuyos en la ruta, tareas, resumen, sueldo ni índices.":"Customers from another portfolio don't mix with yours in the route, tasks, summary, pay or insights.",
   "Condición de pago":"Payment terms","Contado":"Cash","Crédito":"Credit","Paga a cuántos días":"Pays after how many days","Línea de crédito ($, con impuestos)":"Credit line ($, incl. taxes)",
   "Sin límite":"No limit","Paga al recibir: la factura vence el mismo día del pedido.":"Pays on delivery: the invoice is due the same day as the order.",
