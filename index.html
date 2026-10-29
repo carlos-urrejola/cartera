@@ -2680,9 +2680,11 @@ const MARCA_LARGA={cerveza:"Cerveza El Growler",kombucha:"Kombucha Animal Social
 const numWa=t=>{const x=String(t||"").replace(/\D/g,"");return !x?"":x.length===9?"56"+x:x.length===8?"569"+x:x};
 const waUrl=(tel,msg)=>`https://wa.me/${numWa(tel)}${msg?"?text="+encodeURIComponent(msg):""}`;
 const ocDe=m=>S.cfg.oc?.[m]||{};
-const nombreCorto=s=>String(s||"").trim().split(/\s+/)[0]||"";
+const pareceTel=s=>/^[+\d\s().-]{6,}$/.test(String(s||"").trim())&&/\d{6,}/.test(String(s||"").replace(/\D/g,""));
+/* primer nombre para saludar: si lo guardado es un teléfono (o no tiene letras) no se usa */
+const nombreCorto=s=>{const w=String(s||"").trim().split(/\s+/)[0]||"";return /[a-záéíóúüñ]/i.test(w)&&!pareceTel(s)?w.charAt(0).toUpperCase()+w.slice(1):""};
 const pagoTexto=v=>!v.vence||v.vence===v.fecha?"contra entrega":"vence el "+fdate(v.vence);
-const quienVende=()=>ME.perfil?.nombre||"";
+const quienVende=()=>capitalizar(ME.perfil?.nombre||"");
 /* líneas del pedido en texto simple (para WhatsApp) */
 function lineasPedido(v,conPrecio=true){
   return (v.items||[]).map(it=>{const i=infoItem(it),bruto=(it.cant||0)*(it.netoU||0);
@@ -2837,7 +2839,14 @@ const ICO_SHARE=`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" str
 function firmaDe(){
   const uid=ME.user?.id||"";let l={};try{l=JSON.parse(localStorage.getItem("cartera-firma-"+uid)||"{}")||{}}catch(e){}
   const f={...l,...(S.cfg.firmas?.[uid]||{})};
-  return{nombre:f.nombre||ME.perfil?.nombre||"",cargo:f.cargo||"",tel:f.tel||"",email:f.email||""};
+  return{nombre:capitalizar(f.nombre||ME.perfil?.nombre||""),cargo:f.cargo||"",tel:f.tel||"",email:f.email||"",guardada:!!(f.nombre||f.tel)};
+}
+async function firmaGuardar(fi){
+  const uid=ME.user?.id;if(!uid)return false;
+  try{localStorage.setItem("cartera-firma-"+uid,JSON.stringify(fi))}catch(e){}
+  if(!can("editar_ajustes")){toast("Firma guardada en este dispositivo");return true}
+  S.cfg={...S.cfg,firmas:{...(S.cfg.firmas||{}),[uid]:fi}};
+  return guard(()=>DB.setCfg(structuredClone(S.cfg)),"Firma guardada");
 }
 function firmaTexto(q){const f=firmaDe();return [f.nombre,f.cargo&&`${f.cargo} · ${MARCA_LARGA[q.marca]||""}`,f.tel,f.email].filter(Boolean).join("\n")}
 /* logos de las marcas: se guardan en Storage (fotos/logos/…) y en config.logos va solo la ruta */
@@ -2855,14 +2864,19 @@ async function subirLogo(m,file){
     const blob=await new Promise(r=>cv.toBlob(r,"image/png")),path=`logos/${m}-${crypto.randomUUID()}.png`;
     const{error}=await SB.storage.from("fotos").upload(path,blob,{contentType:"image/png"});if(error)throw error;
     const viejo=S.cfg.logos?.[m];collectCfgForm();S.cfg={...S.cfg,logos:{...(S.cfg.logos||{}),[m]:path}};
-    if(await guard(()=>DB.setCfg(structuredClone(S.cfg)),"Logo de "+MARCA_NOM[m]+" guardado")&&viejo)SB.storage.from("fotos").remove([viejo]).catch(()=>{});
+    const ok=await guard(()=>DB.setCfg(structuredClone(S.cfg)),"Logo de "+MARCA_NOM[m]+" guardado");if(ok&&viejo)SB.storage.from("fotos").remove([viejo]).catch(()=>{});
+    if(ok&&$("#cotFalta")&&WA_IMG?.v)cotEnvio(WA_IMG.v); // subido desde "Compartir": se vuelve a armar la imagen con el logo
+    return ok;
   }catch(e){toast(/bucket|not found/i.test(e?.message||"")?"Falta activar las fotos en Supabase":"No se pudo subir el logo. Prueba con un PNG o JPG"+(e?.message?": "+e.message:""))}
 }
 const MOTIVOS_RECH=["Precio","Ya tiene proveedor","No por ahora","No le interesa","Otro"];
 const verCots=()=>!!ME.perfil&&!soloMira()&&(can("registrar_ventas")||can("ver_cobranza"));
 const cotCli=q=>q?.clienteId?((S.todo?.clientes||S.clientes).find(c=>c.id===q.clienteId)||null):null;
 function cotNombre(q){const c=cotCli(q);return c?c.nombre:(q?.dest?.nombre||"(sin nombre)")}
-function cotContacto(q){const c=cotCli(q);return c?{nombre:c.contacto||"",tel:c.telefono||c.telDueno||"",email:c.emailPedidos||c.email||""}:{nombre:q.dest?.contacto||"",tel:q.dest?.tel||"",email:q.dest?.email||""}}
+function cotContacto(q){const c=cotCli(q);
+  const k=c?{nombre:c.contacto||"",tel:c.telefono||c.telDueno||"",email:c.emailPedidos||c.email||""}:{nombre:q.dest?.contacto||"",tel:q.dest?.tel||"",email:q.dest?.email||""};
+  if(pareceTel(k.nombre)){if(!k.tel)k.tel=k.nombre;k.nombre=""}
+  return k}
 const cotAbierta=q=>(q.estado||"enviada")==="enviada";
 const cotPuede=q=>can("registrar_ventas")&&(isAdmin()||q.creado_por===ME.user?.id||can("ver_cobranza"));
 function cotSem(q){
@@ -2914,8 +2928,8 @@ function cotForm(clienteId,cotId){
    <div class="field full"><label for="sCli">Para</label><select id="sCli"><option value="">Elige un cliente o prospecto</option><option value="__otro"${cid==="__otro"?" selected":""}>✚ Alguien que no está en la app</option>${clientOptions(cid)}</select></div>
    <div class="full form sDestBox card" style="padding:12px"${cid==="__otro"?"":" hidden"}>
      <div class="field"><label for="sDestNom">Local o persona *</label><input id="sDestNom" autocapitalize="words" autocomplete="off" value="${esc(d.nombre||"")}"></div>
-     <div class="field"><label for="sDestCon">Contacto</label><input id="sDestCon" autocapitalize="words" autocomplete="off" value="${esc(d.contacto||"")}"></div>
-     <div class="field"><label for="sDestTel">Teléfono</label><input id="sDestTel" type="tel" autocomplete="off" value="${esc(d.tel||"")}"></div>
+     <div class="field"><label for="sDestCon">Nombre del contacto</label><input id="sDestCon" autocapitalize="words" autocomplete="off" placeholder="Ej.: Camila" value="${esc(d.contacto||"")}"></div>
+     <div class="field"><label for="sDestTel">Teléfono / WhatsApp</label><input id="sDestTel" type="tel" inputmode="tel" autocomplete="off" placeholder="+56 9 1234 5678" value="${esc(d.tel||"")}"></div>
      <div class="field"><label for="sDestMail">Correo</label><input id="sDestMail" type="email" autocomplete="off" value="${esc(d.email||"")}"></div>
      <span class="full muted small">No se crea un cliente. Si te compra, al marcarla como aceptada puedes crear su ficha con estos datos.</span>
    </div>
@@ -2940,6 +2954,7 @@ async function cotGuardar(f){
   if(!sel){toast("Elige para quién es la cotización");$("#sCli").focus();return}
   const dest=otro?{nombre:capitalizar($("#sDestNom").value.trim()),contacto:capitalizar($("#sDestCon").value.trim()),tel:$("#sDestTel").value.trim(),email:$("#sDestMail").value.trim().toLowerCase()}:null;
   if(otro&&!dest.nombre){toast("Escribe a quién le cotizas");$("#sDestNom").focus();return}
+  if(dest&&pareceTel(dest.contacto)){if(!dest.tel)dest.tel=dest.contacto;dest.contacto=""}
   if(dest?.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dest.email)){toast("Revisa el correo: no parece válido");$("#sDestMail").focus();return}
   if(!it.length){toast("Agrega al menos un producto con cantidad");return}
   const old=f.dataset.id?original("cots",f.dataset.id):null,fecha=$("#sFecha").value||today();
@@ -2966,6 +2981,13 @@ function cotEnvio(q,recien=false){
   WA_IMG={v:q,blob:null,nombre:cotArchivo(q),asunto};
   openSheet(`<div class="row spread" style="flex-wrap:nowrap"><span class="row" style="gap:8px;flex-wrap:nowrap">${btnVolver()}<h2>Compartir cotización</h2></span><button class="btn sm" data-act="close">Cerrar</button></div>
     <div class="row" style="gap:8px">${recien?pill({level:"ok",short:"Cotización guardada"}):""}<span class="row small" style="gap:6px"><i class="sw ${q.marca==="cerveza"?"beer":"kom"}"></i>${esc(cotNombre(q))} · ${fdate(q.fecha)} · <b class="num">${money(totalV(q))}</b></span></div>
+    ${(()=>{const fi=firmaDe(),sinLogo=!S.cfg.logos?.[q.marca],sinFirma=!fi.guardada||!fi.tel;if(!sinLogo&&!sinFirma)return"";
+      return `<section class="card stack" id="cotFalta" style="gap:10px"><h3>Antes de compartir</h3>
+      ${sinLogo?`<div class="row spread" style="gap:8px">${pill({level:"warn",short:"Falta el logo de "+MARCA_NOM[q.marca]})}${can("editar_ajustes")?`<label class="btn sm primary">Subir logo<input type="file" accept="image/png,image/jpeg,image/webp" data-logo="${q.marca}" hidden></label>`:`<span class="muted small">Pídele al administrador que lo suba en Ajustes.</span>`}</div>`:""}
+      ${sinFirma?`<div class="stack" style="gap:8px">${pill({level:"warn",short:fi.guardada?"A tu firma le falta el teléfono":"Completa tu firma"})}<span class="muted small">Va al final de la imagen y del mensaje. Se guarda para las próximas cotizaciones.</span>
+        <div class="form"><div class="field"><label for="cfNom">Nombre</label><input id="cfNom" autocapitalize="words" value="${esc(fi.nombre)}"></div><div class="field"><label for="cfCargo">Cargo (opcional)</label><input id="cfCargo" value="${esc(fi.cargo)}" placeholder="Ej.: Ejecutivo comercial"></div>
+        <div class="field"><label for="cfTel">Teléfono</label><input id="cfTel" type="tel" inputmode="tel" value="${esc(fi.tel)}" placeholder="+56 9 1234 5678"></div><div class="field"><label for="cfMail">Correo (opcional)</label><input id="cfMail" type="email" value="${esc(fi.email)}"></div></div>
+        <div class="row"><button type="button" class="btn sm primary" data-act="cotFirma">Guardar firma</button></div></div>`:""}</section>`})()}
     <section class="card stack" style="gap:8px">
       <div class="wa-img" id="waImgBox"><span class="muted small">Armando la imagen…</span></div>
       <label class="lbl" for="waCot">Mensaje${k.nombre?` para ${esc(k.nombre)}`:""}</label>
@@ -3020,6 +3042,10 @@ async function cotAccion(a,id,t){
     case"cotEditar":cotForm(null,id);break;
     case"cotEnviar":if(q){navPush();cotEnvio(q)}break;
     case"cotCompartir":await cotCompartir();break;
+    case"cotFirma":{const fi={nombre:capitalizar($("#cfNom").value.trim()),cargo:$("#cfCargo").value.trim(),tel:$("#cfTel").value.trim(),email:$("#cfMail").value.trim().toLowerCase()};
+      if(!fi.nombre){toast("Escribe tu nombre");$("#cfNom").focus();return true}
+      if(!fi.tel){toast("Agrega tu teléfono para que te puedan contactar");$("#cfTel").focus();return true}
+      if(await firmaGuardar(fi)&&WA_IMG?.v)cotEnvio(WA_IMG.v);break}
     case"cotAceptar":cotAceptarSheet(id);break;
     case"cotRechazar":cotRechazarSheet(id);break;
     case"cotReabrir":await guard(()=>DB.update("cotizaciones",id,{estado:"enviada",motivo:"",motivoNota:"",fechaResp:""}),"Cotización reabierta");break;
