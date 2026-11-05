@@ -432,8 +432,8 @@ const DEFAULT_CFG = {
   ],
   // impuesto adicional por marca, en % sobre el neto (cerveza: ILA 20,5%); el IVA es 19% para todo
   ila:{cerveza:20.5,kombucha:0},
-  // despacho: neto por caja y por viaje de barril (el barril se cobra 2 viajes: va lleno y vuelve vacío)
-  despacho:{caja:4500,barril:4500},
+  // despacho (neto): por caja, y por barril = envío lleno + retiro vacío (cada uno con su precio)
+  despacho:{caja:4500,barrilLleno:4500,barrilVacio:4500},
   // Cómo se despacha cada formato (para el chequeo pedido vs. empaque)
   empaques:[
     {id:"e-b30",nombre:"Barril 30 L",formato:"barril",unidades:1},
@@ -1983,8 +1983,9 @@ function vAjustes(){
   </div><span class="muted small">El IVA (19%) va sobre todo el neto, despacho incluido. El ILA va solo sobre los productos, sin el despacho. Cada venta guarda los impuestos con que se registró.</span></section>
   <section class="card stack"><h3>Despacho</h3><div class="form">
     ${f("despCaja","Despacho por caja (neto)",c.despacho?.caja??4500,"100")}
-    ${f("despBarril","Despacho por barril, cada viaje (neto)",c.despacho?.barril??4500,"100","Se cobra 2 veces por barril: va lleno y vuelve vacío")}
-  </div><span class="muted small">La venta calcula el despacho sola con el empaque: cajas × precio por caja, y barriles × 2 × precio por viaje. Las latas sueltas se cuentan como cajas de 24. Precio provisorio: cámbialo cuando esté confirmado.</span></section>
+    ${f("despBarLl","Barril: envío lleno (neto)",c.despacho?.barrilLleno??4500,"100")}
+    ${f("despBarVa","Barril: retiro vacío (neto)",c.despacho?.barrilVacio??4500,"100","Cada barril se cobra lleno + vacío")}
+  </div><span class="muted small">Ventas y cotizaciones parten con estos precios y la cantidad de cajas y barriles del pedido, pero en cada una puedes cambiar la cantidad y el costo del envío. Las latas sueltas se cuentan como cajas de 24.</span></section>
   <section class="card stack"><div class="row spread"><h3>Productos y precios netos</h3><button type="button" class="btn sm" data-act="addProd">+ Producto</button></div>
   <div class="tbox"><table><thead><tr><th>Marca</th><th>Formato</th><th>Estilo / variedad</th><th>Producto</th><th class="r">Litros</th><th class="r">Neto por unidad</th><th></th></tr></thead><tbody id="prodBody">
   ${c.productos.map((p,i)=>`<tr><td><select data-k="marca"><option value="cerveza"${p.marca==="cerveza"?" selected":""}>Cerveza</option><option value="kombucha"${p.marca==="kombucha"?" selected":""}>Kombucha</option></select></td><td><select data-k="formato">${[...new Set([...FMT_VENTA,p.formato||"otro"])].map(k=>`<option value="${k}"${(p.formato||"otro")===k?" selected":""}>${FORMATOS[k]||k}</option>`).join("")}</select></td><td><input data-k="estilo" value="${esc(p.estilo||"")}" style="min-width:110px;width:100%"></td><td><input data-k="nombre" value="${esc(p.nombre)}" style="min-width:220px;width:100%"></td><td class="r"><input data-k="litros" type="number" step="0.01" value="${p.litros}" style="width:80px"></td><td class="r"><input data-k="neto" type="number" step="any" value="${p.neto}" style="width:100px"></td><td><button type="button" class="btn sm" data-act="delProd" data-i="${i}" aria-label="Quitar producto">✕</button></td></tr>`).join("")}
@@ -2465,7 +2466,7 @@ function saleForm(clienteId,ventaId,o={}){
    <div class="full card stack" id="sCheck" style="gap:8px"></div>
    <div class="full card stack" id="sCond" style="gap:8px"${v?" hidden":""}></div>
    <div class="full stack sAutBox" style="gap:6px" hidden><div class="checks"><label><input type="checkbox" id="sAut"> Pedido autorizado igual (excepción)</label></div><input id="sAutNota" placeholder="Quién lo autorizó y por qué" autocomplete="off" style="padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"></div>
-   <div class="field full"><span class="lbl">3 · Despacho</span><div class="checks"><label><input type="checkbox" id="sDesp" ${!base||(base.items||[]).some(it=>infoItem(it).formato==="despacho")?"checked":""}> Cobrar despacho</label></div><span class="muted small" id="sDespInfo"></span></div>
+   <div class="field full"><span class="lbl">3 · Despacho</span><div class="checks"><label><input type="checkbox" id="sDesp" ${!base||(base.items||[]).some(it=>infoItem(it).formato==="despacho")?"checked":""}> Cobrar despacho</label></div>${despBox(base?.items)}<span class="muted small" id="sDespInfo"></span></div>
    <div class="field"><label for="sFecha">Fecha de venta</label><input id="sFecha" type="date" value="${f}"></div>
    <div class="field"><label for="sVence">Vence el pago</label><input id="sVence" type="date" value="${v?.vence||venceDe(cl,marca,f)}"><span class="muted small" id="sCondPago"></span></div>
    <div class="field"><label for="sFact">N° factura</label><input id="sFact" value="${esc(v?.factura)}"></div>
@@ -2546,23 +2547,41 @@ function readLines(){
   }).filter(Boolean);
 }
 /* totales: descuentos por producto, luego el general (repartido entre los productos para que Índices cuadre) */
-/* despacho: se cobra por caja y por barril; el barril va lleno y vuelve vacío (2 viajes) */
-function despachoDe(packs){
-  const d=S.cfg.despacho||{},pc=Number(d.caja)||0,pb=Number(d.barril)||0;
+/* despacho: por caja y por barril (envío lleno + retiro vacío). Cantidad y precios parten automáticos
+   (empaque y Ajustes) y se pueden cambiar en cada venta o cotización; lo que se toca a mano queda fijo */
+function despBox(items){
+  const d=S.cfg.despacho||{},sv=(items||[]).filter(esDesp);
+  const caja=sv.find(x=>x.unidad==="caja"),bar=sv.find(x=>x.unidad==="barril");
+  const bN=bar?(bar.barriles??bar.cant/2):null,bLl=bar?(bar.llenoU??bar.netoU):null,bVa=bar?(bar.vacioU??bar.netoU):null;
+  const inp=(k,lab,x,def)=>`<label style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:95px"><span class="muted small">${lab}</span><input type="number" min="0" step="1" inputmode="numeric" data-dsp="${k}" value="${x!=null?x:def}"${x!=null?' data-man="1"':""}></label>`;
+  return `<div id="sDespBox" class="stack" style="gap:10px;margin:6px 0">
+    <div data-row="caja" class="stack" style="gap:4px"><b class="small">📦 Cajas</b><div class="row" style="gap:8px;flex-wrap:wrap">${inp("cajaN","Cantidad",caja?.cant,0)}${inp("cajaP","$ envío por caja",caja?.netoU,d.caja||0)}</div></div>
+    <div data-row="barril" class="stack" style="gap:4px"><b class="small">🛢️ Barriles</b><div class="row" style="gap:8px;flex-wrap:wrap">${inp("barN","Cantidad",bN,0)}${inp("barLl","$ envío lleno",bLl,d.barrilLleno||0)}${inp("barVa","$ retiro vacío",bVa,d.barrilVacio||0)}</div></div>
+    <div class="row"><button type="button" class="btn sm" data-act="despAuto">↺ Volver a lo automático</button></div></div>`;
+}
+function despachoDe(packs,marca){
+  const d=S.cfg.despacho||{},box=$("#sDespBox");
   const barriles=packs.filter(p=>p.formato==="barril").reduce((s,p)=>s+p.cant*p.unidades,0);
   const lat=packs.filter(p=>/^lata/.test(p.formato));
   const cajas=lat.filter(p=>p.unidades>1).reduce((s,p)=>s+p.cant,0)+Math.ceil(lat.filter(p=>p.unidades===1).reduce((s,p)=>s+p.cant,0)/24);
+  const auto={cajaN:cajas,cajaP:Number(d.caja)||0,barN:barriles,barLl:Number(d.barrilLleno)||0,barVa:Number(d.barrilVacio)||0};
+  const g=k=>{const el=box?.querySelector(`[data-dsp="${k}"]`);if(!el)return auto[k];if(!el.dataset.man&&el.value!==String(auto[k]))el.value=auto[k];return Math.max(0,Number(el.value)||0)};
+  const cN=g("cajaN"),cP=g("cajaP"),bN=marca==="kombucha"?0:g("barN"),bLl=g("barLl"),bVa=g("barVa");
   const it=[];
-  if(cajas&&pc)it.push({prodId:"desp-caja",nombre:"Despacho por caja",formato:"despacho",estilo:"Despacho cajas",cant:cajas,litrosU:0,netoU:pc,netoFinal:cajas*pc,unidad:"caja"});
-  if(barriles&&pb)it.push({prodId:"desp-barril",nombre:"Despacho barril (lleno y vacío)",formato:"despacho",estilo:"Despacho barriles",cant:barriles*2,litrosU:0,netoU:pb,netoFinal:barriles*2*pb,unidad:"barril",barriles});
+  if(cN&&cP)it.push({prodId:"desp-caja",nombre:"Despacho por caja",formato:"despacho",estilo:"Despacho cajas",cant:cN,litrosU:0,netoU:cP,netoFinal:cN*cP,unidad:"caja"});
+  if(bN&&(bLl+bVa))it.push({prodId:"desp-barril",nombre:"Despacho barril (lleno y vacío)",formato:"despacho",estilo:"Despacho barriles",cant:bN,litrosU:0,netoU:bLl+bVa,llenoU:bLl,vacioU:bVa,netoFinal:bN*(bLl+bVa),unidad:"barril",barriles:bN});
   return it;
 }
-const despTexto=it=>it.unidad==="barril"?`${n1(it.barriles??it.cant/2)} ${(it.barriles??it.cant/2)===1?"barril":"barriles"} lleno y vacío (${n1(it.cant)} viajes × ${money(it.netoU)})`:`${n1(it.cant)} ${it.cant===1?"caja":"cajas"} × ${money(it.netoU)}`;
+const despTexto=it=>{
+  if(it.unidad!=="barril")return `${n1(it.cant)} ${it.cant===1?"caja":"cajas"} × ${money(it.netoU)}`;
+  const b=it.barriles??it.cant/2,nb=`${n1(b)} ${b===1?"barril":"barriles"}`;
+  return it.llenoU!=null?`${nb} × (lleno ${money(it.llenoU)} + vacío ${money(it.vacioU)})`:`${nb} lleno y vacío (${n1(it.cant)} viajes × ${money(it.netoU)})`;
+};
 function calcVenta(){
   const it=readLines(),dg=readDesc($("#sDescG"));
   const sub=it.reduce((s,x)=>s+x.cant*x.netoU,0),tras=it.reduce((s,x)=>s+x.netoLinea,0),mg=montoDesc(dg,tras),k=tras?(tras-mg)/tras:0;
   it.forEach(x=>{x.netoFinal=Math.round(x.netoLinea*k*100)/100;delete x.netoLinea});
-  const dsp=$("#sDesp")?.checked?despachoDe($("#packs")?readPacks():empaqueAuto(it)):[],dm=dsp.reduce((s,x)=>s+x.netoFinal,0);
+  const dsp=$("#sDesp")?.checked?despachoDe($("#packs")?readPacks():empaqueAuto(it),$("#sMarca")?.value):[],dm=dsp.reduce((s,x)=>s+x.netoFinal,0);
   return{it,dsp,dm,dg:dg?{...dg,monto:Math.round(mg)}:null,sub,descItems:sub-tras,descG:mg,neto:Math.round((tras-mg+dm)*100)/100,litros:it.reduce((s,x)=>s+x.cant*x.litrosU,0)};
 }
 
@@ -2638,7 +2657,8 @@ function saleTotals(){
   const fila=(t,v,cls="")=>`<span class="${cls}">${t}</span><span class="num ${cls}" style="text-align:right">${v}</span>`;
   const latas=c.it.filter(i=>/^lata/.test(i.formato)).reduce((s,i)=>s+i.cant,0);
   const vx={marca:m,neto:c.neto,items:[...c.it,...c.dsp]},im=impDe(vx);
-  {const el=$("#sDespInfo");if(el){const d=S.cfg.despacho||{};el.innerHTML=!$("#sDesp").checked?"Sin cargo de despacho en esta venta.":c.dsp.length?c.dsp.map(x=>`${despTexto(x)} = <b class="num">${money(x.netoFinal)}</b>`).join("<br>"):`Se calcula con el empaque: ${money(d.caja)} por caja y ${money(d.barril)} por barril, que se cobra 2 veces (va lleno y vuelve vacío).`}}
+  {const el=$("#sDespInfo"),bx=$("#sDespBox"),on=$("#sDesp").checked;if(bx){bx.hidden=!on;const br=bx.querySelector('[data-row="barril"]');if(br)br.hidden=m==="kombucha"}
+   if(el)el.innerHTML=!on?"Sin cargo de despacho.":c.dsp.length?c.dsp.map(x=>`${despTexto(x)} = <b class="num">${money(x.netoFinal)}</b>`).join("<br>"):"Pon la cantidad de cajas o barriles y el costo del envío."}
   const com=m==="cerveza"?c.litros*S.cfg.comL:netoProd(vx)*S.cfg.pctK/100;
   $("#sTot").innerHTML=`<div class="dsum">
     ${fila("Volumen",n1(c.litros)+" L"+(m==="kombucha"?` · ${n1(latas/24)} cajas`:""))}
@@ -2938,7 +2958,7 @@ function cotForm(clienteId,cotId){
      <div id="lines" class="stack" style="gap:8px"></div>
      <div class="row"><button type="button" class="btn sm" data-act="addLine">+ Producto</button></div></div>
    <div class="field full"><span class="lbl">Descuento general (opcional)</span><span class="muted small">Se aplica sobre el total, después de los descuentos por producto.</span>${descBox(q?.descGeneral,"sDescG")}</div>
-   <div class="field full"><span class="lbl">2 · Despacho</span><div class="checks"><label><input type="checkbox" id="sDesp" ${!q||(q.items||[]).some(it=>infoItem(it).formato==="despacho")?"checked":""}> Incluir despacho</label></div><span class="muted small" id="sDespInfo"></span></div>
+   <div class="field full"><span class="lbl">2 · Despacho</span><div class="checks"><label><input type="checkbox" id="sDesp" ${!q||(q.items||[]).some(it=>infoItem(it).formato==="despacho")?"checked":""}> Incluir despacho</label></div>${despBox(q?.items)}<span class="muted small" id="sDespInfo"></span></div>
    <div class="field"><label for="sFecha">Fecha</label><input id="sFecha" type="date" value="${f}"></div>
    <div class="field"><label for="sValida">Válida hasta</label><input id="sValida" type="date" value="${q?.validez||addDays(f,COT_DIAS)}"></div>
    <div class="field full"><label for="sNota">Nota (va en el mensaje)</label><input id="sNota" value="${esc(q?.nota||"")}" placeholder="Ej.: precio de apertura, despacho martes y jueves"></div>
@@ -3172,7 +3192,7 @@ function mergeCfg(d){
   return{...D,...structuredClone(d),frec:{...D.frec,...(d.frec||{})},plazo:{...D.plazo,...(d.plazo||{})},frecVisita:{...D.frecVisita,...(d.frecVisita||{})},
     oc:{cerveza:{...D.oc.cerveza,...(d.oc?.cerveza||{})},kombucha:{...D.oc.kombucha,...(d.oc?.kombucha||{})}},
     metas:{cerveza:{...D.metas.cerveza,...(d.metas?.cerveza||{})},kombucha:{...D.metas.kombucha,...(d.metas?.kombucha||{})}},
-    zonas:d.zonas||D.zonas,zonasDia:{...D.zonasDia,...(d.zonasDia||{})},muestras:d.muestras||D.muestras,productos:migrarLatas(migrarProductos(d.productos)||D.productos).filter(p=>(p.formato||"")!=="despacho"),ila:{...D.ila,...(d.ila||{})},despacho:{...D.despacho,...(d.despacho||{})},empaques:d.empaques||D.empaques,
+    zonas:d.zonas||D.zonas,zonasDia:{...D.zonasDia,...(d.zonasDia||{})},muestras:d.muestras||D.muestras,productos:migrarLatas(migrarProductos(d.productos)||D.productos).filter(p=>(p.formato||"")!=="despacho"),ila:{...D.ila,...(d.ila||{})},despacho:(()=>{const x={...(d.despacho||{})};if(x.barril!=null){if(x.barrilLleno==null)x.barrilLleno=x.barril;if(x.barrilVacio==null)x.barrilVacio=x.barril}delete x.barril;return{...D.despacho,...x}})(),empaques:d.empaques||D.empaques,
     prefs:{permitir:{...D.prefs.permitir,...(d.prefs?.permitir||{})},defecto:{...D.prefs.defecto,...(d.prefs?.defecto||{})}}};
 }
 const strip=o=>{const{id,clienteId,asignado_a,creado_por,actualizado,_v,...rest}=o;return rest};
@@ -4060,6 +4080,7 @@ document.addEventListener("click",async e=>{
     case"delLine":t.closest(".pline,.line").remove();saleTotals();break;
     case"toggleDesc":{const b=t.closest(".pline").querySelector(".lDesc");if(b.hidden){b.hidden=false;t.textContent="Quitar descuento";b.querySelector(".dVal").focus()}else{b.hidden=true;b.querySelector(".dVal").value="";b.querySelector(".dMot").value="";b.querySelector(".dNota").value="";t.textContent="+ Descuento"}saleTotals();break}
     case"addPack":addPack();saleTotals();break;
+    case"despAuto":document.querySelectorAll("#sDespBox [data-dsp]").forEach(x=>delete x.dataset.man);saleTotals();break;
     case"sugPack":sugerirEmpaque();break;
     case"addEmp":collectCfgForm();S.cfg.empaques.push({id:"e"+Date.now().toString(36),nombre:"Nuevo empaque",formato:"lata355",unidades:12});render();break;
     case"delEmp":collectCfgForm();S.cfg.empaques.splice(Number(t.dataset.i),1);render();break;
@@ -4093,6 +4114,8 @@ document.addEventListener("click",async e=>{
       S.cfg=structuredClone(DEFAULT_CFG);await guard(()=>DB.setCfg(structuredClone(DEFAULT_CFG)),"Ajustes restablecidos");render();break;
   }
 });
+// lo que se escribe a mano en el despacho queda fijo (no lo pisa el cálculo automático)
+document.addEventListener("input",e=>{if(e.target.dataset?.dsp)e.target.dataset.man="1"},true);
 document.addEventListener("input",e=>{
   if(e.target.id==="q"){S.q=e.target.value;const pos=e.target.selectionStart;render();const q=$("#q");q.focus();q.setSelectionRange(pos,pos)}
   if(e.target.closest("#saleForm"))saleTotals();
@@ -4171,7 +4194,7 @@ function collectCfgForm(){
     muestras:rows("#muBody",["marca","nombre","unidad"]).map((o,i)=>({id:S.cfg.muestras[i]?.id||"m"+i,marca:o.marca,nombre:o.nombre,unidad:o.unidad||"lata"})),
     ...(()=>{if(!$("#fiNom")||!ME.user)return{};const fi={nombre:capitalizar($("#fiNom").value.trim()),cargo:$("#fiCargo").value.trim(),tel:$("#fiTel").value.trim(),email:$("#fiMail").value.trim().toLowerCase()};
       try{localStorage.setItem("cartera-firma-"+ME.user.id,JSON.stringify(fi))}catch(e){}return{firmas:{...(S.cfg.firmas||{}),[ME.user.id]:fi}}})(),
-    ila:{cerveza:g("ilaC")||0,kombucha:g("ilaK")||0},despacho:{caja:Math.max(0,g("despCaja")||0),barril:Math.max(0,g("despBarril")||0)},
+    ila:{cerveza:g("ilaC")||0,kombucha:g("ilaK")||0},despacho:{caja:Math.max(0,g("despCaja")||0),barrilLleno:Math.max(0,g("despBarLl")||0),barrilVacio:Math.max(0,g("despBarVa")||0)},
     empaques:rows("#empBody",["nombre","formato","unidades"]).map((o,i)=>({id:S.cfg.empaques[i]?.id||"e"+Date.now().toString(36)+i,nombre:o.nombre.trim()||"Empaque",formato:o.formato,unidades:Math.max(1,Math.round(Number(o.unidades)||1))}))};
 }
 document.addEventListener("submit",async e=>{
@@ -4328,7 +4351,7 @@ document.addEventListener("submit",async e=>{
     }
     if(prev.foto&&prev.foto!==data.foto)SB.storage.from("fotos").remove([prev.foto]).catch(()=>{});
     const antes=new Set((S.todo?.clientes||S.clientes).map(c=>c.id)),qLiga=!id&&S.cotLigar;
-    const ok=await guard(()=>id?DB.set("clientes",id,{...prev,...data}):DB.add("clientes",{...data,creado:today()}),"Cliente guardado");
+    const ok=await guard(async()=>{if(id)await DB.set("clientes",id,{...prev,...data});else{await DB.add("clientes",{...data,creado:today()});closeSheet()}},"Cliente guardado");
     if(ok){if(!id&&!enVista(data))cambiarCartera(carteraDe(data)||(data.marcas.includes(S.cartera)?S.cartera:""));if(id)clientDetail(id);else closeSheet()}
     if(ok&&qLiga){S.cotLigar=null;const nuevo=(S.todo?.clientes||S.clientes).find(c=>!antes.has(c.id)&&c.nombre===data.nombre);
       if(nuevo&&await guard(()=>DB.update("cotizaciones",qLiga,{clienteId:nuevo.id,dest:null}),"Cotización ligada al cliente nuevo")){const q=original("cots",qLiga);if(q)saleForm(nuevo.id,null,{desde:q})}}
