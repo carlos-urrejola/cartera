@@ -835,7 +835,9 @@ function render(){
   const st=$("#subtit");if(st)st.textContent=({kombucha:"Clientes de kombucha Animal Social",cerveza:"Clientes de cerveza El Growler"})[miMarca()]||"Clientes de cerveza El Growler y kombucha Animal Social";
   const cOp=ME.perfil?carterasOpc():[];
   $("#hdr").innerHTML=`${cOp.length>1?`<select id="carteraSel" aria-label="Qué cartera ves" title="Qué cartera ves" data-notr style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);max-width:46vw">${cOp.map(k=>`<option value="${esc(k)}"${k===S.cartera?" selected":""}>${esc(carteraNombre(k))}</option>`).join("")}</select>`:""}<span class="muted small">${esc(ME.perfil?.nombre||"")}</span><button class="btn redondo mas btn-registrar" data-act="chooser" aria-label="Registrar" title="Registrar">+</button>${iaOn()?`<button class="btn ia-boton" data-act="ia" aria-label="Asistente con IA" title="Asistente con IA">✨</button>`:""}<button class="btn redondo" data-act="menu" aria-label="Configuración" title="Configuración">⚙️</button>`;
-  $("#status").innerHTML=S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Estás viendo los datos guardados ${S.cacheT?"el "+fdate(S.cacheT.slice(0,10))+" a las "+S.cacheT.slice(11,16):""}; no puedes hacer cambios hasta recuperar señal.</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"";
+  {const nP=ME.user?pendLeer().length:0;
+  $("#status").innerHTML=(S.offline?`<div class="banner row spread" style="margin-bottom:12px"><span>Sin conexión. Puedes seguir registrando clientes, visitas, ventas y cotizaciones: quedan en este teléfono y se suben solos cuando vuelva la señal.${S.cacheT?` <span class="muted">Datos del ${fdate(S.cacheT.slice(0,10))} a las ${S.cacheT.slice(11,16)}.</span>`:""}</span><button class="btn sm" data-act="recheck">Reintentar</button></div>`:"")
+    +(nP?`<div class="banner row spread" style="margin-bottom:12px"><span class="row" style="gap:8px">${pill({level:"warn",short:`${nP} ${nP===1?"cambio":"cambios"} por subir`})}<span class="small">Guardado en este teléfono; se sube solo al volver la señal.</span></span>${S.offline?"":`<button class="btn sm" data-act="subirPend">Subir ahora</button>`}</div>`:"")}
   const v=$("#view");
   if(S.dbState==="loading"){v.innerHTML=`<div class="empty">Cargando tu cartera…</div>`;return}
   setTimeout(()=>{if(SB&&S.tab==="ajustes")mostrarFotos($("#view"))},0);
@@ -2620,6 +2622,25 @@ function sugerirEmpaque(silencio=false){
   if(sinEmp.length&&!silencio)toast("No hay empaque para "+sinEmp.join(", ")+". Agrégalo en Ajustes → Empaques");
   saleTotals();
 }
+/* latas que no completan cajas: por formato de lata, cuántas cajas salen y cuántas quedan sueltas */
+function cajasSueltas(it){
+  const out=[];
+  [...new Set((it||[]).filter(x=>/^lata/.test(x.formato)).map(x=>x.formato))].forEach(f=>{
+    const n=Math.round(it.filter(x=>x.formato===f).reduce((s,x)=>s+(Number(x.cant)||0),0));
+    const bs=S.cfg.empaques.filter(e=>e.formato===f&&Number(e.unidades)>1).map(e=>Number(e.unidades)).sort((a,b)=>b-a);
+    if(!bs.length||n<=0)return;let r=n,c=0;bs.forEach(u=>{const q=Math.floor(r/u);c+=q;r-=q*u});
+    if(r>0){const u=bs[bs.length-1];out.push({f,n,cajas:c,sueltas:r,falta:u-r,u})}
+  });
+  return out;
+}
+const sueltasTexto=x=>`${n1(x.n)} latas (${FORMATOS[x.f]||x.f}) = ${x.cajas?`${x.cajas} ${x.cajas===1?"caja":"cajas"} de ${x.u} + `:""}<b>${x.sueltas} sueltas</b>. Faltan ${x.falta} para completar ${x.cajas?"otra caja":"una caja"}.`;
+const sueltasClave=it=>JSON.stringify(cajasSueltas(it).map(x=>[x.f,x.n]));
+/* antes de guardar: si las latas no completan cajas, pregunta si quieres ingresarla igual */
+async function okSueltas(it,itAntes,que){
+  const sx=cajasSueltas(it);if(!sx.length)return true;
+  if(itAntes&&sueltasClave(it)===sueltasClave(itAntes))return true; // ya estaba así y no cambiaste las latas
+  return confirmar("Las latas no completan cajas",`<div class="stack" style="gap:6px">${sx.map(x=>`<div>${sueltasTexto(x)}</div>`).join("")}<div class="muted">Revisa las cantidades o ingresa ${que} igual (por ejemplo, si de verdad va con latas sueltas).</div></div>`,"Ingresar igual","Revisar cantidades");
+}
 /* empaque calculado solo (para cotizaciones): cajas grandes primero, lo que sobra va suelto */
 function empaqueAuto(it){
   const out=[];
@@ -2669,6 +2690,7 @@ function saleTotals(){
     ${fila("Neto",money(c.neto),"tot")}${fila("IVA 19%",money(im.iva))}${im.ila?fila(`${ilaNom(m)} ${n1(im.ilaPct)}%${netoDesp(vx)?' <span class="muted small">(sin despacho)</span>':""}`,money(im.ila)):""}${fila("Total con impuestos",money(totalV(vx)),"tot")}
     ${fila(`<span class="muted">Tu comisión bruta ≈${m==="kombucha"?" (al cobrar)":""}</span>`,`<span class="muted">${money(com)}</span>`)}
   </div>`;
+  {const sx=cajasSueltas(c.it);if(sx.length)$("#sTot").insertAdjacentHTML("afterbegin",`<div class="stack" style="gap:4px;margin-bottom:10px">${pill({level:"warn",short:"No completa cajas"})}${sx.map(x=>`<span class="small">${sueltasTexto(x)}</span>`).join("")}<span class="muted small">Al guardar te preguntaré si quieres ingresarla igual.</span></div>`)}
   if(esCot){const b=$("#sGuardar");if(b){const ok=c.it.length>0;b.disabled=!ok;b.title=ok?"":"Agrega al menos un producto";b.style.opacity=ok?"":".5"}return}
   // chequeo cruzado pedido vs empaque
   const estado=r=>r.dif===0?pill({level:"ok",short:"Cuadra"}):r.dif<0?pill({level:"bad",short:`Faltan ${n1(-r.dif)} ${unidadDe(r.f,-r.dif)} por empacar`}):pill({level:"bad",short:`Sobran ${n1(r.dif)} ${unidadDe(r.f,r.dif)} en el empaque`});
@@ -2978,6 +3000,7 @@ async function cotGuardar(f){
   if(dest?.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dest.email)){toast("Revisa el correo: no parece válido");$("#sDestMail").focus();return}
   if(!it.length){toast("Agrega al menos un producto con cantidad");return}
   const old=f.dataset.id?original("cots",f.dataset.id):null,fecha=$("#sFecha").value||today();
+  if(!await okSueltas(it,old?.items,"la cotización"))return;
   const latas=it.filter(x=>/^lata/.test(x.formato)).reduce((s,x)=>s+x.cant,0);
   const data={...(old||{}),clienteId:otro?"":sel,dest,marca:m,fecha,validez:$("#sValida").value||addDays(fecha,COT_DIAS),nota:$("#sNota").value.trim(),items:[...it,...c.dsp],
     litros:Math.round(c.litros*100)/100,cajas:m==="kombucha"?Math.round(latas/24*100)/100:0,subtotal:Math.round((c.sub+c.dm)*100)/100,descItems:Math.round(c.descItems),descGeneral:c.dg,neto:c.neto,
@@ -3228,6 +3251,7 @@ async function loadAll(){
   S.offline=false;S.huella=undefined;S.syncOk=new Date();
   try{localStorage.setItem(KEYCACHE(),JSON.stringify({perfil,clientes:S.clientes,ventas:S.ventas,acts:S.acts,cfg:S.cfg,equipo:S.equipo,barriles:S.barriles,cots:S.cots,t:new Date().toISOString()}))}catch(e){}
   guardarTodo();
+  if(!mk)pendLeer().forEach(op=>localAplicar(op)); // lo guardado sin señal que aún no sube
 }
 /* ---------- carteras ----------
    Cada cliente es de alguien (data.cartera): "" = tuyo; "kombucha" / "cerveza" = del equipo de esa marca
@@ -3283,7 +3307,7 @@ function cambiarCartera(k){
 const vendedorDe=c=>c?.vendedor||nombreDe(ownerOf(c))||"";
 function loadCache(){
   try{const d=JSON.parse(localStorage.getItem(KEYCACHE())||"null");if(!d)return false;
-    ME.perfil=d.perfil;S.cfg=mergeCfg(d.cfg);S.clientes=d.clientes;S.ventas=(d.ventas||[]).map(normVenta);S.acts=d.acts;S.equipo=d.equipo||[];S.barriles=d.barriles||[];S.cots=d.cots||[];S.cacheT=d.t;guardarTodo();return true}catch(e){return false}
+    ME.perfil=d.perfil;S.cfg=mergeCfg(d.cfg);S.clientes=d.clientes;S.ventas=(d.ventas||[]).map(normVenta);S.acts=d.acts;S.equipo=d.equipo||[];S.barriles=d.barriles||[];S.cots=d.cots||[];S.cacheT=d.t;guardarTodo();pendLeer().forEach(op=>localAplicar(op));return true}catch(e){return false}
 }
 const TBL={clientes:"clientes",ventas:"ventas",actividades:"actividades",barriles:"barriles",cotizaciones:"cotizaciones"};
 const LOCAL={clientes:"clientes",ventas:"ventas",actividades:"acts",barriles:"barriles",cotizaciones:"cots"};
@@ -3292,28 +3316,86 @@ function rowFor(col,data){
   if(col==="clientes"){const r={data:strip(data)};if("asignado_a" in data)r.asignado_a=data.asignado_a||null;return r}
   return{cliente_id:data.clienteId||null,data:strip(data)};
 }
-async function chk(p){const{error}=await p;if(error)throw error}
+async function chk(p){const{error}=await conTiempo(p);if(error)throw error}
+/* ---------- guardar sin duplicar y sin señal ----------
+   · Cada registro nuevo lleva su id desde el teléfono: si la señal se corta y se vuelve a mandar, la base
+     reconoce que ya lo tiene (no crea otro). Un formulario usa siempre el mismo id aunque toques Guardar varias veces.
+   · Clientes, ventas, visitas y cotizaciones se ven al tiro en la app. Si no hay señal (o está muy lenta),
+     quedan en este teléfono ("cambios por subir") y se suben solos, en orden, cuando vuelve la conexión.
+   · Mientras algo se está guardando, otro toque no hace nada. */
+const OUTBOX=new Set(["clientes","ventas","actividades","cotizaciones"]);
+const KEYPEND=()=>"cartera-pend-"+(ME.user?.id||"");
+function pendLeer(){try{return JSON.parse(localStorage.getItem(KEYPEND())||"[]")||[]}catch(e){return[]}}
+function pendGuardar(q){try{localStorage.setItem(KEYPEND(),JSON.stringify(q))}catch(e){}}
+const esRed=e=>e?.code==="RED"||/Failed to fetch|NetworkError|Load failed|network|timed? ?out/i.test(e?.message||"");
+function conTiempo(p,ms=15000){let t;return Promise.race([Promise.resolve(p).finally(()=>clearTimeout(t)),new Promise((_,r)=>{t=setTimeout(()=>{const e=new Error("La conexión está muy lenta");e.code="RED";r(e)},ms)})])}
+const nuevoId=()=>{if(S.idNuevo&&!S.idNuevoUsado){S.idNuevoUsado=true;return S.idNuevo}return crypto.randomUUID()};
+/* manda un cambio a la base (reintento = viene de la cola: sin chequeo de versión, el cambio es tuyo) */
+async function nube(op,reintento=false){
+  const T=TBL[op.col];
+  if(op.op==="add"){const{error}=await conTiempo(SB.from(T).insert({id:op.id,...rowFor(op.col,op.data)}));
+    if(error&&!(error.code==="23505"&&/pkey/i.test((error.message||"")+(error.details||""))))throw error;return}  // ya estaba guardado: no se duplica
+  if(op.op==="del"){const{error}=await conTiempo(SB.from(T).delete().eq("id",op.id));if(error)throw error;return}
+  const cur=(S.todo?.[LOCAL[op.col]]||S[LOCAL[op.col]]||[]).find(x=>x.id===op.id)||(op.col==="barriles"?S.barriles.find(x=>x.id===op.id):null),v=reintento?null:cur?._v;
+  let q=SB.from(T).update(rowFor(op.col,op.data)).eq("id",op.id);if(v)q=q.eq("actualizado",v);
+  const{data:r,error}=await conTiempo(q.select("actualizado"));if(error)throw error;
+  if(v&&!r?.length){const e=new Error("Esto se cambió en otro dispositivo mientras lo tenías abierto. Ya cargué la versión más nueva: revísala y vuelve a hacer tu cambio.");e.code="CONFLICTO";throw e}
+  if(cur&&r?.[0])cur._v=r[0].actualizado;
+  return r?.[0]?.actualizado;
+}
+/* el registro como queda en la app (igual que si viniera de la base) */
+function aFila(col,data,prev){
+  const base={...strip(data),id:data.id};
+  if(col==="clientes")return{...base,asignado_a:"asignado_a" in data?data.asignado_a||null:prev?.asignado_a??null,creado_por:prev?.creado_por||ME.user?.id,_v:prev?._v};
+  const r={...base,clienteId:data.clienteId||null,creado_por:prev?.creado_por||ME.user?.id,_v:prev?._v};
+  return col==="ventas"?normVenta(r):r;
+}
+function localAplicar(op,v){
+  const T=S.todo,k=LOCAL[op.col];if(!T||!Array.isArray(T[k]))return;
+  if(op.op==="del"){T[k]=T[k].filter(x=>x.id!==op.id);
+    if(op.col==="clientes"){T.ventas=T.ventas.filter(x=>x.clienteId!==op.id);T.acts=T.acts.filter(x=>x.clienteId!==op.id);if(T.cots)T.cots=T.cots.map(q=>q.clienteId===op.id?{...q,clienteId:""}:q)}}
+  else{const i=T[k].findIndex(x=>x.id===op.id),row=aFila(op.col,op.data,i>=0?T[k][i]:null);if(v)row._v=v;if(i>=0)T[k][i]=row;else T[k].push(row)}
+  filtrarCartera();
+}
+function encolar(op){const q=pendLeer();q.push({...op,t:Date.now()});pendGuardar(q);localAplicar(op);S.sinRed=true}
+async function escribir(op){
+  S.wCuenta=(S.wCuenta||0)+1;
+  if(!OUTBOX.has(op.col)){S.wDirecta=true;return nube(op)}
+  if(S.offline||pendLeer().length){encolar(op);if(!S.offline)setTimeout(()=>subirPendientes(),0);return}  // detrás de lo pendiente, para respetar el orden
+  try{const v=await nube(op);localAplicar(op,v)}
+  catch(e){if(!esRed(e))throw e;encolar(op)}
+}
+/* sube lo que quedó guardado sin señal, en orden; lo que la base rechaza (no la señal) se aparta y se avisa */
+async function subirPendientes(manual=false){
+  if(S.subiendo||!SB||!ME.user)return;
+  let q=pendLeer();if(!q.length){if(manual)toast("No hay cambios por subir");return}
+  S.subiendo=true;let n=0,malos=0,red=false;
+  try{
+    while(q.length){const op=q[0];
+      try{await nube(op,true)}
+      catch(e){if(esRed(e)){red=true;break}
+        malos++;try{const k="cartera-pend-rechazados-"+ME.user.id,a=JSON.parse(localStorage.getItem(k)||"[]");a.push({...op,error:e?.message||""});localStorage.setItem(k,JSON.stringify(a))}catch(_){}
+        toast("Un cambio guardado sin señal no se pudo subir: "+errMsg(e))}
+      const cur=pendLeer();if(cur[0]&&cur[0].t===op.t&&cur[0].id===op.id)cur.shift();pendGuardar(cur);q=cur;n++;
+    }
+  }finally{S.subiendo=false}
+  if(red){S.offline=S.offline||false;if(manual)toast("Todavía sin señal: se sube solo cuando vuelva la conexión");render();return}
+  if(n){try{await loadAll()}catch(e){}if(editando()||$("#modal").innerHTML)render();else refresh();
+    const ok=n-malos;if(ok>0)toast(`☁️ Listo: ${ok===1?"se subió 1 cambio guardado":"se subieron "+ok+" cambios guardados"} sin señal`)}
+}
 const DB={
-  add:(col,data)=>soloMira()?DB.marca(col,null,data):chk(SB.from(TBL[col]).insert(rowFor(col,data))),
-  set:(col,id,data)=>soloMira()?DB.marca(col,id,data):DB.setNube(col,id,data),
-  /* guarda solo si nadie lo cambió desde otro dispositivo desde que se cargó aquí (si no, avisa y no pisa lo nuevo) */
-  setNube:async(col,id,data)=>{
-    const cur=S[LOCAL[col]]?.find(x=>x.id===id),v=cur?._v;
-    let q=SB.from(TBL[col]).update(rowFor(col,data)).eq("id",id);if(v)q=q.eq("actualizado",v);
-    const{data:r,error}=await q.select("actualizado");if(error)throw error;
-    if(v&&!r?.length){const e=new Error("Esto se cambió en otro dispositivo mientras lo tenías abierto. Ya cargué la versión más nueva: revísala y vuelve a hacer tu cambio.");e.code="CONFLICTO";throw e}
-    if(cur&&r?.[0])cur._v=r[0].actualizado;
-  },
+  add:async(col,data)=>{if(soloMira())return DB.marca(col,null,data);const id=data.id||nuevoId();await escribir({op:"add",col,id,data:{...data,id}});return id},
+  set:(col,id,data)=>soloMira()?DB.marca(col,id,data):escribir({op:"set",col,id,data:{...data,id}}),
   // cuenta de marca: el servidor revisa permiso, marca y que no toque lo que no ve
-  marca:(col,id,data)=>{if(!["clientes","ventas","actividades"].includes(col))return Promise.reject(new Error("Tu cuenta no puede cambiar esto"));
+  marca:(col,id,data)=>{S.wDirecta=true;if(!["clientes","ventas","actividades"].includes(col))return Promise.reject(new Error("Tu cuenta no puede cambiar esto"));
     const r=rowFor(col,data);return chk(SB.rpc("marca_guardar",{p_tabla:col,p_id:id||null,p_cliente:r.cliente_id||null,p_data:r.data}))},
-  update:(col,id,patch)=>{const cur=original(LOCAL[col],id);if(!cur)throw new Error("Registro no encontrado");return DB.set(col,id,{...cur,...patch})},
-  delete:(col,id)=>soloMira()?Promise.reject(new Error("Tu cuenta no puede borrar")):chk(SB.from(TBL[col]).delete().eq("id",id)),
-  setCfg:cfg=>chk(SB.from("config").update({data:cfg}).eq("id",1))
+  update:(col,id,patch)=>{const cur=col==="barriles"?S.barriles.find(x=>x.id===id):original(LOCAL[col],id);if(!cur)throw new Error("Registro no encontrado");return DB.set(col,id,{...cur,...patch})},
+  delete:(col,id)=>soloMira()?Promise.reject(new Error("Tu cuenta no puede borrar")):escribir({op:"del",col,id}),
+  setCfg:cfg=>{S.wDirecta=true;return chk(SB.from("config").update({data:cfg}).eq("id",1))}
 };
 function errMsg(e){
   const m=e?.message||"";
-  if(S.offline||/Failed to fetch|NetworkError|network/i.test(m))return"Sin conexión: no se guardó. Intenta cuando tengas señal.";
+  if(S.offline||esRed(e))return"Sin conexión: esto no se pudo guardar. Intenta cuando tengas señal.";
   if(e?.code==="42501"||/row-level security/i.test(m))return"No tienes permiso para hacer esto";
   if(e?.code==="P0001"||e?.code==="CONFLICTO")return m;
   if(e?.code==="23505"&&/barril/i.test(m))return"Ese código de barril ya existe";
@@ -3327,12 +3409,18 @@ function refresh(){
   else if(S.barrilAbierto&&$("#modal").innerHTML)barrilSheet(S.barrilAbierto);
 }
 async function guard(fn,okMsg){
-  if(S.offline){toast("Sin conexión: por ahora solo puedes mirar");return false}
-  try{await fn();if(okMsg)toast(okMsg);}
-  catch(e){toast(errMsg(e));try{await loadAll()}catch(_){ }refresh();return false}
+  if(S.guardando&&Date.now()-S.guardando<30000){toast("Guardando… espera un segundo");return false}
+  S.guardando=Date.now();S.wDirecta=false;S.wCuenta=0;S.sinRed=false;
+  try{await fn()}
+  catch(e){S.guardando=0;toast(errMsg(e));try{await loadAll()}catch(_){ }refresh();return false}
+  S.guardando=0;
+  if(okMsg)toast(S.sinRed?okMsg+" en este teléfono. Sin señal: se sube solo al volver la conexión":okMsg);
+  // clientes, ventas, visitas y cotizaciones ya se ven en la app: se cierra al tiro y se revisa la base por detrás
+  if(S.wCuenta&&!S.wDirecta){refresh();if(!S.sinRed&&!S.offline)recargarFondo();return true}
   try{await loadAll()}catch(e){}
   refresh();return true;
 }
+function recargarFondo(){clearTimeout(S.tFondo);S.tFondo=setTimeout(async()=>{if(S.guardando||S.subiendo)return;try{await loadAll()}catch(e){return}if(editando()||$("#modal").innerHTML)render();else refresh()},500)}
 /* respaldo */
 function descargar(nombre,contenido,tipo){
   const blob=new Blob([contenido],{type:tipo});const a=document.createElement("a");
@@ -3404,6 +3492,7 @@ async function afterLogin(){
   const ef=aplicarPrefs();
   if(ef.idioma!==LANG&&prefsEf().idioma===ef.idioma){location.reload();return}
   S.dbState="on";S.rutaDe=soloMira()?null:ME.user.id;
+  if(!S.offline)setTimeout(()=>subirPendientes(),1500);
   S.tab=visibleTabs().includes(ef.inicio)?ef.inicio:"resumen";
   render();
   bAbrirPendiente();
@@ -3457,7 +3546,8 @@ async function sincronizar(o={}){
   if(!o.forzar&&!o.manual&&Date.now()-(S.syncT||0)<5000)return false;
   S.syncOcupado=true;S.syncT=Date.now();let cambio=false;
   try{
-    if(S.offline){await loadAll();aplicarPrefs();S.syncPend=false;refresh();toast("Conexión recuperada: datos al día");return true}
+    if(S.offline){await loadAll();aplicarPrefs();S.syncPend=false;refresh();toast("Conexión recuperada: datos al día");S.syncOcupado=false;await subirPendientes();return true}
+    if(pendLeer().length&&!S.subiendo){S.syncOcupado=false;await subirPendientes();S.syncOcupado=true}
     const h=await huella();
     if(h===null){if(!o.manual&&Date.now()-(S.syncFull||0)<90000)return false;S.syncFull=Date.now();if(editando()){S.syncPend=true;return false}
       const antes=firmaLocal();await loadAll();cambio=firmaLocal()!==antes}
@@ -4005,6 +4095,7 @@ document.addEventListener("click",async e=>{
     case"lang":{const p=prefsLocal();p.idioma=t.dataset.v;try{localStorage.setItem("cartera-prefs",JSON.stringify(p));localStorage.setItem("cartera-ef",JSON.stringify({...prefsEf(),idioma:t.dataset.v}))}catch(err){}location.reload();break}
     case"authMode":authScreen(t.dataset.m);break;
     case"recheck":afterLogin();break;
+    case"subirPend":await subirPendientes(true);break;
     case"syncNow":{const c=await sincronizar({manual:true});if(!c)toast(S.offline?"Sin conexión: intenta cuando tengas señal":"Todo al día: no había cambios nuevos");if($("#modal .menu"))menuSheet();break}
     case"scope":S.scope=t.dataset.v;render();break;
     case"olvido":{const em=$("#auEmail")?.value.trim();if(!em){toast("Escribe tu correo primero");return}
@@ -4197,8 +4288,17 @@ function collectCfgForm(){
     ila:{cerveza:g("ilaC")||0,kombucha:g("ilaK")||0},despacho:{caja:Math.max(0,g("despCaja")||0),barrilLleno:Math.max(0,g("despBarLl")||0),barrilVacio:Math.max(0,g("despBarVa")||0)},
     empaques:rows("#empBody",["nombre","formato","unidades"]).map((o,i)=>({id:S.cfg.empaques[i]?.id||"e"+Date.now().toString(36)+i,nombre:o.nombre.trim()||"Empaque",formato:o.formato,unidades:Math.max(1,Math.round(Number(o.unidades)||1))}))};
 }
-document.addEventListener("submit",async e=>{
+document.addEventListener("submit",e=>{
   e.preventDefault();const f=e.target;
+  if(f.dataset.enviando){toast("Guardando… espera un segundo");return}
+  f.dataset.enviando="1";
+  if(f.id!=="authForm"&&!f.dataset.nuevoId)f.dataset.nuevoId=crypto.randomUUID();
+  S.idNuevo=f.dataset.nuevoId||null;S.idNuevoUsado=false;
+  const bs=f.id==="authForm"?[]:[...f.querySelectorAll("button[type=submit]")].map(b=>[b,b.textContent,b.disabled]);
+  bs.forEach(([b])=>{b.disabled=true;b.textContent="Guardando…"});
+  Promise.resolve(enviarForm(f)).catch(err=>toast(errMsg(err))).finally(()=>{delete f.dataset.enviando;S.idNuevo=null;bs.forEach(([b,t,d])=>{if(b.isConnected&&b.textContent==="Guardando…"){b.textContent=t;b.disabled=d}})});
+});
+async function enviarForm(f){
   if(f.id==="authForm"){
     const email=$("#auEmail").value.trim(),pw=$("#auPw").value,btn=f.querySelector("button[type=submit]");btn.disabled=true;
     if(f.dataset.mode==="registro"){
@@ -4384,6 +4484,7 @@ document.addEventListener("submit",async e=>{
     if(!it.length){toast("Agrega al menos un producto con cantidad");return}
     if(!cruce(it,packs).ok){toast("El pedido y el empaque no cuadran: revisa el chequeo");$("#sCheck").scrollIntoView({block:"center"});return}
     const pag=$("#sPag").checked;const old=f.dataset.id?S.ventas.find(v=>v.id===f.dataset.id):null;
+    if(!await okSueltas(it,old?.items,"la venta"))return;
     const latas=it.filter(x=>/^lata/.test(x.formato)).reduce((s,x)=>s+x.cant,0);
     const data={clienteId:cid,marca:m,fecha:$("#sFecha").value||today(),vence:$("#sVence").value||$("#sFecha").value,factura:$("#sFact").value.trim(),nota:$("#sNota").value.trim(),items:[...it,...c.dsp],
       litros:Math.round(c.litros*100)/100,cajas:m==="kombucha"?Math.round(latas/24*100)/100:0,subtotal:Math.round((c.sub+c.dm)*100)/100,descItems:Math.round(c.descItems),descGeneral:c.dg,neto:c.neto,empaque:packs,
@@ -4410,7 +4511,7 @@ document.addEventListener("submit",async e=>{
     await guard(()=>DB.setCfg(structuredClone(S.cfg)),"Metas guardadas");render();return;
   }
   if(f.id==="cfgForm"){collectCfgForm();await guard(()=>DB.setCfg(structuredClone(S.cfg)),"Ajustes guardados");render()}
-});
+}
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape"&&$("#modal").innerHTML)closeSheet();
   if((e.key==="Enter"||e.key===" ")&&e.target.matches?.('[role="button"][data-act],.hb-row[data-act],td[data-act]')){e.preventDefault();e.target.click()}
