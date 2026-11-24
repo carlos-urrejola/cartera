@@ -433,7 +433,7 @@ const DEFAULT_CFG = {
   // impuesto adicional por marca, en % sobre el neto (cerveza: ILA 20,5%); el IVA es 19% para todo
   ila:{cerveza:20.5,kombucha:0},
   // despacho (neto): por caja, y por barril = envío lleno + retiro vacío (cada uno con su precio)
-  despacho:{caja:4500,barrilLleno:4500,barrilVacio:4500,stgoBulto:3277,stgoCajas:2},
+  despacho:{caja:4500,barrilLleno:4500,barrilVacio:4500,stgoBulto:3900,stgoCajas:2},
   // descuento general "Por volumen": % según cajas del pedido (tramo 1 desde d1 cajas, tramo 2 desde d2)
   volumen:{d1:3,p1:5,d2:5,p2:10},
   // Cómo se despacha cada formato (para el chequeo pedido vs. empaque)
@@ -1989,7 +1989,7 @@ function vAjustes(){
     ${f("despCaja","Despacho por caja (neto)",c.despacho?.caja??4500,"100")}
     ${f("despBarLl","Barril: envío lleno (neto)",c.despacho?.barrilLleno??4500,"100")}
     ${f("despBarVa","Barril: retiro vacío (neto)",c.despacho?.barrilVacio??4500,"100","Cada barril se cobra lleno + vacío")}
-    ${f("despStgo","Santiago · Blue Express: por envío (neto)",c.despacho?.stgoBulto??3277,"100","Un envío = hasta 20 kg. Sin IVA: $3.277 + IVA = $3.900 que cobra Blue Express")}
+    ${f("despStgo","Santiago · Blue Express: por envío (neto)",c.despacho?.stgoBulto??3900,"100","Un envío = hasta 20 kg")}
     ${f("despStgoC","Cajas por envío Blue Express",c.despacho?.stgoCajas??2,"1","20 kg ≈ 2 cajas de kombucha")}
   </div><span class="muted small">Ventas y cotizaciones parten con estos precios y la cantidad de cajas y barriles del pedido, pero en cada una puedes cambiar la cantidad y el costo del envío. Las latas sueltas se cuentan como cajas de 24. Los clientes de la Región Metropolitana parten con la tarifa Blue Express (se puede cambiar en cada venta).</span></section>
   <section class="card stack"><h3>Descuento por volumen</h3><div class="form">
@@ -2584,7 +2584,7 @@ function despachoDe(packs,marca){
   const tAuto=/metropolitana|santiago/i.test(cl?.region||"")?"stgo":"local";
   if(tEl&&!tEl.dataset.man&&tEl.value!==tAuto)tEl.value=tAuto;
   const stgo=(tEl?tEl.value:tAuto)==="stgo",porB=Math.max(1,Number(d.stgoCajas)||2);
-  const auto={cajaN:stgo?Math.ceil(cajas/porB):cajas,cajaP:stgo?Number(d.stgoBulto??3277)||0:Number(d.caja)||0,barN:barriles,barLl:Number(d.barrilLleno)||0,barVa:Number(d.barrilVacio)||0};
+  const auto={cajaN:stgo?Math.ceil(cajas/porB):cajas,cajaP:stgo?Number(d.stgoBulto??3900)||0:Number(d.caja)||0,barN:barriles,barLl:Number(d.barrilLleno)||0,barVa:Number(d.barrilVacio)||0};
   if(box){const t=box.querySelector(".dCajaTit");if(t)t.textContent=stgo?`📦 Envíos Blue Express (hasta ${porB} cajas c/u · ${n1(cajas)} ${cajas===1?"caja":"cajas"})`:"📦 Cajas"}
   const g=k=>{const el=box?.querySelector(`[data-dsp="${k}"]`);if(!el)return auto[k];if(!el.dataset.man&&el.value!==String(auto[k]))el.value=auto[k];return Math.max(0,Number(el.value)||0)};
   const cN=g("cajaN"),cP=g("cajaP"),bN=marca==="kombucha"?0:g("barN"),bLl=g("barLl"),bVa=g("barVa");
